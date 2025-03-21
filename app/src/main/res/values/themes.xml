@@ -1,0 +1,51 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme. -->
+    <style name="Base.Theme.Wakey" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Customize your light theme here. -->
+        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+    </style>
+
+    <style name="Theme.Wakey" parent="Base.Theme.Wakey" />
+
+    <style name="CustomMaterialCalendarTheme" parent="ThemeOverlay.MaterialComponents.MaterialCalendar">
+        <!-- 주요 색상 설정 -->
+        <item name="colorPrimary">#2196F3</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+
+        <!-- 캘린더 헤더 색상 (상단 푸른 배경) -->
+        <item name="materialCalendarHeaderTitle">@style/CustomHeaderTitleStyle</item>
+        <item name="materialCalendarHeaderToggleButton">@style/CustomHeaderToggleButtonStyle</item>
+        <item name="materialCalendarHeaderLayout">@style/CustomHeaderLayoutStyle</item>
+
+        <!-- 달력 전체 모양 -->
+        <item name="shapeAppearanceOverlay">@style/CustomCalendarShapeOverlay</item>
+
+        <!-- 글꼴 변경 -->
+        <item name="android:fontFamily">@font/semibold</item>
+        <item name="fontFamily">@font/semibold</item>
+    </style>
+
+    <!-- 캘린더 헤더 텍스트 스타일 -->
+    <style name="CustomHeaderTitleStyle" parent="TextAppearance.MaterialComponents.Headline6">
+        <item name="android:textColor">#FFFFFF</item>
+        <item name="android:fontFamily">@font/black</item>
+        <item name="fontFamily">@font/black</item>
+    </style>
+
+    <!-- 캘린더 버튼 스타일 -->
+    <style name="CustomHeaderToggleButtonStyle" parent="Widget.MaterialComponents.Button.TextButton">
+        <item name="android:tint">#FFFFFF</item>
+    </style>
+
+    <!-- 헤더 레이아웃 스타일 -->
+    <style name="CustomHeaderLayoutStyle" parent="Widget.MaterialComponents.MaterialCalendar.HeaderLayout">
+        <item name="android:background">#2196F3</item>
+    </style>
+
+    <!-- 캘린더 전체 모양 정의 (코너 둥글기) -->
+    <style name="CustomCalendarShapeOverlay">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">20dp</item>
+    </style>
+
+</resources>
