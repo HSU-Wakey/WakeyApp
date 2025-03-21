@@ -36,6 +36,9 @@ import com.google.android.libraries.places.api.Places;
 import com.google.android.libraries.places.api.model.Place;
 import com.google.android.libraries.places.api.net.FindCurrentPlaceRequest;
 import com.google.android.libraries.places.api.net.PlacesClient;
+import com.google.android.material.datepicker.CalendarConstraints;
+import com.google.android.material.datepicker.MaterialDatePicker;
+import com.google.android.material.datepicker.MaterialPickerOnPositiveButtonClickListener;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
@@ -161,21 +164,35 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     // ⭐️ Calendar Picker : jump to any date
     private void showDatePickerDialog() {
-        DatePickerDialog datePickerDialog = new DatePickerDialog(
-                new ContextThemeWrapper(this, R.style.CustomMaterialCalendarTheme),
-                new DatePickerDialog.OnDateSetListener() {
-                    @Override
-                    public void onDateSet(DatePicker view, int year, int month, int dayOfMonth) {
-                        currentSelectedDate.set(year, month, dayOfMonth);
-                        updateDateDisplay();
-                        loadPhotosForDate(getFormattedDate());
-                    }
-                },
-                currentSelectedDate.get(Calendar.YEAR),
-                currentSelectedDate.get(Calendar.MONTH),
-                currentSelectedDate.get(Calendar.DAY_OF_MONTH)
-        );
-        datePickerDialog.show();
+        // 캘린더 빌더 생성
+        MaterialDatePicker.Builder<Long> builder = MaterialDatePicker.Builder.datePicker();
+
+        // 커스텀 테마 적용
+        builder.setTheme(R.style.CustomMaterialCalendarTheme);
+
+        // 제목 설정 및 현재 선택된 날짜로 초기화
+        builder.setTitleText("Wakey Wakey");
+        builder.setSelection(currentSelectedDate.getTimeInMillis());
+
+        // 헤더 텍스트 형식 설정 (2025, Fri Mar 21 형식)
+        CalendarConstraints.Builder constraintsBuilder = new CalendarConstraints.Builder();
+        builder.setCalendarConstraints(constraintsBuilder.build());
+
+        // DatePicker 생성
+        MaterialDatePicker<Long> materialDatePicker = builder.build();
+
+        // 날짜 선택 리스너 설정
+        materialDatePicker.addOnPositiveButtonClickListener(new MaterialPickerOnPositiveButtonClickListener<Long>() {
+            @Override
+            public void onPositiveButtonClick(Long selection) {
+                // 선택된 날짜로 설정
+                currentSelectedDate.setTimeInMillis(selection);
+                updateDateDisplay();
+                loadPhotosForDate(getFormattedDate());
+            }
+        });
+        // 대화상자 표시
+        materialDatePicker.show(getSupportFragmentManager(), "DATE_PICKER");
     }
 
     private void updateDateDisplay() {

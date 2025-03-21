@@ -40,8 +40,7 @@
             android:textAlignment="center"
             android:textColor="#000000"
             android:textSize="22sp"
-            android:textStyle="bold" />
-
+            app:fontFamily="@font/bold"/>
         <!-- Date Navigation Bar -->
         <RelativeLayout
             android:id="@+id/dateNavLayout"

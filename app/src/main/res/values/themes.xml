@@ -1,19 +1,30 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
     <style name="Base.Theme.Wakey" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your light theme here. -->
-        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+
+        <!-- 기본 색상 -->
+        <item name="colorPrimary">#007AFF</item>          <!-- 주요 색상 -->
+        <item name="colorPrimaryVariant">#116FD6</item>   <!-- 주요 색상의 어두운 버전 -->
+        <item name="colorOnPrimary">#FFFFFF</item>        <!-- 주요 색상 위의 텍스트/아이콘 색상 -->
+
+        <!-- 글꼴 설정 -->
+        <item name="android:fontFamily">@font/medium</item>
+        <item name="fontFamily">@font/medium</item>
+
+
+
     </style>
 
     <style name="Theme.Wakey" parent="Base.Theme.Wakey" />
 
     <style name="CustomMaterialCalendarTheme" parent="ThemeOverlay.MaterialComponents.MaterialCalendar">
         <!-- 주요 색상 설정 -->
-        <item name="colorPrimary">#2196F3</item>
+        <item name="colorPrimary">#007AFF</item>
         <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorOnSecondary">#2196F3</item>
 
         <!-- 캘린더 헤더 색상 (상단 푸른 배경) -->
-        <item name="materialCalendarHeaderTitle">@style/CustomHeaderTitleStyle</item>
+<!--    <item name="materialCalendarHeaderTitle">@style/CustomHeaderTitleStyle</item>-->
         <item name="materialCalendarHeaderToggleButton">@style/CustomHeaderToggleButtonStyle</item>
         <item name="materialCalendarHeaderLayout">@style/CustomHeaderLayoutStyle</item>
 
@@ -39,7 +50,7 @@
 
     <!-- 헤더 레이아웃 스타일 -->
     <style name="CustomHeaderLayoutStyle" parent="Widget.MaterialComponents.MaterialCalendar.HeaderLayout">
-        <item name="android:background">#2196F3</item>
+        <item name="android:background">#007AFF</item>
     </style>
 
     <!-- 캘린더 전체 모양 정의 (코너 둥글기) -->
