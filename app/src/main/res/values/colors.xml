@@ -3,10 +3,10 @@
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
     <color name="route_color">#2196F3</color>
-    <color name="colorPrimary">#3F51B5</color>
-    <color name="colorPrimaryDark">#303F9F</color>
+    <color name="colorPrimary">#007AFF</color>
+    <color name="colorPrimaryDark">#0072FB</color>
     <color name="colorAccent">#FF4081</color>
-    <color name="primary_color">#2196F3</color>
+    <color name="primary_color">#007AFF</color>
     <color name="secondary_color">#03A9F4</color>
     <color name="accent_color">#FF5722</color>
     <color name="background_color">#F5F5F5</color>
