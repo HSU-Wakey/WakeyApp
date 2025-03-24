@@ -2,49 +2,48 @@ package com.example.wakey;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.view.ContextThemeWrapper;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import android.Manifest;
-import android.app.DatePickerDialog;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
+import android.location.Address;
+import android.location.Geocoder;
 import android.location.Location;
-import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.view.View;
-import android.widget.DatePicker;
 import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.example.wakey.data.model.TimelineItem;
+import com.example.wakey.ui.timeline.TimelineAdapter;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
-import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.libraries.places.api.Places;
-import com.google.android.libraries.places.api.model.Place;
-import com.google.android.libraries.places.api.net.FindCurrentPlaceRequest;
 import com.google.android.libraries.places.api.net.PlacesClient;
-import com.google.android.material.datepicker.CalendarConstraints;
+import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.datepicker.MaterialDatePicker;
-import com.google.android.material.datepicker.MaterialPickerOnPositiveButtonClickListener;
+import com.google.android.material.tabs.TabLayout;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -70,6 +69,14 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private Map<String, List<PhotoInfo>> dateToPhotosMap;
     private Map<String, List<LatLng>> dateToRouteMap;
 
+    // Bottom sheet components
+    private BottomSheetBehavior<View> bottomSheetBehavior;
+    private RecyclerView timelineRecyclerView;
+    private TimelineAdapter timelineAdapter;
+    private List<TimelineItem> timelineItems = new ArrayList<>();
+    private TextView bottomSheetDateTextView;
+    private TabLayout tabLayout;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -90,7 +97,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         dateToPhotosMap = new HashMap<>();
         dateToRouteMap = new HashMap<>();
 
-        // ⭐️ Setup Google Maps : get map fragment
+        // Setup Google Maps : get map fragment
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         if (mapFragment != null) {
@@ -106,11 +113,74 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         // Initialize location services
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
 
+        // Setup bottom sheet
+        setupBottomSheet();
+
         // Setup click listeners
         setupClickListeners();
 
         // Request permissions
         requestLocationPermission();
+    }
+
+    private void setupBottomSheet() {
+        // Initialize the bottom sheet
+        View bottomSheet = findViewById(R.id.bottom_sheet);
+        bottomSheetBehavior = BottomSheetBehavior.from(bottomSheet);
+        bottomSheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
+
+        // Set up the RecyclerView for timeline
+        timelineRecyclerView = findViewById(R.id.timelineRecyclerView);
+        timelineRecyclerView.setLayoutManager(new LinearLayoutManager(this));
+        timelineAdapter = new TimelineAdapter(timelineItems);
+        timelineRecyclerView.setAdapter(timelineAdapter);
+
+        // Set up date TextView in bottom sheet
+        bottomSheetDateTextView = findViewById(R.id.bottom_sheet_date);
+
+        // Set up tab layout
+        tabLayout = findViewById(R.id.tab_layout);
+        tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
+            @Override
+            public void onTabSelected(TabLayout.Tab tab) {
+                // Handle tab selection
+                // This will be implemented in future steps
+            }
+
+            @Override
+            public void onTabUnselected(TabLayout.Tab tab) {
+                // Not needed for now
+            }
+
+            @Override
+            public void onTabReselected(TabLayout.Tab tab) {
+                // Not needed for now
+            }
+        });
+
+        // Set callback for bottom sheet state changes
+        bottomSheetBehavior.addBottomSheetCallback(new BottomSheetBehavior.BottomSheetCallback() {
+            @Override
+            public void onStateChanged(@NonNull View bottomSheet, int newState) {
+                // Optionally handle state changes
+            }
+
+            @Override
+            public void onSlide(@NonNull View bottomSheet, float slideOffset) {
+                // Optionally handle sliding animation
+            }
+        });
+
+        // Set up click listener for timeline items
+        timelineAdapter.setOnTimelineItemClickListener(new TimelineAdapter.OnTimelineItemClickListener() {
+            @Override
+            public void onTimelineItemClick(TimelineItem item, int position) {
+                // Move camera to the selected location
+                if (mMap != null && item.getLatLng() != null) {
+                    mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(item.getLatLng(), 15));
+                }
+            }
+        });
     }
 
     private void setupClickListeners() {
@@ -140,7 +210,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             }
         });
 
-        // ⭐️ Date Navigation : Calendar Picker with prevBtn and nextBtn
         // Previous date button click
         prevDateBtn.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -162,36 +231,30 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         });
     }
 
-    // ⭐️ Calendar Picker : jump to any date
+    // Calendar Picker : jump to any date
     private void showDatePickerDialog() {
-        // 캘린더 빌더 생성
+        // Create calendar builder
         MaterialDatePicker.Builder<Long> builder = MaterialDatePicker.Builder.datePicker();
 
-        // 커스텀 테마 적용
+        // Apply custom theme
         builder.setTheme(R.style.CustomMaterialCalendarTheme);
 
-        // 제목 설정 및 현재 선택된 날짜로 초기화
+        // Set title and initialize with current date
         builder.setTitleText("Wakey Wakey");
         builder.setSelection(currentSelectedDate.getTimeInMillis());
 
-        // 헤더 텍스트 형식 설정 (2025, Fri Mar 21 형식)
-        CalendarConstraints.Builder constraintsBuilder = new CalendarConstraints.Builder();
-        builder.setCalendarConstraints(constraintsBuilder.build());
-
-        // DatePicker 생성
+        // Create DatePicker
         MaterialDatePicker<Long> materialDatePicker = builder.build();
 
-        // 날짜 선택 리스너 설정
-        materialDatePicker.addOnPositiveButtonClickListener(new MaterialPickerOnPositiveButtonClickListener<Long>() {
-            @Override
-            public void onPositiveButtonClick(Long selection) {
-                // 선택된 날짜로 설정
-                currentSelectedDate.setTimeInMillis(selection);
-                updateDateDisplay();
-                loadPhotosForDate(getFormattedDate());
-            }
+        // Set date selection listener
+        materialDatePicker.addOnPositiveButtonClickListener(selection -> {
+            // Set the selected date
+            currentSelectedDate.setTimeInMillis(selection);
+            updateDateDisplay();
+            loadPhotosForDate(getFormattedDate());
         });
-        // 대화상자 표시
+
+        // Show dialog
         materialDatePicker.show(getSupportFragmentManager(), "DATE_PICKER");
     }
 
@@ -199,6 +262,11 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy.MM.dd", Locale.getDefault());
         String formattedDate = dateFormat.format(currentSelectedDate.getTime());
         dateTextView.setText(formattedDate);
+
+        // Also update date in bottom sheet
+        if (bottomSheetDateTextView != null) {
+            bottomSheetDateTextView.setText(formattedDate);
+        }
     }
 
     private String getFormattedDate() {
@@ -251,7 +319,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
     }
 
-    // ⭐️ Google Maps Callback : when map is ready, enable user location, set up marker, load photo
+    // Google Maps Callback : when map is ready
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
@@ -284,15 +352,31 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 // Show photo info when marker is clicked
                 PhotoInfo photoInfo = (PhotoInfo) marker.getTag();
                 if (photoInfo != null) {
-                    // Show photo details - could open a dialog or activity
-                    Toast.makeText(MainActivity.this, "Photo taken at: " + photoInfo.getDateTaken(), Toast.LENGTH_SHORT).show();
+                    // Expand bottom sheet to show details
+                    bottomSheetBehavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+
+                    // Highlight the corresponding timeline item
+                    highlightTimelineItem(photoInfo);
                 }
                 return false;
             }
         });
     }
 
-    // ⭐️ Scan photos with EXIF data to get location
+    // Highlight a timeline item corresponding to a photo
+    private void highlightTimelineItem(PhotoInfo photoInfo) {
+        // Find the matching timeline item
+        for (int i = 0; i < timelineItems.size(); i++) {
+            TimelineItem item = timelineItems.get(i);
+            if (item.getPhotoPath().equals(photoInfo.getFilePath())) {
+                // Scroll to this position
+                timelineRecyclerView.smoothScrollToPosition(i);
+                break;
+            }
+        }
+    }
+
+    // Scan photos with EXIF data to get location
     private void scanPhotosWithGeoData() {
         // Clear existing data
         dateToPhotosMap.clear();
@@ -367,11 +451,15 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         // Clear current markers
         mMap.clear();
 
+        // Clear timeline items
+        timelineItems.clear();
+
         // If we have photos for this date, add markers
         if (dateToPhotosMap.containsKey(dateString)) {
             List<PhotoInfo> photos = dateToPhotosMap.get(dateString);
 
             for (PhotoInfo photo : photos) {
+                // Add marker to map
                 MarkerOptions markerOptions = new MarkerOptions()
                         .position(photo.getLatLng())
                         .title("Photo");
@@ -380,6 +468,9 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 if (marker != null) {
                     marker.setTag(photo);
                 }
+
+                // Get place information for timeline
+                getPlaceInfoForPhoto(photo);
             }
 
             // Draw route if we have multiple points
@@ -401,34 +492,68 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         } else {
             Toast.makeText(this, "No photos for this date", Toast.LENGTH_SHORT).show();
         }
+
+        // Update the timeline adapter
+        if (timelineAdapter != null) {
+            timelineAdapter.updateItems(timelineItems);
+        }
     }
 
-    private void getPlaceInfoForLocation(LatLng latLng) {
-        // Check if we have the required permission
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-                != PackageManager.PERMISSION_GRANTED) {
-            return;
+    private void getPlaceInfoForPhoto(final PhotoInfo photo) {
+        // Use Geocoder to get location name for the photo
+        Geocoder geocoder = new Geocoder(this, Locale.getDefault());
+
+        try {
+            LatLng location = photo.getLatLng();
+            List<Address> addresses = geocoder.getFromLocation(
+                    location.latitude,
+                    location.longitude,
+                    1);
+
+            if (addresses != null && !addresses.isEmpty()) {
+                Address address = addresses.get(0);
+                String locationName = "";
+
+                // Try to get meaningful name (feature name, locality, or address line)
+                if (address.getFeatureName() != null && !address.getFeatureName().equals("Unnamed Road")) {
+                    locationName = address.getFeatureName();
+                } else if (address.getLocality() != null) {
+                    locationName = address.getLocality();
+                } else if (address.getAddressLine(0) != null) {
+                    locationName = address.getAddressLine(0);
+                }
+
+                // Create description based on location
+                String description = "";
+                if (address.getLocality() != null) {
+                    description = address.getLocality() + "에서 찍은 사진";
+                } else if (address.getSubLocality() != null) {
+                    description = address.getSubLocality() + "에서 찍은 사진";
+                } else {
+                    description = "이 장소에서 찍은 사진";
+                }
+
+                // Create a timeline item
+                TimelineItem item = new TimelineItem(
+                        photo.getDateTaken(),
+                        locationName,
+                        photo.getFilePath(),
+                        photo.getLatLng(),
+                        description
+                );
+
+                // Add to timeline items and sort by time
+                timelineItems.add(item);
+                Collections.sort(timelineItems, (o1, o2) -> o1.getTime().compareTo(o2.getTime()));
+
+                // Notify adapter of changes
+                if (timelineAdapter != null) {
+                    timelineAdapter.notifyDataSetChanged();
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
         }
-
-        // Create a FindCurrentPlaceRequest
-        List<Place.Field> placeFields = Arrays.asList(
-                Place.Field.NAME,
-                Place.Field.ADDRESS,
-                Place.Field.LAT_LNG,
-                Place.Field.TYPES
-        );
-
-        // Since we can't directly query for a specific location in the Places SDK,
-        // we would typically use the Nearby Search in the Places API via HTTP request
-        // For demonstration, we'll show how you might use the PlacesClient
-
-        FindCurrentPlaceRequest request = FindCurrentPlaceRequest.newInstance(placeFields);
-
-        // The actual implementation would require making an HTTP request to the Places API
-        // with the specific latitude and longitude, which is beyond the scope of this example
-        // For a complete implementation, you would use Retrofit or another HTTP client
-
-        Toast.makeText(this, "Getting place info for: " + latLng.toString(), Toast.LENGTH_SHORT).show();
     }
 
     // PhotoInfo class to store photo metadata

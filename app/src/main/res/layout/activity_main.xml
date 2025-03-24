@@ -1,123 +1,134 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
-    <!-- Google Map Fragment -->
-    <fragment
-        android:id="@+id/map"
-        android:name="com.google.android.gms.maps.SupportMapFragment"
+    <!-- Base layout container -->
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        android:layout_height="match_parent">
 
-    <!-- Top Bar with Title -->
-    <LinearLayout
-        android:id="@+id/topBarLayout"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:paddingTop="16dp"
-        android:paddingBottom="8dp"
-        android:background="@drawable/gradient_background"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+        <!-- Google Map Fragment -->
+        <fragment
+            android:id="@+id/map"
+            android:name="com.google.android.gms.maps.SupportMapFragment"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
-        <TextView
-            android:id="@+id/titleTextView"
+        <!-- Top Bar with Title -->
+        <LinearLayout
+            android:id="@+id/topBarLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:layout_marginTop="26dp"
-            android:text="인생 발자취"
-            android:textAlignment="center"
-            android:textColor="#000000"
-            android:textSize="22sp"
-            app:fontFamily="@font/bold"/>
-        <!-- Date Navigation Bar -->
-        <RelativeLayout
-            android:id="@+id/dateNavLayout"
-            android:layout_width="match_parent"
-            android:layout_height="40dp"
-            android:layout_marginTop="6dp"
-            android:layout_marginStart="70dp"
-            android:layout_marginEnd="70dp"
-            android:background="@drawable/rounded_bg">
-
-            <ImageButton
-                android:id="@+id/prevDateBtn"
-                android:layout_width="30dp"
-                android:layout_height="30dp"
-                android:layout_marginLeft="5dp"
-                android:layout_alignParentStart="true"
-                android:layout_centerVertical="true"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:src="@drawable/ic_arrow_left"
-                android:scaleType="fitCenter"
-            android:contentDescription="Previous Date" />
+            android:orientation="vertical"
+            android:paddingTop="16dp"
+            android:paddingBottom="8dp"
+            android:background="@drawable/gradient_background"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
 
             <TextView
-                android:id="@+id/dateTextView"
-                android:layout_width="wrap_content"
+                android:id="@+id/titleTextView"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_centerInParent="true"
-                android:padding="8dp"
-                android:text="2025.01.01"
+                android:layout_gravity="center"
+                android:layout_marginTop="26dp"
+                android:text="인생 발자취"
+                android:textAlignment="center"
                 android:textColor="#000000"
-                android:textSize="16sp" />
+                android:textSize="22sp"
+                app:fontFamily="@font/bold"/>
+
+            <!-- Date Navigation Bar -->
+            <RelativeLayout
+                android:id="@+id/dateNavLayout"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:layout_marginTop="6dp"
+                android:layout_marginStart="70dp"
+                android:layout_marginEnd="70dp"
+                android:background="@drawable/rounded_bg">
+
+                <ImageButton
+                    android:id="@+id/prevDateBtn"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:layout_marginLeft="5dp"
+                    android:layout_alignParentStart="true"
+                    android:layout_centerVertical="true"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_arrow_left"
+                    android:scaleType="fitCenter"
+                    android:contentDescription="Previous Date" />
+
+                <TextView
+                    android:id="@+id/dateTextView"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_centerInParent="true"
+                    android:padding="8dp"
+                    android:text="2025.01.01"
+                    android:textColor="#000000"
+                    android:textSize="16sp" />
+
+                <ImageButton
+                    android:id="@+id/nextDateBtn"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:layout_marginRight="5dp"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_arrow_right"
+                    android:scaleType="fitCenter"
+                    android:contentDescription="Next Date" />
+            </RelativeLayout>
+        </LinearLayout>
+
+        <!-- Right Side Buttons -->
+        <LinearLayout
+            android:id="@+id/rightButtonsLayout"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginTop="8dp"
+            android:layout_marginEnd="16dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/topBarLayout">
 
             <ImageButton
-                android:id="@+id/nextDateBtn"
-                android:layout_width="30dp"
-                android:layout_height="30dp"
-                android:layout_marginRight="5dp"
-                android:layout_alignParentEnd="true"
-                android:layout_centerVertical="true"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:src="@drawable/ic_arrow_right"
+                android:id="@+id/mapButton"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginBottom="2dp"
+                android:padding="8dp"
+                android:background="@drawable/white_up_bg"
+                android:src="@drawable/ic_map"
                 android:scaleType="fitCenter"
-                android:contentDescription="Next Date" />
-        </RelativeLayout>
-    </LinearLayout>
+                android:contentDescription="Map Options" />
 
-    <!-- Right Side Buttons -->
-    <LinearLayout
-        android:id="@+id/rightButtonsLayout"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:layout_marginTop="8dp"
-        android:layout_marginEnd="16dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/topBarLayout">
+            <ImageButton
+                android:id="@+id/searchButton"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:padding="8dp"
+                android:background="@drawable/white_down_bg"
+                android:src="@drawable/ic_search"
+                android:scaleType="fitCenter"
+                android:contentDescription="Search" />
+        </LinearLayout>
 
-        <ImageButton
-            android:id="@+id/mapButton"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_marginBottom="2dp"
-            android:padding="8dp"
-            android:background="@drawable/white_up_bg"
-            android:src="@drawable/ic_map"
-            android:scaleType="fitCenter"
-            android:contentDescription="Map Options" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
-        <ImageButton
-            android:id="@+id/searchButton"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:padding="8dp"
-            android:background="@drawable/white_down_bg"
-            android:src="@drawable/ic_search"
-            android:scaleType="fitCenter"
-            android:contentDescription="Search" />
-    </LinearLayout>
+    <!-- Include the bottom sheet -->
+    <include layout="@layout/bottom_sheet_timeline" />
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
