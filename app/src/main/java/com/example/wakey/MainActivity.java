@@ -12,12 +12,14 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import android.Manifest;
 import android.content.ContentValues;
+import android.content.Context;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Color;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
+import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -25,22 +27,31 @@ import android.os.Looper;
 import android.provider.MediaStore;
 import android.util.Log;
 import android.view.View;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.example.wakey.data.repository.TimelineManager;
 import com.example.wakey.data.model.PhotoInfo;
 import com.example.wakey.data.model.PlaceData;
+import com.example.wakey.data.model.SearchHistoryItem;
 import com.example.wakey.data.model.TimelineItem;
 import com.example.wakey.data.repository.PhotoRepository;
+import com.example.wakey.data.repository.SearchHistoryRepository;
 import com.example.wakey.data.util.DateUtil;
 import com.example.wakey.data.util.PlaceHelper;
 import com.example.wakey.service.CaptionService;
+import com.example.wakey.service.ClusterService;
 import com.example.wakey.service.PlaceService;
+import com.example.wakey.service.SearchService;
 import com.example.wakey.ui.map.PhotoClusterItem;
+import com.example.wakey.ui.map.PlaceDetailsBottomSheet;
 import com.example.wakey.ui.photo.PhotoDetailFragment;
+import com.example.wakey.ui.search.SearchHistoryAdapter;
 import com.example.wakey.ui.timeline.TimelineAdapter;
+import com.example.wakey.util.ToastManager;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -63,6 +74,11 @@ import com.google.android.material.tabs.TabLayout;
 import com.google.maps.android.clustering.Cluster;
 import com.google.maps.android.clustering.ClusterManager;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.Comparator;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -77,6 +93,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import androidx.exifinterface.media.ExifInterface;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 public class MainActivity extends AppCompatActivity implements OnMapReadyCallback {
 
@@ -117,10 +137,11 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     // Bottom Sheet 상태 관리 상수
     private static final int BOTTOM_SHEET_HIDDEN = 0;       // 숨김 상태
-    private static final int BOTTOM_SHEET_COLLAPSED = 1;    // 접힘 상태
-    private static final int BOTTOM_SHEET_HALF_EXPANDED = 2;  // 절반 펼침 상태
-    private static final int BOTTOM_SHEET_EXPANDED = 3;     // 완전 펼침 상태
+    private static final int BOTTOM_SHEET_HALF_EXPANDED = 1;  // 절반 펼침 상태
+    private static final int BOTTOM_SHEET_EXPANDED = 2;     // 완전 펼침 상태
     private int currentBottomSheetState = BOTTOM_SHEET_HIDDEN; // 현재 상태 추적
+
+    private TimelineManager timelineManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -131,6 +152,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         photoRepository = PhotoRepository.getInstance(this);
         placeService = PlaceService.getInstance(this);
         captionService = CaptionService.getInstance();
+        timelineManager = TimelineManager.getInstance(this);
 
         // UI 컴포넌트 초기화
         dateTextView = findViewById(R.id.dateTextView);
@@ -188,9 +210,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         bottomSheetBehavior.setHideable(true); // 숨김 가능하도록 설정
         bottomSheetBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);
 
-        // 반쯤 펼쳤을 때의 높이 비율 설정 (화면 높이의 40%)
-        bottomSheetBehavior.setHalfExpandedRatio(0.4f);
-        bottomSheetBehavior.setFitToContents(false);
+        // 반쯤 펼쳤을 때의 높이 비율 설정
+        bottomSheetBehavior.setState(BottomSheetBehavior.STATE_HALF_EXPANDED);
 
         // 타임라인 리사이클러뷰 설정
         timelineRecyclerView = findViewById(R.id.timelineRecyclerView);
@@ -227,8 +248,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 // 상태에 따라 currentBottomSheetState 업데이트
                 if (newState == BottomSheetBehavior.STATE_HIDDEN) {
                     currentBottomSheetState = BOTTOM_SHEET_HIDDEN;
-                } else if (newState == BottomSheetBehavior.STATE_COLLAPSED) {
-                    currentBottomSheetState = BOTTOM_SHEET_COLLAPSED;
                 } else if (newState == BottomSheetBehavior.STATE_HALF_EXPANDED) {
                     currentBottomSheetState = BOTTOM_SHEET_HALF_EXPANDED;
                 } else if (newState == BottomSheetBehavior.STATE_EXPANDED) {
@@ -307,8 +326,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     // Bottom Sheet 상태 전환 메소드 추가
     private void toggleBottomSheetState() {
         // 현재 상태에 따라 다음 상태로 전환
-        if (currentBottomSheetState == BOTTOM_SHEET_COLLAPSED ||
-                currentBottomSheetState == BOTTOM_SHEET_HIDDEN) {
+        if (currentBottomSheetState == BOTTOM_SHEET_HIDDEN) {
             // 접힘 또는 숨김 상태 -> 반쯤 펼침
             bottomSheetBehavior.setState(BottomSheetBehavior.STATE_HALF_EXPANDED);
         } else if (currentBottomSheetState == BOTTOM_SHEET_HALF_EXPANDED) {
@@ -436,31 +454,132 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
      * 검색 대화상자 표시
      */
     private void showSearchDialog() {
-        // 검색 대화상자 레이아웃 로드
-        View searchView = getLayoutInflater().inflate(R.layout.dialog_search, null);
+        // 검색 서비스 초기화
+        SearchService searchService = SearchService.getInstance(this);
 
-        // 검색 EditText 참조 가져오기
-        final EditText searchEditText = searchView.findViewById(R.id.searchEditText);
+        // 1. 대화상자 레이아웃 로드 - 매번 새로운 인스턴스 생성
+        View searchView = getLayoutInflater().inflate(R.layout.dialog_smart_search, null);
 
-        // 대화상자 생성
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("검색");
-        builder.setView(searchView);
+        // 2. 검색 기록 데이터 준비 - 실제 데이터 준비
+        List<SearchHistoryItem> searchHistory = SearchHistoryRepository.getInstance(this).getSearchHistory();
 
-        builder.setPositiveButton("검색", (dialog, which) -> {
-            // 검색어 가져오기
-            String query = searchEditText.getText().toString().trim();
+        // 데이터가 없으면 더미 데이터라도 표시
+        if (searchHistory == null || searchHistory.isEmpty()) {
+            searchHistory = new ArrayList<>();
+            searchHistory.add(new SearchHistoryItem("서울", null, System.currentTimeMillis()));
+            searchHistory.add(new SearchHistoryItem("카페", null, System.currentTimeMillis() - 3600000));
+            searchHistory.add(new SearchHistoryItem("공원", null, System.currentTimeMillis() - 7200000));
+            searchHistory.add(new SearchHistoryItem("음식점", null, System.currentTimeMillis() - 10800000));
+        }
 
-            if (!query.isEmpty()) {
-                // 검색 수행
-                performSearch(query);
+        // 3. RecyclerView 및 어댑터 설정 - 가로 스크롤로 변경
+        RecyclerView recentSearchRecyclerView = searchView.findViewById(R.id.recentSearchRecyclerView);
+        LinearLayoutManager layoutManager = new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false);
+        recentSearchRecyclerView.setLayoutManager(layoutManager);
+
+        SearchHistoryAdapter adapter = new SearchHistoryAdapter(searchHistory);
+        recentSearchRecyclerView.setAdapter(adapter);
+
+        // 4. 검색 기록 항목 클릭 리스너 설정
+        adapter.setOnHistoryItemClickListener(item -> {
+            performSearch(item.getQuery());
+            if (searchDialog != null && searchDialog.isShowing()) {
+                searchDialog.dismiss();
             }
         });
 
-        builder.setNegativeButton("취소", (dialog, which) -> dialog.dismiss());
+        // 5. 추천 검색어 설정
+        List<String> popularTerms = searchService.getPopularSearchTerms();
+        if (popularTerms == null || popularTerms.isEmpty()) {
+            popularTerms = new ArrayList<>();
+            popularTerms.add("카페");
+            popularTerms.add("공원");
+            popularTerms.add("음식점");
+        }
 
-        builder.show();
+        com.google.android.material.chip.Chip suggestionChip1 = searchView.findViewById(R.id.suggestionChip1);
+        com.google.android.material.chip.Chip suggestionChip2 = searchView.findViewById(R.id.suggestionChip2);
+        com.google.android.material.chip.Chip suggestionChip3 = searchView.findViewById(R.id.suggestionChip3);
+
+        if (popularTerms.size() >= 1) suggestionChip1.setText(popularTerms.get(0));
+        if (popularTerms.size() >= 2) suggestionChip2.setText(popularTerms.get(1));
+        if (popularTerms.size() >= 3) suggestionChip3.setText(popularTerms.get(2));
+
+        View.OnClickListener chipClickListener = v -> {
+            String chipText = ((com.google.android.material.chip.Chip) v).getText().toString();
+            performSearch(chipText);
+            if (searchDialog != null && searchDialog.isShowing()) {
+                searchDialog.dismiss();
+            }
+        };
+
+        suggestionChip1.setOnClickListener(chipClickListener);
+        suggestionChip2.setOnClickListener(chipClickListener);
+        suggestionChip3.setOnClickListener(chipClickListener);
+
+        // 6. 검색 EditText 설정
+        EditText searchEditText = searchView.findViewById(R.id.searchEditText);
+        searchEditText.setOnEditorActionListener((v, actionId, event) -> {
+            if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH) {
+                String query = searchEditText.getText().toString().trim();
+                if (!query.isEmpty()) {
+                    performSearch(query);
+                    if (searchDialog != null && searchDialog.isShowing()) {
+                        searchDialog.dismiss();
+                    }
+                }
+                return true;
+            }
+            return false;
+        });
+
+        // 7. 이전 대화상자가 있으면 제거
+        if (searchDialog != null && searchDialog.isShowing()) {
+            searchDialog.dismiss();
+            searchDialog = null;
+        }
+
+        // 8. 대화상자 생성 및 표시
+        AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.FullScreenDialogStyle);
+        builder.setView(searchView);
+
+        // 9. 대화상자 생성
+        searchDialog = builder.create();
+        if (searchDialog.getWindow() != null) {
+            searchDialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent); // 투명 배경
+            searchDialog.getWindow().setDimAmount(0.0f); // 배경 dim 효과 제거
+        }
+
+        // 10. 대화상자 표시
+        searchDialog.show();
+
+        // 11. 키보드 자동 표시 및 포커스 설정
+        searchEditText.requestFocus();
+        InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+        imm.showSoftInput(searchEditText, InputMethodManager.SHOW_IMPLICIT);
     }
+
+    // 검색 기록 가져오기 (실제 앱에서는 SharedPreferences나 DB에서 가져와야 함)
+    private List<SearchHistoryItem> getSearchHistory() {
+        List<SearchHistoryItem> history = new ArrayList<>();
+
+        // 테스트용 더미 데이터
+        history.add(new SearchHistoryItem("광주광역시 학술대회", "/path/to/image1.jpg", System.currentTimeMillis()));
+        history.add(new SearchHistoryItem("피자", "/path/to/image2.jpg", System.currentTimeMillis() - 3600000));
+        history.add(new SearchHistoryItem("2025년 여행", "/path/to/image3.jpg", System.currentTimeMillis() - 7200000));
+
+        return history;
+    }
+
+    // 검색 기록에 새 항목 추가
+    private void addToSearchHistory(String query) {
+        // 실제 구현에서는 SharedPreferences나 DB에 저장
+        // 구현 예시는 생략
+    }
+
+    // 맴버 변수 추가
+    private AlertDialog searchDialog;
+
 
     /**
      * 검색 수행
@@ -468,54 +587,32 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
      * @param query 검색어
      */
     private void performSearch(String query) {
-        // 날짜로 검색
-        if (query.matches("\\d{4}[-./]\\d{1,2}[-./]\\d{1,2}")) {
-            // 날짜 형식 정규화
-            query = query.replaceAll("[-./]", "-");
+        // 검색 서비스를 통한 검색 수행
+        SearchService searchService = SearchService.getInstance(this);
+        SearchService.SearchResult result = searchService.search(query, mMap);
 
-            // 날짜 파싱 시도
-            try {
-                SimpleDateFormat inputFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
-                Date date = inputFormat.parse(query);
 
-                if (date != null) {
-                    // 검색한 날짜로 현재 날짜 설정
-                    currentSelectedDate.setTime(date);
-                    updateDateDisplay();
-                    loadPhotosForDate(getFormattedDate());
-                    return;
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
+        if (result.isSuccess()) {
+            if (result.isDateSearch()) {
+                // 날짜 검색 결과 처리
+                Date searchDate = result.getDate();
+                currentSelectedDate.setTime(searchDate);
+                updateDateDisplay();
+                loadPhotosForDate(DateUtil.getFormattedDateString(searchDate));
+            } else if (result.isLocationSearch()) {
+                // 위치 검색 결과 처리
+                LatLng location = result.getLocation();
+                String name = result.getLocationName();
 
-        // 위치로 검색 (Geocoder 사용)
-        Geocoder geocoder = new Geocoder(this, Locale.getDefault());
-        try {
-            List<Address> addresses = geocoder.getFromLocationName(query, 1);
-
-            if (!addresses.isEmpty()) {
-                // 첫 번째 결과 가져오기
-                Address address = addresses.get(0);
-                LatLng position = new LatLng(address.getLatitude(), address.getLongitude());
-
-                // 위치로 카메라 이동
-                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(position, 14));
-
-                // 위치에 마커 추가
+                // 지도 이동 및 마커 표시
+                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(location, 14));
                 mMap.addMarker(new MarkerOptions()
-                        .position(position)
-                        .title(query));
-
-                return;
+                        .position(location)
+                        .title(name != null ? name : query));
             }
-        } catch (IOException e) {
-            e.printStackTrace();
+        } else {
+            ToastManager.getInstance().showToast("검색 결과가 없습니다: " + query);
         }
-
-        // 날짜나 위치 검색 실패
-        Toast.makeText(this, "검색 결과 없음: " + query, Toast.LENGTH_SHORT).show();
     }
 
     /**
@@ -611,7 +708,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 // 권한 허용, 사진 스캔
                 loadPhotoData();
             } else {
-                Toast.makeText(this, "앱 사용에 필요한 권한이 필요합니다", Toast.LENGTH_LONG).show();
+                ToastManager.getInstance().showToast("앱 사용에 필요한 권한이 필요합니다", Toast.LENGTH_LONG);
             }
         }
     }
@@ -676,14 +773,17 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         clusterManager.setOnClusterItemClickListener(new ClusterManager.OnClusterItemClickListener<PhotoClusterItem>() {
             @Override
             public boolean onClusterItemClick(PhotoClusterItem item) {
-                // 클러스터 항목 클릭 시 하단 시트 표시
                 PhotoInfo photoInfo = (PhotoInfo) item.getTag();
                 if (photoInfo != null) {
-                    // 하단 시트 확장
-                    bottomSheetBehavior.setState(BottomSheetBehavior.STATE_EXPANDED);
-
-                    // 해당 타임라인 항목 강조
-                    highlightTimelineItem(photoInfo);
+                    // 장소 ID가 있는 경우, 장소 세부정보 바텀시트 표시
+                    if (photoInfo.getPlaceId() != null) {
+                        PlaceDetailsBottomSheet bottomSheet = PlaceDetailsBottomSheet.newInstance(photoInfo.getPlaceId());
+                        bottomSheet.show(getSupportFragmentManager(), "PLACE_DETAILS");
+                    } else {
+                        // 장소 ID가 없는 경우, 기존 타임라인 바텀시트 표시
+                        bottomSheetBehavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+                        highlightTimelineItem(photoInfo);
+                    }
                 }
                 return false;
             }
@@ -795,13 +895,48 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         // 레포지토리에서 날짜별 사진 가져오기
         List<PhotoInfo> photos = photoRepository.getPhotosForDate(dateString);
-        List<LatLng> route = photoRepository.getRouteForDate(dateString);
 
         if (photos != null && !photos.isEmpty()) {
-            // 사진 처리 (이전과 유사)
-            processPhotos(photos);
+            // 클러스터 서비스를 통한 위치 기반 클러스터링
+            ClusterService clusterService = ClusterService.getInstance(this);
+            Map<LatLng, List<PhotoInfo>> clusters = clusterService.clusterPhotosByLocation(dateString, 100.0);
+
+            // 사진 처리 (클러스터별로)
+            for (Map.Entry<LatLng, List<PhotoInfo>> entry : clusters.entrySet()) {
+                List<PhotoInfo> clusterPhotos = entry.getValue();
+                if (!clusterPhotos.isEmpty()) {
+                    // 대표 사진 (첫 번째 사진)으로 클러스터 아이템 생성
+                    PhotoInfo representativePhoto = clusterPhotos.get(0);
+
+                    if (clusteringEnabled && clusterManager != null) {
+                        // 클러스터 아이템 생성
+                        String timeString = DateUtil.formatTime(representativePhoto.getDateTaken());
+                        PhotoClusterItem item = new PhotoClusterItem(
+                                representativePhoto.getLatLng(),
+                                timeString,
+                                clusterPhotos.size() > 1 ? clusterPhotos.size() + "개 사진" : "사진",
+                                representativePhoto
+                        );
+                        clusterManager.addItem(item);
+                    } else {
+                        // 일반 마커 생성
+                        MarkerOptions markerOptions = new MarkerOptions()
+                                .position(representativePhoto.getLatLng())
+                                .title(clusterPhotos.size() > 1 ? clusterPhotos.size() + "개 사진" : "사진");
+
+                        Marker marker = mMap.addMarker(markerOptions);
+                        if (marker != null) {
+                            marker.setTag(representativePhoto);
+                        }
+                    }
+                }
+            }
+
+            // 타임라인 생성
+            timelineItems = timelineManager.loadTimelineForDate(dateString);
 
             // 경로 그리기
+            List<LatLng> route = clusterService.generateRouteForDate(dateString);
             if (route != null && route.size() > 1) {
                 drawEnhancedRoute(route);
 
@@ -811,42 +946,19 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 }
             }
         } else {
-            Toast.makeText(this, "이 날짜에 사진이 없습니다", Toast.LENGTH_SHORT).show();
+            ToastManager.getInstance().showToast("이 날짜에 사진이 없습니다");
         }
 
         // 타임라인 어댑터 업데이트
         if (timelineAdapter != null) {
-            timelineAdapter.updateItems(timelineItems);
-        }
-    }
-
-    // 사진 처리 메소드 (기존 loadPhotosForDate 메소드에서 분리)
-    private void processPhotos(List<PhotoInfo> photos) {
-        for (PhotoInfo photo : photos) {
-            if (clusteringEnabled && clusterManager != null) {
-                // 클러스터 아이템 생성
-                String timeString = DateUtil.formatTime(photo.getDateTaken());
-                PhotoClusterItem item = new PhotoClusterItem(
-                        photo.getLatLng(),
-                        timeString,
-                        "Photo",
-                        photo
-                );
-                clusterManager.addItem(item);
-            } else {
-                // 일반 마커 생성
-                MarkerOptions markerOptions = new MarkerOptions()
-                        .position(photo.getLatLng())
-                        .title("Photo");
-
-                Marker marker = mMap.addMarker(markerOptions);
-                if (marker != null) {
-                    marker.setTag(photo);
+            // 시간순 정렬
+            Collections.sort(timelineItems, new Comparator<TimelineItem>() {
+                @Override
+                public int compare(TimelineItem o1, TimelineItem o2) {
+                    return o1.getTime().compareTo(o2.getTime());
                 }
-            }
-
-            // 위치 정보 가져오기
-            fetchAddressForPhoto(photo);
+            });
+            timelineAdapter.updateItems(timelineItems);
         }
 
         // 클러스터링 업데이트
@@ -858,6 +970,17 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     // 위치 정보 가져오기 (비동기)
     private void fetchAddressForPhoto(PhotoInfo photo) {
         Geocoder geocoder = new Geocoder(this, Locale.getDefault());
+
+        // Use Places API for more detailed information
+        LatLng photoLatLng = photo.getLatLng();
+        String placeUrl = "https://maps.googleapis.com/maps/api/place/nearbysearch/json" +
+                "?location=" + photoLatLng.latitude + "," + photoLatLng.longitude +
+                "&radius=50" +  // Small radius to find exact place
+                "&key=" + getString(R.string.google_maps_api_key);
+
+        // Use a network library like Volley or Retrofit to make this request
+        // I'll show a simplified version with AsyncTask for simplicity
+        new FindNearestPlaceTask(photo).execute(placeUrl);
 
         ExecutorService executor = Executors.newSingleThreadExecutor();
         Handler handler = new Handler(Looper.getMainLooper());
@@ -924,6 +1047,118 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 handler.post(() -> createTimelineItemWithoutPOI(photo, null));
             }
         });
+    }
+
+    // Inner class for finding nearest place
+    private class FindNearestPlaceTask extends AsyncTask<String, Void, String> {
+        private PhotoInfo photo;
+
+        FindNearestPlaceTask(PhotoInfo photo) {
+            this.photo = photo;
+        }
+
+        @Override
+        protected String doInBackground(String... urls) {
+            try {
+                URL url = new URL(urls[0]);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+
+                BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                StringBuilder result = new StringBuilder();
+                String line;
+
+                while ((line = reader.readLine()) != null) {
+                    result.append(line);
+                }
+
+                reader.close();
+                return result.toString();
+            } catch (Exception e) {
+                Log.e(TAG, "Error finding place: " + e.getMessage());
+                return null;
+            }
+        }
+
+        @Override
+        protected void onPostExecute(String result) {
+            if (result != null) {
+                try {
+                    JSONObject jsonObject = new JSONObject(result);
+                    JSONArray places = jsonObject.getJSONArray("results");
+
+                    if (places.length() > 0) {
+                        JSONObject place = places.getJSONObject(0);
+                        String placeId = place.getString("place_id");
+                        String name = place.getString("name");
+
+                        // Update the photo info with place details
+                        photo.setPlaceId(placeId);
+                        photo.setPlaceName(name);
+
+                        // If the timeline item already exists, update it
+                        for (TimelineItem item : timelineItems) {
+                            if (item.getPhotoPath() != null && item.getPhotoPath().equals(photo.getFilePath())) {
+                                // Create a new item with updated information
+                                TimelineItem updatedItem = new TimelineItem.Builder()
+                                        .setTime(item.getTime())
+                                        .setLocation(name)
+                                        .setPhotoPath(item.getPhotoPath())
+                                        .setLatLng(item.getLatLng())
+                                        .setDescription(generateDescription(photo))
+                                        .setActivityType(item.getActivityType())
+                                        .build();
+
+                                // Update the timeline
+                                timelineManager.updateTimelineItem(updatedItem);
+
+                                // Update adapter
+                                int index = timelineItems.indexOf(item);
+                                if (index >= 0) {
+                                    timelineItems.set(index, updatedItem);
+                                    timelineAdapter.notifyItemChanged(index);
+                                }
+
+                                break;
+                            }
+                        }
+                    }
+                } catch (JSONException e) {
+                    Log.e(TAG, "Error parsing place data: " + e.getMessage());
+                }
+            }
+        }
+    }
+
+    /**
+     * 사진 정보를 기반으로 설명 생성
+     *
+     * @param photo 사진 정보
+     * @return 생성된 설명 문자열
+     */
+    private String generateDescription(PhotoInfo photo) {
+        // 간단한 설명 생성
+        StringBuilder description = new StringBuilder();
+
+        // 시간 정보 추가
+        Calendar cal = Calendar.getInstance();
+        cal.setTime(photo.getDateTaken());
+        int hour = cal.get(Calendar.HOUR_OF_DAY);
+        int minute = cal.get(Calendar.MINUTE);
+
+        description.append(String.format("%02d:%02d", hour, minute));
+
+        // 장소 정보가 있으면 추가
+        if (photo.getPlaceName() != null && !photo.getPlaceName().isEmpty()) {
+            description.append("에 ").append(photo.getPlaceName()).append("에서 ");
+        } else {
+            description.append("에 ");
+        }
+
+        // 활동 정보 추가
+        description.append(inferActivityType(photo, null)).append(" 중에 촬영한 사진");
+
+        return description.toString();
     }
 
 
@@ -1065,9 +1300,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                     @Override
                     public void onPlaceSearchError(Exception e) {
                         // 검색 오류 처리
-                        Toast.makeText(MainActivity.this,
-                                "장소 검색 오류: " + e.getMessage(),
-                                Toast.LENGTH_SHORT).show();
+                        ToastManager.getInstance().showToast("장소 검색 오류: " + e.getMessage());
                     }
                 });
     }

@@ -13,6 +13,8 @@ public class PhotoInfo {
     private String lensModel;
     private boolean hasFlash;
     private float aperture;
+    private String placeName;
+    private String placeId; // Google Places API 장소 ID
 
     // 생성자
     public PhotoInfo(String filePath, Date dateTaken, LatLng latLng) {
@@ -66,5 +68,22 @@ public class PhotoInfo {
 
     public float getAperture() {
         return aperture;
+    }
+
+    public String getPlaceName() {
+        return placeName;
+    }
+
+    public String getPlaceId() {
+        return placeId;
+    }
+
+    // Setters
+    public void setPlaceName(String placeName) {
+        this.placeName = placeName;
+    }
+
+    public void setPlaceId(String placeId) {
+        this.placeId = placeId;
     }
 }

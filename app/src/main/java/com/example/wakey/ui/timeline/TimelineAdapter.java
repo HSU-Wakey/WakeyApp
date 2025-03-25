@@ -18,7 +18,9 @@ import com.example.wakey.data.model.TimelineItem;
 import com.example.wakey.data.util.DateUtil;
 import com.google.android.material.chip.Chip;
 
+import java.text.SimpleDateFormat;
 import java.util.List;
+import java.util.Locale;
 
 public class TimelineAdapter extends RecyclerView.Adapter<TimelineAdapter.ViewHolder> {
 
@@ -50,6 +52,11 @@ public class TimelineAdapter extends RecyclerView.Adapter<TimelineAdapter.ViewHo
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         TimelineItem item = items.get(position);
+
+        // Format time
+        SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
+        String formattedTime = timeFormat.format(item.getTime());
+        holder.timeTextView.setText(formattedTime);
 
         // 시간 설정
         String timeStr = DateUtil.formatTime(item.getTime());
@@ -96,6 +103,21 @@ public class TimelineAdapter extends RecyclerView.Adapter<TimelineAdapter.ViewHo
         });
     }
 
+    // Add a method to map activity types to icon resources
+    private int getActivityIcon(String activityType) {
+        if (activityType == null) return R.drawable.ic_activity_default;
+
+        switch (activityType) {
+//            case "아침 식사": return R.drawable.ic_breakfast;
+//            case "점심 식사": return R.drawable.ic_lunch;
+//            case "저녁 식사": return R.drawable.ic_dinner;
+//            case "오전 관광": return R.drawable.ic_tourism;
+//            case "오후 관광": return R.drawable.ic_tourism;
+//            case "야간 활동": return R.drawable.ic_night;
+            default: return R.drawable.ic_activity_default;
+        }
+    }
+
     @Override
     public int getItemCount() {
         return items != null ? items.size() : 0;
@@ -115,6 +137,7 @@ public class TimelineAdapter extends RecyclerView.Adapter<TimelineAdapter.ViewHo
         View timelineDot;
         Chip activityChip;
         CardView cardView;
+        ImageView activityIconView;
 
         ViewHolder(View itemView) {
             super(itemView);
@@ -126,6 +149,7 @@ public class TimelineAdapter extends RecyclerView.Adapter<TimelineAdapter.ViewHo
             timelineDot = itemView.findViewById(R.id.timelineDot);
             activityChip = itemView.findViewById(R.id.activityChip);
             cardView = (CardView) itemView.findViewById(R.id.cardView);
+            activityIconView = itemView.findViewById(R.id.activityIconView);
         }
     }
 }

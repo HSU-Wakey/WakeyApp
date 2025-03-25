@@ -135,7 +135,7 @@ public class TimelineItem implements Serializable {
         private LatLng latLng;
         private String description;
         private String activityType;
-        private float placeProbability;
+        private float placeProbability = 0.0f;
         private List<String> nearbyPOIs;
 
         public Builder setTime(Date time) {
