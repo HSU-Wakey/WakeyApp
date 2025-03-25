@@ -15,8 +15,10 @@ import android.graphics.Color;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
+import android.os.Build;
 import android.os.Bundle;
 import android.provider.MediaStore;
+import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.ImageButton;
@@ -95,6 +97,13 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private boolean showPOIs = false; // POI 표시 여부
     private static final int POI_SEARCH_RADIUS = 300; // POI 검색 반경(미터)
 
+    // Bottom Sheet 상태 관리 상수
+    private static final int BOTTOM_SHEET_HIDDEN = 0;       // 숨김 상태
+    private static final int BOTTOM_SHEET_COLLAPSED = 1;    // 접힘 상태
+    private static final int BOTTOM_SHEET_HALF_EXPANDED = 2;  // 절반 펼침 상태
+    private static final int BOTTOM_SHEET_EXPANDED = 3;     // 완전 펼침 상태
+    private int currentBottomSheetState = BOTTOM_SHEET_HIDDEN; // 현재 상태 추적
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -148,7 +157,14 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         // 하단 시트 초기화
         View bottomSheet = findViewById(R.id.bottom_sheet);
         bottomSheetBehavior = BottomSheetBehavior.from(bottomSheet);
-        bottomSheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
+
+        // 기본 상태 설정 (접힘)
+        bottomSheetBehavior.setHideable(true); // 숨김 가능하도록 설정
+        bottomSheetBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);
+
+        // 반쯤 펼쳤을 때의 높이 비율 설정 (화면 높이의 40%)
+        bottomSheetBehavior.setHalfExpandedRatio(0.4f);
+        bottomSheetBehavior.setFitToContents(false);
 
         // 타임라인 리사이클러뷰 설정
         timelineRecyclerView = findViewById(R.id.timelineRecyclerView);
@@ -178,16 +194,25 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             }
         });
 
-        // 하단 시트 상태 변경 콜백
+        // 상태 변경 리스너
         bottomSheetBehavior.addBottomSheetCallback(new BottomSheetBehavior.BottomSheetCallback() {
             @Override
             public void onStateChanged(@NonNull View bottomSheet, int newState) {
-                // 상태 변경 처리 (필요시 구현)
+                // 상태에 따라 currentBottomSheetState 업데이트
+                if (newState == BottomSheetBehavior.STATE_HIDDEN) {
+                    currentBottomSheetState = BOTTOM_SHEET_HIDDEN;
+                } else if (newState == BottomSheetBehavior.STATE_COLLAPSED) {
+                    currentBottomSheetState = BOTTOM_SHEET_COLLAPSED;
+                } else if (newState == BottomSheetBehavior.STATE_HALF_EXPANDED) {
+                    currentBottomSheetState = BOTTOM_SHEET_HALF_EXPANDED;
+                } else if (newState == BottomSheetBehavior.STATE_EXPANDED) {
+                    currentBottomSheetState = BOTTOM_SHEET_EXPANDED;
+                }
             }
 
             @Override
             public void onSlide(@NonNull View bottomSheet, float slideOffset) {
-                // 슬라이드 애니메이션 처리 (필요시 구현)
+                // 필요한 경우 슬라이드 애니메이션 처리
             }
         });
 
@@ -215,12 +240,11 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             }
         });
 
-        // 맵 버튼 클릭 - 맵 옵션 열기
+        // 맵 버튼 클릭 - 토글 Bottom Sheet 상태
         mapButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                // 맵 옵션 대화상자 표시
-                showMapOptionsDialog();
+                toggleBottomSheetState();
             }
         });
 
@@ -252,6 +276,22 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 loadPhotosForDate(getFormattedDate());
             }
         });
+    }
+
+    // Bottom Sheet 상태 전환 메소드 추가
+    private void toggleBottomSheetState() {
+        // 현재 상태에 따라 다음 상태로 전환
+        if (currentBottomSheetState == BOTTOM_SHEET_COLLAPSED ||
+                currentBottomSheetState == BOTTOM_SHEET_HIDDEN) {
+            // 접힘 또는 숨김 상태 -> 반쯤 펼침
+            bottomSheetBehavior.setState(BottomSheetBehavior.STATE_HALF_EXPANDED);
+        } else if (currentBottomSheetState == BOTTOM_SHEET_HALF_EXPANDED) {
+            // 반쯤 펼침 -> 완전히 펼침
+            bottomSheetBehavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+        } else {
+            // 완전히 펼침 -> 숨김
+            bottomSheetBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);
+        }
     }
 
     /**
@@ -506,27 +546,23 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
      * 위치 권한 요청
      */
     private void requestLocationPermission() {
-        String[] permissions = {
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.ACCESS_COARSE_LOCATION,
-                Manifest.permission.READ_EXTERNAL_STORAGE,
-                Manifest.permission.READ_MEDIA_IMAGES
-        };
+        List<String> permissions = new ArrayList<>();
+        permissions.add(Manifest.permission.ACCESS_FINE_LOCATION);
+        permissions.add(Manifest.permission.ACCESS_COARSE_LOCATION);
 
-        boolean allPermissionsGranted = true;
-        for (String permission : permissions) {
-            if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
-                allPermissionsGranted = false;
-                break;
-            }
-        }
-
-        if (!allPermissionsGranted) {
-            ActivityCompat.requestPermissions(this, permissions, LOCATION_PERMISSION_REQUEST_CODE);
+        // Android 버전에 따라 다른 권한 추가
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            permissions.add(Manifest.permission.READ_MEDIA_IMAGES);
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            permissions.add(Manifest.permission.READ_EXTERNAL_STORAGE);
         } else {
-            // 모든 권한이 이미 허용된 경우 사진 스캔
-            scanPhotosWithGeoData();
+            permissions.add(Manifest.permission.READ_EXTERNAL_STORAGE);
+            permissions.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
         }
+
+        ActivityCompat.requestPermissions(this,
+                permissions.toArray(new String[0]),
+                LOCATION_PERMISSION_REQUEST_CODE);
     }
 
     /**
@@ -675,36 +711,22 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                     String filePath = cursor.getString(dataColumnIndex);
                     long dateTakenMillis = cursor.getLong(dateTakenColumnIndex);
 
-                    // EXIF 데이터에서 GPS 정보 추출 시도
-                    try {
-                        ExifInterface exifInterface = new ExifInterface(filePath);
-                        float[] latLong = new float[2];
-                        boolean hasLatLong = exifInterface.getLatLong(latLong);
+                    // 향상된 메타데이터 추출 메소드 사용
+                    PhotoInfo photoInfo = extractPhotoInfo(filePath, dateTakenMillis);
 
-                        if (hasLatLong) {
-                            // YYYY-MM-DD 형식의 날짜 문자열 생성
-                            Date dateTaken = new Date(dateTakenMillis);
-                            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
-                            String dateString = dateFormat.format(dateTaken);
+                    if (photoInfo != null) {
+                        // YYYY-MM-DD 형식의 날짜 문자열 생성
+                        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+                        String dateString = dateFormat.format(photoInfo.getDateTaken());
 
-                            // PhotoInfo 객체 생성
-                            PhotoInfo photoInfo = new PhotoInfo(
-                                    filePath,
-                                    dateTaken,
-                                    new LatLng(latLong[0], latLong[1])
-                            );
-
-                            // 맵에 추가
-                            if (!dateToPhotosMap.containsKey(dateString)) {
-                                dateToPhotosMap.put(dateString, new ArrayList<>());
-                                dateToRouteMap.put(dateString, new ArrayList<>());
-                            }
-
-                            dateToPhotosMap.get(dateString).add(photoInfo);
-                            dateToRouteMap.get(dateString).add(photoInfo.getLatLng());
+                        // 맵에 추가
+                        if (!dateToPhotosMap.containsKey(dateString)) {
+                            dateToPhotosMap.put(dateString, new ArrayList<>());
+                            dateToRouteMap.put(dateString, new ArrayList<>());
                         }
-                    } catch (IOException e) {
-                        e.printStackTrace();
+
+                        dateToPhotosMap.get(dateString).add(photoInfo);
+                        dateToRouteMap.get(dateString).add(photoInfo.getLatLng());
                     }
                 }
             }
@@ -981,13 +1003,48 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         private String filePath; // 파일 경로
         private Date dateTaken;  // 촬영 일시
         private LatLng latLng;   // 위치 좌표
+        private String deviceModel;         // 촬영 기기 모델
+        private float focalLength;          // 초점 거리
+        private String lensModel;           // 렌즈 모델
+        private boolean hasFlash;           // 플래시 사용 여부
+        private float aperture;             // 조리개 값
 
-        public PhotoInfo(String filePath, Date dateTaken, LatLng latLng) {
+        // 생성자
+        public PhotoInfo(String filePath, Date dateTaken, LatLng latLng,
+                         String deviceModel, float focalLength, String lensModel,
+                         boolean hasFlash, float aperture) {
             this.filePath = filePath;
             this.dateTaken = dateTaken;
             this.latLng = latLng;
+            this.deviceModel = deviceModel;
+            this.focalLength = focalLength;
+            this.lensModel = lensModel;
+            this.hasFlash = hasFlash;
+            this.aperture = aperture;
         }
 
+        // getter 메소드 추가
+        public String getDeviceModel() {
+            return deviceModel;
+        }
+
+        public float getFocalLength() {
+            return focalLength;
+        }
+
+        public String getLensModel() {
+            return lensModel;
+        }
+
+        public boolean hasFlash() {
+            return hasFlash;
+        }
+
+        public float getAperture() {
+            return aperture;
+        }
+
+        // 기존 getter 메소드들
         public String getFilePath() {
             return filePath;
         }
@@ -999,5 +1056,125 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         public LatLng getLatLng() {
             return latLng;
         }
+    }
+
+    /*
+     EXIF 추출 메소드
+    * */
+    private PhotoInfo extractPhotoInfo(String filePath, long dateTakenMillis) {
+        try {
+            ExifInterface exifInterface = new ExifInterface(filePath);
+            float[] latLong = new float[2];
+            boolean hasLatLong = exifInterface.getLatLong(latLong);
+
+            if (!hasLatLong) {
+                return null; // 위치 정보 없는 사진은 건너뜀
+            }
+
+            Date dateTaken = new Date(dateTakenMillis);
+
+            // 확장된 메타데이터 추출
+            String deviceModel = exifInterface.getAttribute(ExifInterface.TAG_MODEL);
+            String focalLengthStr = exifInterface.getAttribute(ExifInterface.TAG_FOCAL_LENGTH);
+            float focalLength = 0;
+            if (focalLengthStr != null) {
+                try {
+                    // 분수 형태(예: "24/1")로 표현된 값 처리
+                    if (focalLengthStr.contains("/")) {
+                        String[] parts = focalLengthStr.split("/");
+                        if (parts.length == 2) {
+                            float numerator = Float.parseFloat(parts[0]);
+                            float denominator = Float.parseFloat(parts[1]);
+                            if (denominator != 0) {
+                                focalLength = numerator / denominator;
+                            }
+                        }
+                    } else {
+                        focalLength = Float.parseFloat(focalLengthStr);
+                    }
+                } catch (NumberFormatException e) {
+                    // 포맷 오류 처리
+                    Log.e("PhotoInfo", "Error parsing focal length: " + focalLengthStr, e);
+                }
+            }
+
+            String lensModel = exifInterface.getAttribute(ExifInterface.TAG_LENS_MODEL);
+            String flash = exifInterface.getAttribute(ExifInterface.TAG_FLASH);
+            boolean hasFlash = flash != null && !flash.equals("0");
+
+            String apertureStr = exifInterface.getAttribute(ExifInterface.TAG_APERTURE_VALUE);
+            float aperture = 0;
+            if (apertureStr != null) {
+                try {
+                    // 분수 형태로 표현된 값 처리
+                    if (apertureStr.contains("/")) {
+                        String[] parts = apertureStr.split("/");
+                        if (parts.length == 2) {
+                            float numerator = Float.parseFloat(parts[0]);
+                            float denominator = Float.parseFloat(parts[1]);
+                            if (denominator != 0) {
+                                aperture = numerator / denominator;
+                            }
+                        }
+                    } else {
+                        aperture = Float.parseFloat(apertureStr);
+                    }
+                } catch (NumberFormatException e) {
+                    // 포맷 오류 처리
+                    Log.e("PhotoInfo", "Error parsing aperture: " + apertureStr, e);
+                }
+            }
+
+            return new PhotoInfo(
+                    filePath,
+                    dateTaken,
+                    new LatLng(latLong[0], latLong[1]),
+                    deviceModel,
+                    focalLength,
+                    lensModel,
+                    hasFlash,
+                    aperture);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    /*
+    * 활동 유형 추론 메소드
+    * */
+    private String inferActivityType(PhotoInfo photo, Address address) {
+        Calendar cal = Calendar.getInstance();
+        cal.setTime(photo.getDateTaken());
+        int hour = cal.get(Calendar.HOUR_OF_DAY);
+
+        // 시간대 기반 활동 추론
+        if (hour >= 7 && hour < 10) {
+            return "아침 식사";
+        } else if (hour >= 12 && hour < 14) {
+            return "점심 식사";
+        } else if (hour >= 18 && hour < 21) {
+            return "저녁 식사";
+        }
+
+        // 장소 유형 기반 활동 추론
+        if (address != null) {
+            String featureName = address.getFeatureName();
+            if (featureName != null) {
+                if (featureName.contains("공원") || featureName.contains("Park")) {
+                    return "공원 관광";
+                } else if (featureName.contains("박물관") || featureName.contains("Museum")) {
+                    return "박물관 관람";
+                } else if (featureName.contains("카페") || featureName.contains("Cafe")) {
+                    return "카페 방문";
+                } else if (featureName.contains("센터") || featureName.contains("Center")) {
+                    return "관광명소 방문";
+                } else if (featureName.contains("호텔") || featureName.contains("Hotel")) {
+                    return "숙소 체크";
+                }
+            }
+        }
+
+        return "관광";  // 기본값
     }
 }
