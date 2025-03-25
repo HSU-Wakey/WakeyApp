@@ -44,6 +44,9 @@ dependencies {
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
 
+    // Google Map Utils 라이브러리
+    implementation("com.google.maps.android:android-maps-utils:2.3.0")
+
     // Glide 라이브러리
     implementation("com.github.bumptech.glide:glide:4.15.1")
     annotationProcessor("com.github.bumptech.glide:compiler:4.15.1")
