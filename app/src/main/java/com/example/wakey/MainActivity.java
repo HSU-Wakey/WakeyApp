@@ -1,5 +1,7 @@
 package com.example.wakey;
 
+import static android.content.ContentValues.TAG;
+
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -9,6 +11,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import android.Manifest;
+import android.content.ContentValues;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Color;
@@ -17,6 +20,8 @@ import android.location.Geocoder;
 import android.location.Location;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.MediaStore;
 import android.util.Log;
 import android.view.View;
@@ -25,9 +30,16 @@ import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.example.wakey.data.model.PhotoInfo;
+import com.example.wakey.data.model.PlaceData;
 import com.example.wakey.data.model.TimelineItem;
+import com.example.wakey.data.repository.PhotoRepository;
+import com.example.wakey.data.util.DateUtil;
 import com.example.wakey.data.util.PlaceHelper;
+import com.example.wakey.service.CaptionService;
+import com.example.wakey.service.PlaceService;
 import com.example.wakey.ui.map.PhotoClusterItem;
+import com.example.wakey.ui.photo.PhotoDetailFragment;
 import com.example.wakey.ui.timeline.TimelineAdapter;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
@@ -61,10 +73,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import androidx.exifinterface.media.ExifInterface;
 
 public class MainActivity extends AppCompatActivity implements OnMapReadyCallback {
+
+    private PhotoRepository photoRepository;
+    private PlaceService placeService;
+    private CaptionService captionService;
 
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1000;
     private GoogleMap mMap; // 구글 맵 객체
@@ -109,6 +127,11 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        // Repository 초기화
+        photoRepository = PhotoRepository.getInstance(this);
+        placeService = PlaceService.getInstance(this);
+        captionService = CaptionService.getInstance();
+
         // UI 컴포넌트 초기화
         dateTextView = findViewById(R.id.dateTextView);
         mapButton = findViewById(R.id.mapButton);
@@ -145,6 +168,9 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         // 클릭 리스너 설정
         setupClickListeners();
+
+        // 타임라인 항목 클릭 설정
+        setupTimelineItemClick();
 
         // 권한 요청
         requestLocationPermission();
@@ -438,6 +464,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     /**
      * 검색 수행
+     *
      * @param query 검색어
      */
     private void performSearch(String query) {
@@ -582,7 +609,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
             if (allGranted) {
                 // 권한 허용, 사진 스캔
-                scanPhotosWithGeoData();
+                loadPhotoData();
             } else {
                 Toast.makeText(this, "앱 사용에 필요한 권한이 필요합니다", Toast.LENGTH_LONG).show();
             }
@@ -665,6 +692,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     /**
      * 사진에 해당하는 타임라인 항목 강조
+     *
      * @param photoInfo 사진 정보
      */
     private void highlightTimelineItem(PhotoInfo photoInfo) {
@@ -682,6 +710,15 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     /**
      * 위치 정보가 있는 사진 스캔
      */
+    private void loadPhotoData() {
+        // 레포지토리를 통해 사진 로드
+        photoRepository.loadAllPhotos();
+
+        // 현재 날짜의 사진 로드
+        loadPhotosForDate(DateUtil.getFormattedDateString(currentSelectedDate.getTime()));
+    }
+
+    /*
     private void scanPhotosWithGeoData() {
         // 기존 데이터 초기화
         dateToPhotosMap.clear();
@@ -736,8 +773,12 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         loadPhotosForDate(getFormattedDate());
     }
 
+    * */
+
+
     /**
      * 날짜에 해당하는 사진 로드
+     *
      * @param dateString 날짜 문자열 (yyyy-MM-dd)
      */
     private void loadPhotosForDate(String dateString) {
@@ -752,69 +793,22 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         // 타임라인 항목 초기화
         timelineItems.clear();
 
-        // 해당 날짜에 사진이 있으면 마커 추가
-        if (dateToPhotosMap.containsKey(dateString)) {
-            List<PhotoInfo> photos = dateToPhotosMap.get(dateString);
-            List<LatLng> route = dateToRouteMap.get(dateString);
+        // 레포지토리에서 날짜별 사진 가져오기
+        List<PhotoInfo> photos = photoRepository.getPhotosForDate(dateString);
+        List<LatLng> route = photoRepository.getRouteForDate(dateString);
 
-            if (clusteringEnabled && clusterManager != null) {
-                // 사진을 클러스터 항목으로 추가
-                for (PhotoInfo photo : photos) {
-                    // 시간 형식화
-                    SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
-                    String timeString = timeFormat.format(photo.getDateTaken());
+        if (photos != null && !photos.isEmpty()) {
+            // 사진 처리 (이전과 유사)
+            processPhotos(photos);
 
-                    // 클러스터 항목 생성
-                    PhotoClusterItem item = new PhotoClusterItem(
-                            photo.getLatLng(),
-                            timeString,
-                            "Photo",
-                            photo
-                    );
-
-                    // 클러스터 매니저에 추가
-                    clusterManager.addItem(item);
-
-                    // 타임라인용 장소 정보 가져오기
-                    getPlaceInfoForPhoto(photo);
-                }
-
-                // 클러스터링 업데이트 강제 실행
-                clusterManager.cluster();
-            } else {
-                // 클러스터링이 비활성화된 경우 일반 마커 추가
-                for (PhotoInfo photo : photos) {
-                    // 맵에 마커 추가
-                    MarkerOptions markerOptions = new MarkerOptions()
-                            .position(photo.getLatLng())
-                            .title("Photo");
-
-                    Marker marker = mMap.addMarker(markerOptions);
-                    if (marker != null) {
-                        marker.setTag(photo);
-                    }
-
-                    // 타임라인용 장소 정보 가져오기
-                    getPlaceInfoForPhoto(photo);
-                }
-            }
-
-            // 여러 지점이 있는 경우 향상된 경로 그리기
+            // 경로 그리기
             if (route != null && route.size() > 1) {
                 drawEnhancedRoute(route);
 
-                // 전체 경로를 보여주기 위해 카메라 이동
+                // 경로 첫 위치로 카메라 이동
                 if (!route.isEmpty()) {
-                    LatLng firstPoint = route.get(0);
-                    mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(firstPoint, 12));
+                    mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(route.get(0), 12));
                 }
-            }
-
-            // 활성화된 경우 사진 위치 근처의 POI 검색
-            if (showPOIs && !photos.isEmpty()) {
-                // 첫 번째 사진을 검색 중심으로 사용
-                LatLng searchCenter = photos.get(0).getLatLng();
-                searchNearbyPlaces(searchCenter);
             }
         } else {
             Toast.makeText(this, "이 날짜에 사진이 없습니다", Toast.LENGTH_SHORT).show();
@@ -826,8 +820,150 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
     }
 
+    // 사진 처리 메소드 (기존 loadPhotosForDate 메소드에서 분리)
+    private void processPhotos(List<PhotoInfo> photos) {
+        for (PhotoInfo photo : photos) {
+            if (clusteringEnabled && clusterManager != null) {
+                // 클러스터 아이템 생성
+                String timeString = DateUtil.formatTime(photo.getDateTaken());
+                PhotoClusterItem item = new PhotoClusterItem(
+                        photo.getLatLng(),
+                        timeString,
+                        "Photo",
+                        photo
+                );
+                clusterManager.addItem(item);
+            } else {
+                // 일반 마커 생성
+                MarkerOptions markerOptions = new MarkerOptions()
+                        .position(photo.getLatLng())
+                        .title("Photo");
+
+                Marker marker = mMap.addMarker(markerOptions);
+                if (marker != null) {
+                    marker.setTag(photo);
+                }
+            }
+
+            // 위치 정보 가져오기
+            fetchAddressForPhoto(photo);
+        }
+
+        // 클러스터링 업데이트
+        if (clusteringEnabled && clusterManager != null) {
+            clusterManager.cluster();
+        }
+    }
+
+    // 위치 정보 가져오기 (비동기)
+    private void fetchAddressForPhoto(PhotoInfo photo) {
+        Geocoder geocoder = new Geocoder(this, Locale.getDefault());
+
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        Handler handler = new Handler(Looper.getMainLooper());
+
+        executor.execute(() -> {
+            try {
+                List<Address> addresses = geocoder.getFromLocation(
+                        photo.getLatLng().latitude,
+                        photo.getLatLng().longitude,
+                        1);
+
+                if (addresses != null && !addresses.isEmpty()) {
+                    Address address = addresses.get(0);
+
+                    // POI 검색
+                    handler.post(() -> {
+                        placeService.findNearbyPlaces(photo.getLatLng(), POI_SEARCH_RADIUS,
+                                new PlaceService.PlacesCallback() {
+                                    @Override
+                                    public void onPlacesLoaded(List<PlaceData> places) {
+                                        // 캡션 생성
+                                        String caption = captionService.generateCaption(photo, address, places);
+
+                                        // 타임라인 항목 생성
+                                        // CaptionService의 메소드가 public으로 변경되었다고 가정
+                                        String locationName = captionService.extractMeaningfulLocationName(address);
+                                        String activityType = captionService.inferActivityType(photo, address);
+
+                                        TimelineItem timelineItem = new TimelineItem.Builder()
+                                                .setTime(photo.getDateTaken())
+                                                .setLocation(locationName)
+                                                .setPhotoPath(photo.getFilePath())
+                                                .setLatLng(photo.getLatLng())
+                                                .setDescription(caption)
+                                                .setActivityType(activityType)
+                                                .setPlaceProbability(1.0f)
+                                                .setNearbyPOIs(extractPOINames(places))
+                                                .build();
+
+                                        // UI 스레드에서 타임라인 업데이트
+                                        runOnUiThread(() -> {
+                                            timelineItems.add(timelineItem);
+                                            // 시간순 정렬
+                                            Collections.sort(timelineItems, (o1, o2) ->
+                                                    o1.getTime().compareTo(o2.getTime()));
+                                            timelineAdapter.notifyDataSetChanged();
+                                        });
+                                    }
+
+                                    @Override
+                                    public void onError(Exception e) {
+                                        Log.e(TAG, "POI 검색 오류", e);
+                                        // POI 없이 타임라인 항목 생성
+                                        createTimelineItemWithoutPOI(photo, address);
+                                    }
+                                });
+                    });
+                } else {
+                    // 주소를 찾을 수 없을 때 기본 타임라인 항목 생성
+                    handler.post(() -> createTimelineItemWithoutPOI(photo, null));
+                }
+            } catch (IOException e) {
+                Log.e(TAG, "위치 정보 가져오기 오류", e);
+                handler.post(() -> createTimelineItemWithoutPOI(photo, null));
+            }
+        });
+    }
+
+
+    // POI 이름 목록 추출
+    private List<String> extractPOINames(List<PlaceData> places) {
+        List<String> names = new ArrayList<>();
+        if (places != null) {
+            for (PlaceData place : places) {
+                names.add(place.getName());
+            }
+        }
+        return names;
+    }
+
+    // POI 정보 없이 타임라인 항목 생성
+    private void createTimelineItemWithoutPOI(PhotoInfo photo, Address address) {
+        String caption = "촬영한 사진";
+        if (address != null) {
+            String locationName = captionService.extractMeaningfulLocationName(address);
+            String activityType = captionService.inferActivityType(photo, address);
+            caption = DateUtil.formatTime(photo.getDateTaken()) + "에 " + locationName + "에서 " + activityType + " 중에 촬영한 사진";
+
+            TimelineItem item = new TimelineItem.Builder()
+                    .setTime(photo.getDateTaken())
+                    .setLocation(locationName)
+                    .setPhotoPath(photo.getFilePath())
+                    .setLatLng(photo.getLatLng())
+                    .setDescription(caption)
+                    .setActivityType(activityType)
+                    .build();
+
+            timelineItems.add(item);
+            Collections.sort(timelineItems, (o1, o2) -> o1.getTime().compareTo(o2.getTime()));
+            timelineAdapter.notifyDataSetChanged();
+        }
+    }
+
     /**
      * 향상된 스타일링으로 경로 그리기
+     *
      * @param points 경로의 LatLng 지점 목록
      */
     private void drawEnhancedRoute(List<LatLng> points) {
@@ -873,6 +1009,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     /**
      * Places API를 사용하여 주변 장소 검색
+     *
      * @param location 검색할 위치
      */
     private void searchNearbyPlaces(LatLng location) {
@@ -937,6 +1074,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     /**
      * 사진에 대한 장소 정보 가져오기
+     *
      * @param photo 사진 정보
      */
     private void getPlaceInfoForPhoto(final PhotoInfo photo) {
@@ -996,66 +1134,20 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
     }
 
-    /**
-     * 사진 메타데이터 저장 클래스
-     */
-    private static class PhotoInfo {
-        private String filePath; // 파일 경로
-        private Date dateTaken;  // 촬영 일시
-        private LatLng latLng;   // 위치 좌표
-        private String deviceModel;         // 촬영 기기 모델
-        private float focalLength;          // 초점 거리
-        private String lensModel;           // 렌즈 모델
-        private boolean hasFlash;           // 플래시 사용 여부
-        private float aperture;             // 조리개 값
+    // 타임라인 항목 클릭 처리
+    private void setupTimelineItemClick() {
+        timelineAdapter.setOnTimelineItemClickListener((item, position) -> {
+            // 사진이 있는 경우에만 상세 보기 표시
+            if (item.getPhotoPath() != null) {
+                PhotoDetailFragment detailFragment = PhotoDetailFragment.newInstance(item);
+                detailFragment.show(getSupportFragmentManager(), "PHOTO_DETAIL");
+            }
 
-        // 생성자
-        public PhotoInfo(String filePath, Date dateTaken, LatLng latLng,
-                         String deviceModel, float focalLength, String lensModel,
-                         boolean hasFlash, float aperture) {
-            this.filePath = filePath;
-            this.dateTaken = dateTaken;
-            this.latLng = latLng;
-            this.deviceModel = deviceModel;
-            this.focalLength = focalLength;
-            this.lensModel = lensModel;
-            this.hasFlash = hasFlash;
-            this.aperture = aperture;
-        }
-
-        // getter 메소드 추가
-        public String getDeviceModel() {
-            return deviceModel;
-        }
-
-        public float getFocalLength() {
-            return focalLength;
-        }
-
-        public String getLensModel() {
-            return lensModel;
-        }
-
-        public boolean hasFlash() {
-            return hasFlash;
-        }
-
-        public float getAperture() {
-            return aperture;
-        }
-
-        // 기존 getter 메소드들
-        public String getFilePath() {
-            return filePath;
-        }
-
-        public Date getDateTaken() {
-            return dateTaken;
-        }
-
-        public LatLng getLatLng() {
-            return latLng;
-        }
+            // 지도에 해당 위치 표시
+            if (item.getLatLng() != null) {
+                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(item.getLatLng(), 15));
+            }
+        });
     }
 
     /*
@@ -1141,8 +1233,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     /*
-    * 활동 유형 추론 메소드
-    * */
+     * 활동 유형 추론 메소드
+     * */
     private String inferActivityType(PhotoInfo photo, Address address) {
         Calendar cal = Calendar.getInstance();
         cal.setTime(photo.getDateTaken());

@@ -2,16 +2,21 @@ package com.example.wakey.data.model;
 
 import com.google.android.gms.maps.model.LatLng;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-public class TimelineItem {
+public class TimelineItem implements Serializable {
     private Date time;
     private String location;
     private String photoPath;
     private LatLng latLng;
     private String description;
+
+    // 직렬화를 위해 위도, 경도를 별도 저장
+    private double latitude;
+    private double longitude;
 
     private String activityType;      // 활동 유형 (식사, 관광 등)
     private float placeProbability;   // 장소 확률 점수
@@ -57,9 +62,11 @@ public class TimelineItem {
     }
 
     public LatLng getLatLng() {
+        if (latLng == null && (latitude != 0 || longitude != 0)) {
+            latLng = new LatLng(latitude, longitude);
+        }
         return latLng;
     }
-
     public String getDescription() {
         return description;
     }
@@ -91,6 +98,10 @@ public class TimelineItem {
 
     public void setLatLng(LatLng latLng) {
         this.latLng = latLng;
+        if (latLng != null) {
+            this.latitude = latLng.latitude;
+            this.longitude = latLng.longitude;
+        }
     }
 
     public void setDescription(String description) {

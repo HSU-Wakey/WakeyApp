@@ -62,7 +62,7 @@ public class CaptionService {
     }
 
     // 의미 있는 위치명 추출
-    private String extractMeaningfulLocationName(Address address) {
+    public String extractMeaningfulLocationName(Address address) {
         if (address == null) return "";
 
         // 장소명, 지역명, 주소 등에서 의미 있는 이름 추출
@@ -85,7 +85,7 @@ public class CaptionService {
     }
 
     // 활동 유형 추론
-    private String inferActivityType(PhotoInfo photo, Address address) {
+    public String inferActivityType(PhotoInfo photo, Address address) {
         Calendar cal = Calendar.getInstance();
         cal.setTime(photo.getDateTaken());
         int hour = cal.get(Calendar.HOUR_OF_DAY);
@@ -117,6 +117,6 @@ public class CaptionService {
             }
         }
 
-        return "관광";  // 기본값
+        return "여행";  // 기본값
     }
 }

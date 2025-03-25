@@ -1,5 +1,7 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
+    <style name="Theme.Wakey" parent="Base.Theme.Wakey" />
+
     <style name="Base.Theme.Wakey" parent="Theme.Material3.DayNight.NoActionBar">
 
         <!-- 기본 색상 -->
@@ -10,12 +12,18 @@
         <!-- 글꼴 설정 -->
         <item name="android:fontFamily">@font/medium</item>
         <item name="fontFamily">@font/medium</item>
-
-
-
     </style>
 
-    <style name="Theme.Wakey" parent="Base.Theme.Wakey" />
+    <style name="FullScreenDialogStyle" parent="Theme.AppCompat.Dialog">
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:windowBackground">@android:color/black</item>
+
+        <!-- 글꼴 설정 -->
+        <item name="android:fontFamily">@font/semibold</item>
+        <item name="fontFamily">@font/semibold</item>
+    </style>
 
     <style name="CustomMaterialCalendarTheme" parent="ThemeOverlay.MaterialComponents.MaterialCalendar">
         <!-- 주요 색상 설정 -->
