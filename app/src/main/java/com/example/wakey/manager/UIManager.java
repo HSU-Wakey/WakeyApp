@@ -41,7 +41,7 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * UI 관련 기능을 관리하는 매니저 클래스 (유관매)
+ * UI 관련 기능을 관리하는 매니저 클래스
  */
 public class UIManager {
     private static final String TAG = "UIManager";
@@ -51,29 +51,29 @@ public class UIManager {
     private Activity activity;
     private FragmentManager fragmentManager;
 
-    // 날짜 관련 변수 (날관변)
+    // 날짜 관련 변수
     private Calendar currentSelectedDate;
     private TextView dateTextView;
     private TextView bottomSheetDateTextView;
     private OnDateChangedListener dateChangedListener;
 
-    // 바텀 시트 관련 변수 (바관변)
+    // 바텀 시트 관련 변수
     private BottomSheetBehavior<View> bottomSheetBehavior;
     private RecyclerView timelineRecyclerView;
     private TimelineAdapter timelineAdapter;
     private List<TimelineItem> timelineItems = new ArrayList<>();
 
-    // 바텀 시트 상태 관리 (바상관)
+    // 바텀 시트 상태 관리
     public static final int BOTTOM_SHEET_HIDDEN = 0;
     public static final int BOTTOM_SHEET_HALF_EXPANDED = 1;
     public static final int BOTTOM_SHEET_EXPANDED = 2;
     public int currentBottomSheetState = BOTTOM_SHEET_HIDDEN;
 
-    // 검색 대화상자 (검대)
+    // 검색 대화상자
     private AlertDialog searchDialog;
     private OnSearchPerformedListener searchListener;
 
-    // 인터페이스 정의 (인정의)
+    // 인터페이스 정의
     public interface OnDateChangedListener {
         void onDateChanged(String formattedDate);
     }
@@ -92,7 +92,7 @@ public class UIManager {
     }
 
     /**
-     * 싱글톤 인스턴스 반환 (싱인반)
+     * 싱글톤 인스턴스 반환
      */
     public static synchronized UIManager getInstance(Context context) {
         if (instance == null) {
@@ -102,7 +102,7 @@ public class UIManager {
     }
 
     /**
-     * 초기화 메소드 (초메)
+     * 초기화 메소드
      */
     public void init(Activity activity, FragmentManager fragmentManager,
                      TextView dateTextView, TextView bottomSheetDateTextView,
@@ -119,43 +119,56 @@ public class UIManager {
     }
 
     /**
-     * 바텀 시트 설정 (바설)
+     * 바텀 시트 설정
      */
     public void setupBottomSheet(View bottomSheetView, OnTimelineItemClickListener listener) {
         if (bottomSheetView == null) return;
 
-        // 바텀 시트 초기화 (바초)
+        // 바텀 시트 초기화
         bottomSheetBehavior = BottomSheetBehavior.from(bottomSheetView);
 
-        // 기본 상태 설정 (기상설)
+        // 기본 상태 설정 - 앱 시작시 숨김 상태로 시작
         bottomSheetBehavior.setHideable(true);
         bottomSheetBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);
-        bottomSheetBehavior.setPeekHeight(0);
 
-        // 타임라인 리사이클러뷰 설정 (타리설)
+        // 반쯤 펼쳐진 상태의 높이 설정
+        int halfExpandedRatio = 50; // 화면의 50%
+        bottomSheetBehavior.setHalfExpandedRatio(0.5f);
+
+        // 드래그 가능하도록 설정
+        bottomSheetBehavior.setDraggable(true);
+
+        // 타임라인 리사이클러뷰 설정
         timelineRecyclerView = bottomSheetView.findViewById(R.id.timelineRecyclerView);
         timelineRecyclerView.setLayoutManager(new LinearLayoutManager(context));
         timelineAdapter = new TimelineAdapter(timelineItems);
         timelineRecyclerView.setAdapter(timelineAdapter);
 
-        // 타임라인 렌더러 추가 (타렌추)
+        // 타임라인 렌더러 추가
         timelineRecyclerView.addItemDecoration(new TimelineRenderer(context));
 
-        // 탭 레이아웃 설정 (탭레설)
+        // 탭 레이아웃 설정
         TabLayout tabLayout = bottomSheetView.findViewById(R.id.tab_layout);
         tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
             @Override
             public void onTabSelected(TabLayout.Tab tab) {
                 // 탭 선택 시 필터링 로직 추가 가능
             }
-            @Override public void onTabUnselected(TabLayout.Tab tab) {}
-            @Override public void onTabReselected(TabLayout.Tab tab) {}
+
+            @Override
+            public void onTabUnselected(TabLayout.Tab tab) {
+            }
+
+            @Override
+            public void onTabReselected(TabLayout.Tab tab) {
+            }
         });
 
-        // 바텀 시트 상태 변경 리스너 (바상변리)
+        // 바텀 시트 상태 변경 리스너
         bottomSheetBehavior.addBottomSheetCallback(new BottomSheetBehavior.BottomSheetCallback() {
             @Override
             public void onStateChanged(@NonNull View bottomSheet, int newState) {
+                // 상태 변경 추적
                 if (newState == BottomSheetBehavior.STATE_HIDDEN) {
                     currentBottomSheetState = BOTTOM_SHEET_HIDDEN;
                 } else if (newState == BottomSheetBehavior.STATE_HALF_EXPANDED) {
@@ -166,10 +179,11 @@ public class UIManager {
             }
 
             @Override
-            public void onSlide(@NonNull View bottomSheet, float slideOffset) {}
+            public void onSlide(@NonNull View bottomSheet, float slideOffset) {
+            }
         });
 
-        // 타임라인 항목 클릭 리스너 설정 (타항클리설)
+        // 타임라인 항목 클릭 리스너 설정
         if (listener != null) {
             timelineAdapter.setOnTimelineItemClickListener((item, position) ->
                     listener.onTimelineItemClick(item, position));
@@ -177,26 +191,35 @@ public class UIManager {
     }
 
     /**
-     * 바텀 시트 상태 토글 (바상토)
+     * 바텀 시트 상태 토글
+     * 1. 숨김 -> 반쯤 펼침
+     * 2. 반쯤 펼침 -> 완전히 펼침
+     * 3. 완전히 펼침 -> 숨김
      */
     public void toggleBottomSheetState() {
         if (bottomSheetBehavior == null) return;
 
         // 현재 상태에 따라 다음 상태로 전환
-        if (currentBottomSheetState == BOTTOM_SHEET_HIDDEN) {
-            // 숨김 -> 반쯤 펼침
-            bottomSheetBehavior.setState(BottomSheetBehavior.STATE_HALF_EXPANDED);
-        } else if (currentBottomSheetState == BOTTOM_SHEET_HALF_EXPANDED) {
-            // 반쯤 펼침 -> 완전히 펼침
-            bottomSheetBehavior.setState(BottomSheetBehavior.STATE_EXPANDED);
-        } else {
-            // 완전히 펼침 -> 숨김
-            bottomSheetBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);
+        switch (currentBottomSheetState) {
+            case BOTTOM_SHEET_HIDDEN:
+                // 숨김 -> 반쯤 펼침
+                bottomSheetBehavior.setState(BottomSheetBehavior.STATE_HALF_EXPANDED);
+                break;
+
+            case BOTTOM_SHEET_HALF_EXPANDED:
+                // 반쯤 펼침 -> 완전히 펼침
+                bottomSheetBehavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+                break;
+
+            case BOTTOM_SHEET_EXPANDED:
+                // 완전히 펼침 -> 반쯤 펼침 (토글 시 바로 닫히지 않고 중간 단계로)
+                bottomSheetBehavior.setState(BottomSheetBehavior.STATE_HALF_EXPANDED);
+                break;
         }
     }
 
     /**
-     * 바텀 시트 상태 설정 (바상설)
+     * 바텀 시트 상태 설정
      */
     public void setBottomSheetState(int state) {
         if (bottomSheetBehavior == null) return;
@@ -215,7 +238,7 @@ public class UIManager {
     }
 
     /**
-     * 타임라인 데이터 업데이트 (타데업)
+     * 타임라인 데이터 업데이트
      */
     public void updateTimelineData(List<TimelineItem> items) {
         this.timelineItems.clear();
@@ -230,7 +253,7 @@ public class UIManager {
     }
 
     /**
-     * 타임라인 항목 강조 (타항강)
+     * 타임라인 항목 강조
      */
     public void highlightTimelineItem(String photoPath) {
         if (timelineItems == null || timelineRecyclerView == null) return;
@@ -247,7 +270,7 @@ public class UIManager {
     }
 
     /**
-     * 사진 세부정보 표시 (사세표)
+     * 사진 세부정보 표시
      */
     public void showPhotoDetail(TimelineItem item) {
         if (fragmentManager == null || item == null) return;
@@ -257,7 +280,7 @@ public class UIManager {
     }
 
     /**
-     * 장소 세부정보 바텀시트 표시 (장세바표)
+     * 장소 세부정보 바텀시트 표시
      */
     public void showPlaceDetails(String placeId) {
         if (fragmentManager == null || placeId == null) return;
@@ -267,7 +290,7 @@ public class UIManager {
     }
 
     /**
-     * 날짜 표시 업데이트 (날표업)
+     * 날짜 표시 업데이트
      */
     public void updateDateDisplay() {
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy.MM.dd", Locale.getDefault());
@@ -283,7 +306,7 @@ public class UIManager {
     }
 
     /**
-     * 날짜 선택 대화상자 표시 (날선대표)
+     * 날짜 선택 대화상자 표시
      */
     public void showDatePickerDialog() {
         if (fragmentManager == null) return;
@@ -318,7 +341,7 @@ public class UIManager {
     }
 
     /**
-     * 이전 날짜로 변경 (이날변)
+     * 이전 날짜로 변경
      */
     public void goToPreviousDate() {
         currentSelectedDate.add(Calendar.DAY_OF_MONTH, -1);
@@ -331,7 +354,7 @@ public class UIManager {
     }
 
     /**
-     * 다음 날짜로 변경 (다날변)
+     * 다음 날짜로 변경
      */
     public void goToNextDate() {
         currentSelectedDate.add(Calendar.DAY_OF_MONTH, 1);
@@ -344,7 +367,7 @@ public class UIManager {
     }
 
     /**
-     * 형식화된 날짜 문자열 가져오기 (yyyy-MM-dd) (형날문가)
+     * 형식화된 날짜 문자열 가져오기 (yyyy-MM-dd)
      */
     public String getFormattedDate() {
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
@@ -352,14 +375,14 @@ public class UIManager {
     }
 
     /**
-     * 현재 선택된 날짜 가져오기 (현선날가)
+     * 현재 선택된 날짜 가져오기
      */
     public Calendar getCurrentSelectedDate() {
         return (Calendar) currentSelectedDate.clone();
     }
 
     /**
-     * 검색 대화상자 표시 (검대표)
+     * 검색 대화상자 표시
      */
     public void showSearchDialog() {
         if (activity == null) return;
@@ -473,7 +496,7 @@ public class UIManager {
     }
 
     /**
-     * 맵 옵션 대화상자 표시 (맵옵대표)
+     * 맵 옵션 대화상자 표시
      */
     public void showMapOptionsDialog(boolean clusteringEnabled, boolean showPOIs, int currentMapType,
                                      OnMapOptionsChangedListener listener) {
@@ -533,7 +556,7 @@ public class UIManager {
     }
 
     /**
-     * 지도 유형 선택 대화상자 표시 (지유선대표)
+     * 지도 유형 선택 대화상자 표시
      */
     private void showMapTypeDialog(int currentMapType, OnMapOptionsChangedListener listener) {
         if (activity == null) return;
@@ -586,26 +609,31 @@ public class UIManager {
     }
 
     /**
-     * 맵 옵션 변경 리스너 인터페이스 (맵옵변리인)
+     * 맵 옵션 변경 리스너 인터페이스
      */
     public interface OnMapOptionsChangedListener {
         void onClusteringToggled(boolean enabled);
+
         void onPOIsToggled(boolean show);
+
         void onMapTypeChanged(int mapType);
+
         void onTrafficToggled(boolean enabled);
+
         void onTransitToggled(boolean enabled);
+
         void onOptionsApplied();
     }
 
     /**
-     * 현재 바텀 시트 상태 가져오기 (현바상가)
+     * 현재 바텀 시트 상태 가져오기
      */
     public int getCurrentBottomSheetState() {
         return currentBottomSheetState;
     }
 
     /**
-     * 날짜 설정 (날설)
+     * 날짜 설정
      */
     public void setDate(Date date) {
         if (date != null) {
@@ -619,7 +647,7 @@ public class UIManager {
     }
 
     /**
-     * 토스트 메시지 표시 (토메표)
+     * 토스트 메시지 표시
      */
     public void showToast(String message) {
         ToastManager.getInstance().showToast(message);

@@ -48,13 +48,13 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     // 권한 관련 상수 (권관상)
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1000;
 
-    // 매니저 인스턴스 (매인)
+    // 매니저 인스턴스
     private MapManager mapManager;
     private UIManager uiManager;
     private DataManager dataManager;
     private ApiManager apiManager;
 
-    // UI 컴포넌트 (유컴)
+    // UI 컴포넌트
     private TextView dateTextView;
     private ImageButton mapButton;
     private ImageButton searchButton;
@@ -62,11 +62,11 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private ImageButton nextDateBtn;
     private TextView bottomSheetDateTextView;
 
-    // 구글 맵 관련 변수 (구맵관변)
+    // 구글 맵 관련 변수
     private GoogleMap mMap;
     private FusedLocationProviderClient fusedLocationClient;
 
-    // 지도 설정 (지설)
+    // 지도 설정
     private boolean clusteringEnabled = true;
     private boolean showPOIs = false;
 
@@ -75,31 +75,31 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // UI 컴포넌트 초기화 (유컴초)
+        // UI 컴포넌트 초기화
         initUI();
 
-        // 매니저 초기화 (매초)
+        // 매니저 초기화
         initManagers();
 
-        // 구글 맵 프래그먼트 설정 (구맵프설)
+        // 구글 맵 프래그먼트 설정
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         if (mapFragment != null) {
             mapFragment.getMapAsync(this);
         }
 
-        // 위치 서비스 초기화 (위서초)
+        // 위치 서비스 초기화
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
 
-        // 클릭 리스너 설정 (클리설)
+        // 클릭 리스너 설정
         setupClickListeners();
 
-        // 권한 요청 (권요)
+        // 권한 요청
         requestLocationPermission();
     }
 
     /**
-     * UI 컴포넌트 초기화 (유컴초)
+     * UI 컴포넌트 초기화
      */
     private void initUI() {
         dateTextView = findViewById(R.id.dateTextView);
@@ -111,7 +111,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     /**
-     * 매니저 초기화 (매초)
+     * 매니저 초기화
      */
     private void initManagers() {
         // 각 매니저 인스턴스 가져오기
@@ -168,16 +168,20 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     /**
-     * 클릭 리스너 설정 (클리설)
+     * 클릭 리스너 설정
      */
     private void setupClickListeners() {
         // 날짜 선택
         dateTextView.setOnClickListener(v -> uiManager.showDatePickerDialog());
 
-        // 맵 버튼 (타임라인 토글)
+        // 맵 버튼 - bottomSheet 상태 토글
         mapButton.setOnClickListener(v -> {
+            // 새로운 토글 방식으로 바텀 시트 상태 변경
             uiManager.toggleBottomSheetState();
-            if (uiManager.getCurrentBottomSheetState() != UIManager.BOTTOM_SHEET_HIDDEN) {
+
+            // bottomSheet가 보이는 상태이면 데이터 로드
+            int currentState = uiManager.getCurrentBottomSheetState();
+            if (currentState != UIManager.BOTTOM_SHEET_HIDDEN) {
                 loadDataForDate(uiManager.getFormattedDate());
             }
         });
@@ -193,7 +197,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     /**
-     * 권한 요청 (권요)
+     * 권한 요청
      */
     private void requestLocationPermission() {
         List<String> permissions = new ArrayList<>();
@@ -216,7 +220,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     /**
-     * 권한 요청 결과 처리 (권요결처)
+     * 권한 요청 결과 처리
      */
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
@@ -240,7 +244,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     /**
-     * 구글 맵 준비 완료 콜백 (구맵준완콜)
+     * 구글 맵 준비 완료 콜백
      */
     @Override
     public void onMapReady(GoogleMap googleMap) {
@@ -267,7 +271,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     /**
-     * 사진 데이터 로드 (사데로)
+     * 사진 데이터 로드
      */
     private void loadPhotoData() {
         dataManager.loadPhotoData();
@@ -275,7 +279,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     /**
-     * 모든 사진 지도에 로드 (모사지로)
+     * 모든 사진 지도에 로드
      */
     private void loadAllPhotos() {
         dataManager.loadAllPhotosToMap(new DataManager.OnDataLoadedListener() {
@@ -298,7 +302,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     /**
-     * 특정 날짜의 데이터 로드 (특날데로)
+     * 특정 날짜의 데이터 로드
      */
     private void loadDataForDate(String dateString) {
         dataManager.loadPhotosForDate(dateString, new DataManager.OnDataLoadedListener() {
@@ -334,7 +338,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     /**
-     * 사진 정보 처리 (사정처)
+     * 사진 정보 처리
      */
     private void processPhotoInfo(List<PhotoInfo> photos) {
         if (photos == null || photos.isEmpty()) return;
@@ -369,7 +373,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     /**
-     * 검색 수행 (검수)
+     * 검색 수행
      */
     private void performSearch(String query) {
         dataManager.performSearch(query, mMap, new DataManager.OnSearchResultListener() {

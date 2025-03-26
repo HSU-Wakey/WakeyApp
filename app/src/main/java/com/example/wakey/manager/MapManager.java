@@ -27,7 +27,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 구글 맵 관련 기능을 관리하는 매니저 클래스 (구맵관매)
+ * 구글 맵 관련 기능을 관리하는 매니저 클래스
  */
 public class MapManager {
     private static final String TAG = "MapManager";
@@ -55,7 +55,7 @@ public class MapManager {
     }
 
     /**
-     * 싱글톤 인스턴스 반환 (싱인반)
+     * 싱글톤 인스턴스 반환
      */
     public static synchronized MapManager getInstance(Context context) {
         if (instance == null) {
@@ -65,14 +65,14 @@ public class MapManager {
     }
 
     /**
-     * 초기화 메소드 (초메)
+     * 초기화 메소드
      */
     public void init(Activity activity, OnMarkerClickListener listener) {
         this.markerClickListener = listener;
     }
 
     /**
-     * 구글맵 설정 (구맵설)
+     * 구글맵 설정
      */
     public void setGoogleMap(GoogleMap map) {
         this.googleMap = map;
@@ -80,21 +80,21 @@ public class MapManager {
     }
 
     /**
-     * 클러스터링 활성화 여부 설정 (클활여설)
+     * 클러스터링 활성화 여부 설정
      */
     public void setClusteringEnabled(boolean enabled) {
         this.clusteringEnabled = enabled;
     }
 
     /**
-     * POI 표시 여부 설정 (포표여설)
+     * POI 표시 여부 설정
      */
     public void setShowPOIs(boolean show) {
         this.showPOIs = show;
     }
 
     /**
-     * 구글맵 유형 설정 (구맵유설)
+     * 구글맵 유형 설정
      */
     public void setMapType(int mapType) {
         if (googleMap != null) {
@@ -103,7 +103,7 @@ public class MapManager {
     }
 
     /**
-     * 교통 정보 표시 설정 (교정표설)
+     * 교통 정보 표시 설정
      */
     public void setTrafficEnabled(boolean enabled) {
         if (googleMap != null) {
@@ -112,17 +112,17 @@ public class MapManager {
     }
 
     /**
-     * 클러스터 매니저 설정 (클매설)
+     * 클러스터 매니저 설정
      */
     private void setupClusterManager() {
         if (context == null || googleMap == null) return;
 
-        // 클러스터 매니저 생성 (클매생)
+        // 클러스터 매니저 생성
         clusterManager = new ClusterManager<>(context, googleMap);
         googleMap.setOnMarkerClickListener(clusterManager);
         googleMap.setOnCameraIdleListener(clusterManager);
 
-        // 클러스터 클릭 리스너 (클클리)
+        // 클러스터 클릭 리스너
         clusterManager.setOnClusterClickListener(cluster -> {
             LatLng clusterPosition = cluster.getPosition();
             if (markerClickListener != null) {
@@ -133,7 +133,7 @@ public class MapManager {
             return true;
         });
 
-        // 클러스터 아이템 클릭 리스너 (클아클리)
+        // 클러스터 아이템 클릭 리스너
         clusterManager.setOnClusterItemClickListener(item -> {
             PhotoInfo photoInfo = (PhotoInfo) item.getTag();
             if (photoInfo != null && markerClickListener != null) {
@@ -148,7 +148,7 @@ public class MapManager {
     }
 
     /**
-     * 지도 클리어 (지클)
+     * 지도 클리어
      */
     public void clearMap() {
         if (googleMap != null) {
@@ -161,7 +161,7 @@ public class MapManager {
     }
 
     /**
-     * 특정 위치로 카메라 이동 (특위카이)
+     * 특정 위치로 카메라 이동
      */
     public void moveCamera(LatLng latLng, float zoom) {
         if (googleMap != null && latLng != null) {
@@ -170,7 +170,7 @@ public class MapManager {
     }
 
     /**
-     * 사진 클러스터를 마커로 추가 (사클마추)
+     * 사진 클러스터를 마커로 추가
      */
     public void addMarkersForClusters(Map<LatLng, List<PhotoInfo>> clusters) {
         if (clusters == null || clusters.isEmpty()) return;
@@ -192,7 +192,7 @@ public class MapManager {
     }
 
     /**
-     * 장소 정보로 마커 추가 (장정마추)
+     * 장소 정보로 마커 추가
      */
     public void addPlaceMarker(String name, String address, LatLng latLng, Bitmap photo, PhotoInfo photoInfo, int clusterSize) {
         if (latLng == null) return;
@@ -203,7 +203,8 @@ public class MapManager {
                     latLng,
                     name,
                     address + "\n" + (clusterSize > 1 ? clusterSize + "개 사진" : "사진"),
-                    photoInfo
+                    photoInfo,
+                    photo  // 누락된 Bitmap 매개변수 추가
             );
             clusterManager.addItem(item);
             clusterManager.cluster();
@@ -225,7 +226,7 @@ public class MapManager {
     }
 
     /**
-     * 기본 마커 추가 (기마추)
+     * 기본 마커 추가
      */
     public void addDefaultMarker(PhotoInfo photoInfo, int clusterSize) {
         if (photoInfo == null || photoInfo.getLatLng() == null) return;
@@ -236,7 +237,8 @@ public class MapManager {
                     photoInfo.getLatLng(),
                     timeString,
                     clusterSize > 1 ? clusterSize + "개 사진" : "사진",
-                    photoInfo
+                    photoInfo,
+                    null  // 누락된 Bitmap 매개변수 추가 (기본 마커는 Bitmap이 없으므로 null 전달)
             );
             clusterManager.addItem(item);
         } else {
@@ -253,7 +255,7 @@ public class MapManager {
     }
 
     /**
-     * 경로 그리기 (경그)
+     * 경로 그리기
      */
     public void drawRoute(List<LatLng> points) {
         if (googleMap == null || points == null || points.size() < 2) return;
@@ -297,7 +299,7 @@ public class MapManager {
     }
 
     /**
-     * 검색 결과 마커 추가 (검결마추)
+     * 검색 결과 마커 추가
      */
     public void addSearchResultMarker(LatLng location, String title) {
         if (googleMap == null || location == null) return;
