@@ -45,14 +45,14 @@
             <com.google.android.material.tabs.TabLayout
                 android:id="@+id/tab_layout"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="36dp"
                 android:layout_marginStart="20dp"
                 android:layout_marginTop="8dp"
                 android:layout_marginEnd="20dp"
                 android:background="@drawable/rounded_tab_bg"
-                app:tabMode="fixed"
                 app:tabGravity="fill"
                 app:tabIndicatorColor="@color/colorPrimary"
+                app:tabMode="fixed"
                 app:tabSelectedTextColor="@color/colorPrimary"
                 app:tabTextColor="#808080">
 

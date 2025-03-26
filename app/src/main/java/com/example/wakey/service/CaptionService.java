@@ -51,11 +51,6 @@ public class CaptionService {
             caption.append("근처의 ").append(topPlace.getName()).append("이(가) 있는 곳에서 ");
         }
 
-        // 5. 촬영 정보 (선택적)
-        if (photo.getDeviceModel() != null) {
-            caption.append(photo.getDeviceModel()).append("으로 ");
-        }
-
         caption.append("촬영한 사진입니다.");
 
         return caption.toString();

@@ -1,4 +1,3 @@
-// data/repository/PhotoRepository.java
 package com.example.wakey.data.repository;
 
 import android.content.Context;
@@ -26,7 +25,6 @@ public class PhotoRepository {
     private final Map<String, List<PhotoInfo>> dateToPhotosMap;
     private final Map<String, List<LatLng>> dateToRouteMap;
 
-    // 싱글톤 인스턴스 얻기
     public static PhotoRepository getInstance(Context context) {
         if (instance == null) {
             instance = new PhotoRepository(context.getApplicationContext());
@@ -40,9 +38,8 @@ public class PhotoRepository {
         this.dateToRouteMap = new HashMap<>();
     }
 
-    // 전체 사진 로드
+    // 모든 사진 로드
     public void loadAllPhotos() {
-        // 데이터 초기화
         dateToPhotosMap.clear();
         dateToRouteMap.clear();
 
@@ -68,40 +65,40 @@ public class PhotoRepository {
                     String filePath = cursor.getString(dataColumnIndex);
                     long dateTakenMillis = cursor.getLong(dateTakenColumnIndex);
 
-                    // EXIF 추출은 유틸 클래스에 위임
                     PhotoInfo photoInfo = ExifUtil.extractPhotoInfo(filePath, dateTakenMillis);
+                    if (photoInfo == null) {
+                        // 위치 정보가 없어도 기본 PhotoInfo 생성
+                        photoInfo = new PhotoInfo(filePath, new Date(dateTakenMillis), null);
+                    }
 
-                    if (photoInfo != null) {
-                        // 날짜별로 저장
-                        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
-                        String dateString = dateFormat.format(photoInfo.getDateTaken());
+                    SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+                    String dateString = dateFormat.format(photoInfo.getDateTaken());
 
-                        if (!dateToPhotosMap.containsKey(dateString)) {
-                            dateToPhotosMap.put(dateString, new ArrayList<>());
-                            dateToRouteMap.put(dateString, new ArrayList<>());
-                        }
+                    if (!dateToPhotosMap.containsKey(dateString)) {
+                        dateToPhotosMap.put(dateString, new ArrayList<>());
+                        dateToRouteMap.put(dateString, new ArrayList<>());
+                    }
 
-                        dateToPhotosMap.get(dateString).add(photoInfo);
+                    dateToPhotosMap.get(dateString).add(photoInfo);
+                    if (photoInfo.getLatLng() != null) {
                         dateToRouteMap.get(dateString).add(photoInfo.getLatLng());
                     }
                 }
+                Log.d(TAG, "로드된 사진 수: " + dateToPhotosMap.values().stream().mapToInt(List::size).sum());
             }
         } catch (Exception e) {
-            Log.e(TAG, "Error loading photos", e);
+            Log.e(TAG, "사진 로드 오류", e);
         }
     }
 
-    // 특정 날짜의 사진 가져오기
     public List<PhotoInfo> getPhotosForDate(String dateString) {
         return dateToPhotosMap.getOrDefault(dateString, new ArrayList<>());
     }
 
-    // 특정 날짜의 경로 가져오기
     public List<LatLng> getRouteForDate(String dateString) {
         return dateToRouteMap.getOrDefault(dateString, new ArrayList<>());
     }
 
-    // 사진이 있는 날짜 목록 가져오기
     public List<String> getAvailableDates() {
         return new ArrayList<>(dateToPhotosMap.keySet());
     }
