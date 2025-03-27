@@ -1,9 +1,16 @@
 package com.example.wakey.manager;
 
 import android.app.Activity;
+import android.app.Dialog;
 import android.content.Context;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
+import android.os.Build;
+import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.Window;
+import android.view.WindowManager;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.TextView;
@@ -25,7 +32,6 @@ import com.example.wakey.ui.search.SearchHistoryAdapter;
 import com.example.wakey.ui.timeline.TimelineAdapter;
 import com.example.wakey.ui.timeline.TimelineRenderer;
 import com.example.wakey.util.ToastManager;
-import com.google.android.gms.maps.model.LatLng;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.chip.Chip;
 import com.google.android.material.datepicker.MaterialDatePicker;
@@ -39,6 +45,7 @@ import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+
 
 /**
  * UI 관련 기능을 관리하는 매니저 클래스
@@ -382,7 +389,10 @@ public class UIManager {
     }
 
     /**
-     * 검색 대화상자 표시
+     * 검색 대화상자 표시 (수정된 버전)
+     */
+    /**
+     * 검색 대화상자 표시 (오류 해결)
      */
     public void showSearchDialog() {
         if (activity == null) return;
@@ -422,14 +432,11 @@ public class UIManager {
             }
         });
 
-        // 5. 추천 검색어 설정
-        List<String> popularTerms = searchService.getPopularSearchTerms();
-        if (popularTerms == null || popularTerms.isEmpty()) {
-            popularTerms = new ArrayList<>();
-            popularTerms.add("카페");
-            popularTerms.add("공원");
-            popularTerms.add("음식점");
-        }
+        // 5. 추천 검색어 설정 - 첨부된 이미지와 동일한 추천 검색어로 수정
+        List<String> popularTerms = new ArrayList<>();
+        popularTerms.add("광주광역시 학술대회");
+        popularTerms.add("피자");
+        popularTerms.add("2025년 여행");
 
         Chip suggestionChip1 = searchView.findViewById(R.id.suggestionChip1);
         Chip suggestionChip2 = searchView.findViewById(R.id.suggestionChip2);
@@ -469,30 +476,94 @@ public class UIManager {
             return false;
         });
 
+        // 닫기 버튼 클릭 리스너
+        View closeButton = searchView.findViewById(R.id.closeButton);
+        if (closeButton != null) {
+            closeButton.setOnClickListener(v -> {
+                if (searchDialog != null && searchDialog.isShowing()) {
+                    searchDialog.dismiss();
+                }
+            });
+        }
+
         // 7. 이전 대화상자가 있으면 제거
         if (searchDialog != null && searchDialog.isShowing()) {
             searchDialog.dismiss();
             searchDialog = null;
         }
 
-        // 8. 대화상자 생성 및 표시
+        // 8. Dialog 생성 (전체화면 테마 적용) - 주요 수정 부분
+        // 1) requestWindowFeature 제거 - 이미 Dialog.Builder에서 처리됨
+        // 2) 백그라운드 블러 처리 try-catch로 감싸기
+
+        // Dialog 생성
         AlertDialog.Builder builder = new AlertDialog.Builder(activity, R.style.FullScreenDialogStyle);
         builder.setView(searchView);
-
-        // 9. 대화상자 생성
         searchDialog = builder.create();
+
+        // 블러 효과 및 레이아웃 설정
         if (searchDialog.getWindow() != null) {
-            searchDialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
-            searchDialog.getWindow().setDimAmount(0.0f);
+            Window window = searchDialog.getWindow();
+
+            // 배경 설정 - 반투명 흰색
+            window.setBackgroundDrawable(new ColorDrawable(Color.parseColor("#BFFFFFFF")));
+
+            // 전체 화면 레이아웃 설정
+            window.setLayout(WindowManager.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.MATCH_PARENT);
+
+            // 상태바까지 확장
+            window.setFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
+
+            // 블러 효과 (Android 12 이상만 지원)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                try {
+                    window.setBackgroundBlurRadius(25);
+                } catch (Exception e) {
+                    // 일부 기기에서는 지원하지 않을 수 있음
+                    // 오류 무시하고 계속 진행
+                }
+            }
+
+            // 페이드 인/아웃 애니메이션
+            window.setWindowAnimations(R.style.DialogAnimation);
         }
 
-        // 10. 대화상자 표시
-        searchDialog.show();
+        // 취소 설정
+        searchDialog.setCancelable(true);
+        searchDialog.setCanceledOnTouchOutside(false);
 
-        // 11. 키보드 자동 표시 및 포커스 설정
-        searchEditText.requestFocus();
-        InputMethodManager imm = (InputMethodManager) activity.getSystemService(Context.INPUT_METHOD_SERVICE);
-        imm.showSoftInput(searchEditText, InputMethodManager.SHOW_IMPLICIT);
+        // 뒤로가기 키 처리
+        searchDialog.setOnKeyListener((dialog, keyCode, event) -> {
+            if (keyCode == KeyEvent.KEYCODE_BACK && event.getAction() == KeyEvent.ACTION_UP) {
+                dialog.dismiss();
+                return true;
+            }
+            return false;
+        });
+
+        // 9. 대화상자 표시
+        try {
+            searchDialog.show();
+        } catch (Exception e) {
+            // 예외 처리
+            e.printStackTrace();
+            ToastManager.getInstance().showToast("검색화면을 표시할 수 없습니다.");
+            return;
+        }
+
+        // 10. 키보드 자동 표시 (지연 추가)
+        searchEditText.postDelayed(() -> {
+            try {
+                searchEditText.requestFocus();
+                InputMethodManager imm = (InputMethodManager) activity.getSystemService(Context.INPUT_METHOD_SERVICE);
+                imm.showSoftInput(searchEditText, InputMethodManager.SHOW_IMPLICIT);
+            } catch (Exception e) {
+                // 키보드 표시 오류 무시
+                e.printStackTrace();
+            }
+        }, 200);  // 지연 시간 증가
     }
 
     /**
