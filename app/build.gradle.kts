@@ -2,11 +2,13 @@ plugins {
     alias(libs.plugins.android.application)
 }
 
+
 android {
     namespace = "com.example.wakey"
     compileSdk = 35
 
     defaultConfig {
+
         applicationId = "com.example.wakey"
         minSdk = 30
         targetSdk = 35
@@ -29,6 +31,13 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+
+    aaptOptions {
+        noCompress += "tflite"
+    }
+    buildFeatures {
+        mlModelBinding = true
+    }
 }
 
 dependencies {
@@ -40,6 +49,8 @@ dependencies {
     implementation(libs.play.services.maps)
     implementation(libs.places)
     implementation(libs.exifinterface)
+    implementation(libs.tensorflow.lite.support)
+    implementation(libs.tensorflow.lite.metadata)
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
@@ -56,4 +67,11 @@ dependencies {
 
     // gson 라이브러리
     implementation ("com.google.code.gson:gson:2.9.0")
+
+    //tf 의존성 추가
+    implementation ("org.tensorflow:tensorflow-lite:2.9.0")// 또는 사용하는 버전
+    implementation ("org.tensorflow:tensorflow-lite-support:0.4.2")
+
+
+
 }
