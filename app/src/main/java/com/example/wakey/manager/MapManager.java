@@ -203,7 +203,8 @@ public class MapManager {
                     latLng,
                     name,
                     address + "\n" + (clusterSize > 1 ? clusterSize + "개 사진" : "사진"),
-                    photoInfo
+                    photoInfo,
+                    photo  // 누락된 Bitmap 매개변수 추가
             );
             clusterManager.addItem(item);
             clusterManager.cluster();
@@ -236,7 +237,8 @@ public class MapManager {
                     photoInfo.getLatLng(),
                     timeString,
                     clusterSize > 1 ? clusterSize + "개 사진" : "사진",
-                    photoInfo
+                    photoInfo,
+                    null  // 누락된 Bitmap 매개변수 추가 (기본 마커는 Bitmap이 없으므로 null 전달)
             );
             clusterManager.addItem(item);
         } else {

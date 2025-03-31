@@ -3,12 +3,34 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#BFFFFFFF">
+    android:background="@drawable/blind"
+    android:fitsSystemWindows="true">
 
+    <!-- 메인 컨테이너 - 배경 블러 효과 추가 -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="@android:color/transparent">
+        android:background="@android:color/transparent"
+        android:fitsSystemWindows="true"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <!-- 닫기 버튼 추가 -->
+        <ImageButton
+            android:id="@+id/closeButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginTop="16dp"
+            android:layout_marginEnd="16dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="닫기"
+            android:padding="12dp"
+            android:src="@drawable/ic_close"
+            android:scaleType="fitCenter"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
         <!-- 헤더 제목 -->
         <TextView
@@ -18,6 +40,7 @@
             android:layout_marginStart="24dp"
             android:layout_marginTop="24dp"
             android:text="스마트 검색"
+            android:fontFamily="@font/bold"
             android:textColor="@android:color/black"
             android:textSize="24sp"
             android:textStyle="bold"
@@ -34,6 +57,7 @@
             android:text="최근 항목"
             android:textColor="@android:color/black"
             android:textSize="16sp"
+            app:fontFamily="@font/bold"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/searchTitleTextView" />
 
@@ -49,8 +73,7 @@
             app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/recentSearchTextView"
-            app:layout_constraintBottom_toTopOf="@id/suggestedSearchTextView"/>
+            app:layout_constraintTop_toBottomOf="@+id/recentSearchTextView" />
 
         <!-- 추천 검색어 라벨 -->
         <TextView
@@ -58,10 +81,11 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="24dp"
-            android:layout_marginTop="40dp"
+            android:layout_marginTop="24dp"
             android:text="추천 검색어"
             android:textColor="@android:color/black"
             android:textSize="16sp"
+            app:fontFamily="@font/bold"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/recentSearchRecyclerView" />
 
@@ -88,25 +112,25 @@
                     android:id="@+id/suggestionChip1"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="스페인 레스토랑"
-                    app:chipStrokeColor="#00000000"
-                    app:chipBackgroundColor="#F0F0F0" />
+                    android:text="광주광역시 학술대회"
+                    app:chipBackgroundColor="@color/light_gray"
+                    app:chipStrokeColor="#00000000" />
 
                 <com.google.android.material.chip.Chip
                     android:id="@+id/suggestionChip2"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="이자카야"
-                    app:chipStrokeColor="#00000000"
-                    app:chipBackgroundColor="#F0F0F0" />
+                    android:text="피자"
+                    app:chipBackgroundColor="@color/light_gray"
+                    app:chipStrokeColor="#00000000" />
 
                 <com.google.android.material.chip.Chip
                     android:id="@+id/suggestionChip3"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="2025년 여행"
-                    app:chipStrokeColor="#00000000"
-                    app:chipBackgroundColor="#F0F0F0" />
+                    app:chipBackgroundColor="@color/light_gray"
+                    app:chipStrokeColor="#00000000" />
             </com.google.android.material.chip.ChipGroup>
         </HorizontalScrollView>
 
@@ -116,15 +140,15 @@
             android:layout_width="0dp"
             android:layout_height="50dp"
             android:layout_marginStart="16dp"
-            android:layout_marginTop="100dp"
             android:layout_marginEnd="16dp"
-            android:layout_marginBottom="16dp"
+            android:layout_marginBottom="32dp"
             app:cardCornerRadius="15dp"
             app:cardElevation="2dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/suggestedSearchScrollView">
+            app:layout_constraintTop_toBottomOf="@+id/suggestedSearchScrollView"
+            app:layout_constraintVertical_bias="0.4">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -135,8 +159,8 @@
                 android:paddingEnd="16dp">
 
                 <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
                     android:src="@drawable/ic_search" />
 
                 <EditText
@@ -147,6 +171,8 @@
                     android:layout_weight="1"
                     android:background="@null"
                     android:hint="사진 검색..."
+                    app:fontFamily="@font/semibold"
+                    android:textSize="15dp"
                     android:imeOptions="actionSearch"
                     android:inputType="text"
                     android:maxLines="1" />
