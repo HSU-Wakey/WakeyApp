@@ -13,7 +13,7 @@ import java.nio.ByteOrder;
 import java.nio.MappedByteBuffer;
 
 public class ClipImageEncoder {
-    private static final String MODEL_PATH = "openai_clip-clipimageencoder.tflite";
+    private static final String MODEL_PATH = "openai_clip-clipimageencoder-snapdragon_8_elite.tflite";
     private static final int IMAGE_SIZE = 224;
     private static final int EMBEDDING_DIM = 512;
 
