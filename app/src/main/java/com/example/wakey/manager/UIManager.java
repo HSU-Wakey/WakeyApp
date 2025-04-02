@@ -3,6 +3,7 @@ package com.example.wakey.manager;
 import android.app.Activity;
 import android.app.Dialog;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Build;
@@ -28,6 +29,7 @@ import com.example.wakey.data.repository.SearchHistoryRepository;
 import com.example.wakey.service.SearchService;
 import com.example.wakey.ui.map.PlaceDetailsBottomSheet;
 import com.example.wakey.ui.photo.PhotoDetailFragment;
+import com.example.wakey.ui.search.SearchActivity;
 import com.example.wakey.ui.search.SearchHistoryAdapter;
 import com.example.wakey.ui.timeline.TimelineAdapter;
 import com.example.wakey.ui.timeline.TimelineRenderer;
@@ -396,6 +398,9 @@ public class UIManager {
      */
     public void showSearchDialog() {
         if (activity == null) return;
+        Intent intent = new Intent(activity, SearchActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        activity.startActivity(intent);
 
         // 검색 서비스 초기화
         SearchService searchService = SearchService.getInstance(context);

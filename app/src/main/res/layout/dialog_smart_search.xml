@@ -53,6 +53,16 @@
             app:layout_constraintTop_toBottomOf="@+id/recentSearchTextView"
             app:layout_constraintBottom_toTopOf="@id/suggestedSearchTextView"/>
 
+<!--        <ImageView-->
+<!--            android:id="@+id/closeButton"-->
+<!--            android:layout_width="32dp"-->
+<!--            android:layout_height="32dp"-->
+<!--            android:layout_margin="16dp"-->
+<!--            android:src="@drawable/ic_close"-->
+<!--            android:contentDescription="닫기"-->
+<!--            app:layout_constraintTop_toTopOf="parent"-->
+<!--            app:layout_constraintEnd_toEndOf="parent"/>-->
+
         <!-- 추천 검색어 라벨 -->
         <TextView
             android:id="@+id/suggestedSearchTextView"
@@ -117,12 +127,10 @@
             android:layout_width="0dp"
             android:layout_height="50dp"
             android:layout_marginStart="16dp"
-            android:layout_marginTop="100dp"
+            android:layout_marginTop="20dp"
             android:layout_marginEnd="16dp"
-            android:layout_marginBottom="16dp"
             app:cardCornerRadius="15dp"
             app:cardElevation="2dp"
-            app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/suggestedSearchScrollView">
@@ -159,10 +167,9 @@
             android:id="@+id/resultImageView"
             android:layout_width="202dp"
             android:layout_height="162dp"
-            android:layout_marginTop="8dp"
+            android:layout_marginStart="104dp"
+            android:layout_marginTop="20dp"
             android:scaleType="centerCrop"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHorizontal_bias="0.464"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/searchCardView" />
 
