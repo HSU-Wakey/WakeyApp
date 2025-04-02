@@ -200,12 +200,23 @@ public class ApiManager {
         String activityType;
 
         if (address != null) {
-            // CaptionService를 사용하여 캡션 생성
+            // 🔧 캡션 생성
             caption = captionService.generateCaption(photo, address, places);
-            locationName = captionService.extractMeaningfulLocationName(address);
+
+            // ✅ 주소에서 '구 + 동' 추출: 예) "종로구 혜화동"
+            String locality = address.getLocality();          // 종로구
+            String subLocality = address.getSubLocality();    // 혜화동
+
+            if (locality != null && subLocality != null) {
+                locationName = locality + " " + subLocality;
+            } else if (address.getAddressLine(0) != null) {
+                locationName = address.getAddressLine(0); // 대체용 전체 주소
+            } else {
+                locationName = "알 수 없는 위치";
+            }
+
             activityType = captionService.inferActivityType(photo, address);
         } else {
-            // 주소 정보가 없는 경우
             caption = DateUtil.formatTime(photo.getDateTaken()) + "에 촬영한 사진";
             locationName = photo.getPlaceName() != null ? photo.getPlaceName() : "알 수 없는 위치";
             activityType = "여행";
@@ -229,6 +240,7 @@ public class ApiManager {
                 .setNearbyPOIs(poiNames)
                 .build();
     }
+
 
     /**
      * 주변 장소 검색 (주장검)

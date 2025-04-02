@@ -61,6 +61,12 @@ public class ClusterService {
 
         // 각 사진에 대해
         for (PhotoInfo photo : photos) {
+            LatLng latLng = photo.getLatLng();
+            if (latLng == null) {
+                Log.w(TAG, "위치 정보가 없는 사진입니다: " + photo.getFilePath());
+                continue;
+            }
+
             boolean addedToCluster = false;
 
             // 기존 클러스터에 추가할 수 있는지 검사
@@ -71,7 +77,7 @@ public class ClusterService {
                 float[] results = new float[1];
                 android.location.Location.distanceBetween(
                         clusterCenter.latitude, clusterCenter.longitude,
-                        photo.getLatLng().latitude, photo.getLatLng().longitude,
+                        latLng.latitude, latLng.longitude,
                         results);
 
                 if (results[0] <= radiusInMeters) {
@@ -86,7 +92,7 @@ public class ClusterService {
             if (!addedToCluster) {
                 List<PhotoInfo> newCluster = new ArrayList<>();
                 newCluster.add(photo);
-                clusters.put(photo.getLatLng(), newCluster);
+                clusters.put(latLng, newCluster);
             }
         }
 
@@ -118,7 +124,8 @@ public class ClusterService {
 
         for (PhotoInfo photo : photos) {
             // 위치 정보가 있는 사진만 추가
-            if (photo.getLatLng() != null) {
+            LatLng latLng = photo.getLatLng();
+            if (latLng != null) {
                 // 시간대별 활동 추론
                 String activityType = inferActivityByTime(photo.getDateTaken());
 
@@ -127,12 +134,14 @@ public class ClusterService {
                         .setTime(photo.getDateTaken())
                         .setLocation(photo.getPlaceName() != null ? photo.getPlaceName() : "미상")
                         .setPhotoPath(photo.getFilePath())
-                        .setLatLng(photo.getLatLng())
+                        .setLatLng(latLng)
                         .setDescription(generateDescription(photo))
                         .setActivityType(activityType)
                         .build();
 
                 timelineItems.add(item);
+            } else {
+                Log.w(TAG, "위치 정보 없는 사진 제외됨 (타임라인): " + photo.getFilePath());
             }
         }
 
@@ -222,7 +231,12 @@ public class ClusterService {
         // 경로 생성
         List<LatLng> route = new ArrayList<>();
         for (PhotoInfo photo : photos) {
-            route.add(photo.getLatLng());
+            LatLng latLng = photo.getLatLng();
+            if (latLng != null) {
+                route.add(latLng);
+            } else {
+                Log.w(TAG, "위치 정보 없는 사진 제외됨 (경로): " + photo.getFilePath());
+            }
         }
 
         return route;

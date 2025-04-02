@@ -343,6 +343,9 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private void processPhotoInfo(List<PhotoInfo> photos) {
         if (photos == null || photos.isEmpty()) return;
 
+        // 누적 리스트 준비
+        List<TimelineItem> accumulatedItems = new ArrayList<>();
+
         // 각 사진에 대해 주소 및 POI 정보 가져오기
         for (PhotoInfo photo : photos) {
             if (photo.getLatLng() != null) {
@@ -352,13 +355,13 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 apiManager.fetchAddressAndPOIs(photo, new ApiManager.OnAddressResolvedListener() {
                     @Override
                     public void onSuccess(Address address, PhotoInfo photoInfo, List<PlaceData> places) {
-                        // 타임라인 항목 생성
                         TimelineItem item = apiManager.createTimelineItem(photoInfo, address, places);
 
-                        // 데이터 매니저에 통보
                         runOnUiThread(() -> {
                             if (item != null) {
-                                uiManager.updateTimelineData(Collections.singletonList(item));
+                                accumulatedItems.add(item);
+                                // 리스트 갱신
+                                uiManager.updateTimelineData(new ArrayList<>(accumulatedItems));
                             }
                         });
                     }
@@ -389,9 +392,22 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 mapManager.addSearchResultMarker(location, name != null ? name : query);
             }
 
+//            @Override
+//            public void onSearchFailed(String query) {
+//                uiManager.showToast("검색 결과가 없습니다: " + query);
+//            }
+
             @Override
             public void onSearchFailed(String query) {
-                uiManager.showToast("검색 결과가 없습니다: " + query);
+                // 날짜나 위치 검색이 아니고, 텍스트(clip) 검색이면 토스트 띄우지 않음
+                if (query.matches(".*\\d{4}[-./]\\d{1,2}[-./]\\d{1,2}.*")) {
+                    uiManager.showToast("검색 결과가 없습니다: " + query); // 날짜 검색 실패
+                } else if (query.matches(".*[가-힣a-zA-Z]+.*")) {
+                    // 일반 텍스트 검색은 CLIP으로 처리 중일 수 있으므로 토스트 안 띄움
+                    return;
+                } else {
+                    uiManager.showToast("검색 결과가 없습니다: " + query);
+                }
             }
         });
     }
