@@ -11,7 +11,7 @@ import java.nio.ByteOrder;
 import java.nio.MappedByteBuffer;
 
 public class ClipTextEncoder {
-    private static final String MODEL_PATH = "openai_clip-cliptextencoder.tflite";
+    private static final String MODEL_PATH = "openai_clip-cliptextencoder-snapdragon_8_elite.tflite";
     private static final int MAX_TOKENS = 77;
     private static final int EMBEDDING_DIM = 512;
 
