@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory;
 import android.location.Address;
 import android.location.Geocoder;
 import android.os.Bundle;
+import android.util.Pair;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -73,12 +74,13 @@ public class PhotoDetailFragment extends DialogFragment {
                     // 2. 이미지 분류 실행 (AI 예측 결과)
                     try {
                         ImageClassifier classifier = new ImageClassifier(requireContext());
-                        List<String> predictions = classifier.classifyTopK(bitmap, 5);
+                        List<Pair<String, Float>> predictions = classifier.classifyImage(bitmap); // 수정
 
                         StringBuilder sb = new StringBuilder();
                         sb.append("🔍 예측 결과 (Top 5):\n\n");
-                        for (String label : predictions) {
-                            sb.append("• ").append(label).append("\n");
+                        for (Pair<String, Float> pred : predictions) {
+                            sb.append("• ").append(pred.first).append(" (")
+                                    .append(String.format("%.2f", pred.second)).append("%)\n");
                         }
                         predictionTextView.setText(sb.toString());
 
@@ -87,6 +89,7 @@ public class PhotoDetailFragment extends DialogFragment {
                         predictionTextView.setText("AI 분류 실패");
                         e.printStackTrace();
                     }
+
                 }
             }
 

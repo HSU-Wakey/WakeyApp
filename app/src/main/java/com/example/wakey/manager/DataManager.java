@@ -180,4 +180,9 @@ public class DataManager {
         if (photoRepository == null) return new ArrayList<>();
         return photoRepository.getAvailableDates();
     }
+
+    public List<PhotoInfo> getAllPhotoInfo() {
+        if (photoRepository == null) return new ArrayList<>();
+        return photoRepository.getAllPhotos(); // 이 메서드도 PhotoRepository에 있어야 함
+    }
 }
