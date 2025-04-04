@@ -1,4 +1,4 @@
-package com.example.wakey.data.util;
+package com.example.wakey.util;
 
 import android.content.Context;
 import android.location.Address;
@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Locale;
 
 public class LocationUtils {
+
     public static String getRegionFromLocation(Context context, Location location) {
         try {
             Geocoder geocoder = new Geocoder(context, Locale.KOREA);
@@ -32,18 +33,26 @@ public class LocationUtils {
                     regionBuilder.append(addr.getAdminArea()).append(" ");
                 }
 
-                // 시/군/구 (getLocality가 더 정확할 수 있음)
+                // 시/군/구
                 if (addr.getLocality() != null) {
                     regionBuilder.append(addr.getLocality()).append(" ");
                 } else if (addr.getSubAdminArea() != null) {
                     regionBuilder.append(addr.getSubAdminArea()).append(" ");
                 }
 
-                // 동 (우선순위: SubLocality > Thoroughfare)
+                // 동
                 if (addr.getSubLocality() != null) {
-                    regionBuilder.append(addr.getSubLocality());
+                    regionBuilder.append(addr.getSubLocality()).append(" ");
                 } else if (addr.getThoroughfare() != null) {
-                    regionBuilder.append(addr.getThoroughfare());
+                    regionBuilder.append(addr.getThoroughfare()).append(" ");
+                }
+
+                // 도로명 + 번지
+                if (addr.getThoroughfare() != null) {
+                    regionBuilder.append(addr.getThoroughfare()).append(" ");
+                }
+                if (addr.getFeatureName() != null) {
+                    regionBuilder.append(addr.getFeatureName());
                 }
 
                 return regionBuilder.toString().trim();
@@ -53,5 +62,4 @@ public class LocationUtils {
         }
         return "지역 정보 없음";
     }
-
 }
