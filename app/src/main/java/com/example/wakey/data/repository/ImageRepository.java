@@ -15,13 +15,9 @@ import com.example.wakey.data.local.AppDatabase;
 import com.example.wakey.data.local.Photo;
 import com.example.wakey.data.model.ImageMeta;
 import com.example.wakey.tflite.ImageClassifier;
-import com.example.wakey.data.util.ExifUtil;
-import com.example.wakey.util.FileUtils;
 import com.example.wakey.util.ImageUtils;
 import com.example.wakey.util.LocationUtils;
 
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
@@ -29,7 +25,6 @@ public class ImageRepository {
     private final ImageClassifier imageClassifier;
     private final Context context;
     private final AppDatabase db;
-    private final PhotoRepository photoRepository;
 
     public ImageRepository(Context context) {
         this.context = context;
@@ -38,8 +33,7 @@ public class ImageRepository {
         } catch (Exception e) {
             throw new RuntimeException("모델 로드 실패", e);
         }
-        db = Room.databaseBuilder(context, AppDatabase.class, "AppDatabase").build();
-        photoRepository = PhotoRepository.getInstance(context); // ✅ PhotoRepository 인스턴스 생성
+        db = Room.databaseBuilder(context, AppDatabase.class, "smart_album_db").build();
     }
 
     public ImageMeta classifyImage(Uri uri, Bitmap bitmap) {
@@ -55,34 +49,9 @@ public class ImageRepository {
     public void savePhotoToDB(Uri uri, ImageMeta meta) {
         new Thread(() -> {
             try {
-                String filePath = uri.toString();
-
-                // ✅ 중복 검사
-                if (photoRepository.isPhotoAlreadyExists(filePath)) {
-                    Log.d("ImageRepository", "⚠️ 중복 사진 → 저장 생략됨: " + filePath);
-                    return;
-                }
-
+                Location loc = ImageUtils.getExifLocation(context, uri);
                 String detectedObjects = meta.getPredictions().toString();
                 String dateTaken = ImageUtils.getExifDateTaken(context, uri);
-                Log.d("ImageRepository", "🕒 원본 dateTaken: " + dateTaken);
-
-                // ✅ 포맷이 없거나 깨진 경우 대비: 현재 시간으로 설정
-                if (dateTaken == null || dateTaken.isEmpty()) {
-                    dateTaken = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-                            .format(new Date());
-                }
-                // ✅ "yyyy:MM:dd HH:mm:ss" 포맷일 경우 → 변환
-                else if (dateTaken.contains(":")) {
-                    try {
-                        Date parsed = new SimpleDateFormat("yyyy:MM:dd HH:mm:ss", Locale.getDefault()).parse(dateTaken);
-                        dateTaken = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(parsed);
-                    } catch (Exception e) {
-                        Log.e("ImageRepository", "❌ dateTaken 포맷 변환 실패: " + dateTaken);
-                    }
-                }
-
-                Log.d("ImageRepository", "✅ 저장될 최종 dateTaken: " + dateTaken);
 
                 String locationDo = null;
                 String locationSi = null;
@@ -91,13 +60,10 @@ public class ImageRepository {
                 Double latitude = null;
                 Double longitude = null;
 
-                // ✅ ExifUtil을 사용해서 GPS 추출
-                double[] latLng = ExifUtil.getLatLngFromExif(FileUtils.getPath(context, uri)); // 절대 경로 필요
-                if (latLng != null) {
-                    latitude = latLng[0];
-                    longitude = latLng[1];
+                if (loc != null) {
+                    latitude = loc.getLatitude();
+                    longitude = loc.getLongitude();
 
-                    // ✅ 위도/경도로 주소 파싱
                     List<Address> addresses = new Geocoder(context, Locale.KOREA)
                             .getFromLocation(latitude, longitude, 1);
                     if (addresses != null && !addresses.isEmpty()) {
@@ -111,29 +77,30 @@ public class ImageRepository {
                         String featureName = addr.getFeatureName() != null ? addr.getFeatureName() : "";
                         locationStreet = (thoroughfare + " " + featureName).trim();
                     }
+
                 }
 
-                // ✅ DB 저장
                 Photo photo = new Photo(
-                        filePath,
+                        uri.toString(),
                         dateTaken,
                         locationDo,
                         locationSi,
                         locationGu,
                         locationStreet,
-                        null,            // caption
                         latitude,
                         longitude,
-                        detectedObjects
+                        detectedObjects,
+                        null // caption
                 );
-
                 db.photoDao().insertPhoto(photo);
                 Log.d("ImageRepository", "📥 Photo saved to DB with date: " + dateTaken);
             } catch (Exception e) {
-                Log.e("ImageRepository", "🛑 사진 저장 중 오류 발생", e);
+                e.printStackTrace();
             }
         }).start();
     }
+
+
 
     public void printAllPhotos() {
         new Thread(() -> {
@@ -156,6 +123,7 @@ public class ImageRepository {
             Log.d("ImageRepository", "🗑️ All photos deleted from DB");
         }).start();
     }
+
 
     public void close() {
         imageClassifier.close();

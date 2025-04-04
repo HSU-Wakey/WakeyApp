@@ -57,79 +57,80 @@ public class PhotoDetailFragment extends DialogFragment {
         TextView locationTextView = view.findViewById(R.id.photoDetailLocationTextView);
         TextView timeTextView = view.findViewById(R.id.photoDetailTimeTextView);
         TextView predictionTextView = view.findViewById(R.id.photoDetailPredictionTextView);
-        TextView addressTextView = view.findViewById(R.id.photoDetailAddressTextView);
+        TextView addressTextView = view.findViewById(R.id.photoDetailAddressTextView); // ⬅️ 주소 출력용 텍스트뷰
         View closeButton = view.findViewById(R.id.closeButton);
 
         if (timelineItem != null) {
-            // UI에 즉시 반영 가능한 부분 먼저
+            // 1. 사진 이미지 로드
+            if (timelineItem.getPhotoPath() != null) {
+                Glide.with(this)
+                        .load(timelineItem.getPhotoPath())
+                        .into(photoImageView);
+
+                File imgFile = new File(timelineItem.getPhotoPath());
+                if (imgFile.exists()) {
+                    Bitmap bitmap = BitmapFactory.decodeFile(imgFile.getAbsolutePath());
+
+                    // 2. 이미지 분류 실행 (AI 예측 결과)
+                    try {
+                        ImageClassifier classifier = new ImageClassifier(requireContext());
+                        List<Pair<String, Float>> predictions = classifier.classifyImage(bitmap); // 수정
+
+                        StringBuilder sb = new StringBuilder();
+                        sb.append("🔍 예측 결과 (Top 5):\n\n");
+                        for (Pair<String, Float> pred : predictions) {
+                            sb.append("• ").append(pred.first).append(" (")
+                                    .append(String.format("%.2f", pred.second)).append("%)\n");
+                        }
+                        predictionTextView.setText(sb.toString());
+
+                        classifier.close();
+                    } catch (Exception e) {
+                        predictionTextView.setText("AI 분류 실패");
+                        e.printStackTrace();
+                    }
+
+                }
+            }
+
+            // 3. 주소 정보 가져오기 (Geocoder)
+            if (timelineItem.getLatLng() != null) {
+                Geocoder geocoder = new Geocoder(requireContext(), Locale.getDefault());
+                new Thread(() -> {
+                    try {
+                        List<Address> addresses = geocoder.getFromLocation(
+                                timelineItem.getLatLng().latitude,
+                                timelineItem.getLatLng().longitude,
+                                1
+                        );
+                        if (addresses != null && !addresses.isEmpty()) {
+                            String addressStr = addresses.get(0).getAddressLine(0);
+                            requireActivity().runOnUiThread(() ->
+                                    addressTextView.setText("📍 위치: " + addressStr));
+                        } else {
+                            requireActivity().runOnUiThread(() ->
+                                    addressTextView.setText("위치 정보 없음"));
+                        }
+                    } catch (Exception e) {
+                        requireActivity().runOnUiThread(() ->
+                                addressTextView.setText("위치 정보 불러오기 실패"));
+                        e.printStackTrace();
+                    }
+                }).start();
+            } else {
+                addressTextView.setText("위치 정보 없음");
+            }
+
+            // 4. 타임라인 텍스트 설정
             captionTextView.setText(timelineItem.getDescription());
             locationTextView.setText(timelineItem.getLocation());
 
             String dateTimeStr = DateUtil.getFormattedDateWithDay(timelineItem.getTime()) +
                     " " + DateUtil.formatTime(timelineItem.getTime());
             timeTextView.setText(dateTimeStr);
-
-            // Glide로 이미지 미리 로드
-            if (timelineItem.getPhotoPath() != null) {
-                Glide.with(this)
-                        .load(timelineItem.getPhotoPath())
-                        .into(photoImageView);
-            }
-
-            // 🔁 백그라운드 스레드에서 나머지 처리 (파일 & DB 접근)
-            new Thread(() -> {
-                try {
-                    File imgFile = new File(timelineItem.getPhotoPath());
-                    if (imgFile.exists()) {
-                        Bitmap bitmap = BitmapFactory.decodeFile(imgFile.getAbsolutePath());
-
-                        // ✅ 인식 결과 (getDetectedObjects) 백그라운드 처리
-                        List<String> detectedObjects = timelineItem.getDetectedObjects();
-
-                        StringBuilder sb = new StringBuilder();
-                        if (detectedObjects != null && !detectedObjects.isEmpty()) {
-                            sb.append("🔍 인식된 객체:\n\n");
-                            for (String obj : detectedObjects) {
-                                sb.append("• ").append(obj).append("\n");
-                            }
-                        } else {
-                            sb.append("인식된 결과가 없습니다.");
-                        }
-
-                        requireActivity().runOnUiThread(() ->
-                                predictionTextView.setText(sb.toString()));
-                    }
-
-                    // ✅ 위치 정보 가져오기 (Geocoder)도 백그라운드
-                    if (timelineItem.getLatLng() != null) {
-                        Geocoder geocoder = new Geocoder(requireContext(), Locale.getDefault());
-                        List<Address> addresses = geocoder.getFromLocation(
-                                timelineItem.getLatLng().latitude,
-                                timelineItem.getLatLng().longitude,
-                                1
-                        );
-
-                        String addressStr;
-                        if (addresses != null && !addresses.isEmpty()) {
-                            addressStr = "📍 위치: " + addresses.get(0).getAddressLine(0);
-                        } else {
-                            addressStr = "위치 정보 없음";
-                        }
-
-                        requireActivity().runOnUiThread(() ->
-                                addressTextView.setText(addressStr));
-                    } else {
-                        requireActivity().runOnUiThread(() ->
-                                addressTextView.setText("위치 정보 없음"));
-                    }
-                } catch (Exception e) {
-                    requireActivity().runOnUiThread(() ->
-                            predictionTextView.setText("정보 불러오기 실패"));
-                    e.printStackTrace();
-                }
-            }).start();
         }
 
+        // 닫기 버튼
         closeButton.setOnClickListener(v -> dismiss());
 
         return view;

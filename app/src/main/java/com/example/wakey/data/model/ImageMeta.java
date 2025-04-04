@@ -7,13 +7,11 @@ public class ImageMeta {
     private final String uri;
     private final String region;
     private final List<Pair<String, Float>> predictions;
-    private final float[] embeddingVector;
 
-    public ImageMeta(String uri, String region, List<Pair<String, Float>> predictions, float[] embeddingVector) {
+    public ImageMeta(String uri, String region, List<Pair<String, Float>> predictions) {
         this.uri = uri;
         this.region = region;
         this.predictions = predictions;
-        this.embeddingVector = embeddingVector;
     }
 
     public String getUri() {
@@ -26,9 +24,5 @@ public class ImageMeta {
 
     public List<Pair<String, Float>> getPredictions() {
         return predictions;
-    }
-
-    public float[] getEmbeddingVector() {
-        return embeddingVector;
     }
 }

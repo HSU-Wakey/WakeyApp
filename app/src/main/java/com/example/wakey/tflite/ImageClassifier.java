@@ -64,7 +64,7 @@ public class ImageClassifier {
             logits[i] = (quantizedOutput[i] - outputZeroPoint) * outputScale;
         }
 
-        // 추가 로그: 처음 5개 로직
+        // 추가 로그: 처음 5개 로짓
         for (int i = 0; i < 5; i++) {
             Log.d("ImageClassifier", "🔢 Raw Output[" + i + "]: " + quantizedOutput[i] + " -> Logit: " + logits[i]);
         }

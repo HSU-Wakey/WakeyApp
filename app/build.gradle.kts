@@ -32,6 +32,9 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
 
+    aaptOptions {
+        noCompress += "tflite"
+    }
     buildFeatures {
         mlModelBinding = true
     }
@@ -49,16 +52,11 @@ dependencies {
     implementation(libs.tensorflow.lite.support)
     implementation(libs.tensorflow.lite.metadata)
     implementation(libs.room.runtime)
-    implementation(libs.room.common)
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
 
-    // PhotoView 라이브러리
-    implementation("com.github.chrisbanes:PhotoView:2.3.0")
-
-    // Google Maps SDK
-    implementation("com.google.android.gms:play-services-maps:18.1.0")
+    // Google Map SDK
     implementation("com.google.maps.android:android-maps-utils:2.3.0")
 
     // Google Places SDK
@@ -75,15 +73,6 @@ dependencies {
     implementation ("org.tensorflow:tensorflow-lite:2.9.0")// 또는 사용하는 버전
     implementation ("org.tensorflow:tensorflow-lite-support:0.4.2")
     annotationProcessor(libs.room.compiler)
-
-    // TensorFlow Lite Flex delegate 추가
-    implementation ("org.tensorflow:tensorflow-lite-select-tf-ops:2.9.0")
-
-    // OkHttp
-    implementation ("com.squareup.okhttp3:okhttp:4.10.0")
-
-    // Gson (StoryGenerator 클래스에서 이미 사용 중이므로)
-    implementation ("com.google.code.gson:gson:2.9.0")
 
 
 }
