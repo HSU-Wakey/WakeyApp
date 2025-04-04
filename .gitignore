@@ -9,6 +9,8 @@
 /.idea/assetWizardSettings.xml
 .DS_Store
 /build
+*.tflite
+*.zip
 /captures
 .externalNativeBuild
 .cxx

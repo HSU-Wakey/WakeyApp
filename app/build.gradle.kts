@@ -76,5 +76,14 @@ dependencies {
     implementation ("org.tensorflow:tensorflow-lite-support:0.4.2")
     annotationProcessor(libs.room.compiler)
 
+    // TensorFlow Lite Flex delegate 추가
+    implementation ("org.tensorflow:tensorflow-lite-select-tf-ops:2.9.0")
+
+    // OkHttp
+    implementation ("com.squareup.okhttp3:okhttp:4.10.0")
+
+    // Gson (StoryGenerator 클래스에서 이미 사용 중이므로)
+    implementation ("com.google.code.gson:gson:2.9.0")
+
 
 }

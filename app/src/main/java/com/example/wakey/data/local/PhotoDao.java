@@ -5,18 +5,22 @@ import android.util.Pair;
 import androidx.room.Dao;
 import androidx.room.Insert;
 import androidx.room.Query;
+import androidx.room.Update;
 
 import java.util.List;
 
 @Dao
 public interface PhotoDao {
-
     // INSERT
     @Insert
     void insertPhoto(Photo photo);
 
     @Insert
     void insertPhotos(List<Photo> photos);
+
+    // ⭐ UPDATE 메서드 (민서-클린 브랜치에서 가져옴)
+    @Update
+    void updatePhoto(Photo photo);
 
     // 기본 SELECT
     @Query("SELECT * FROM Photo")
@@ -34,9 +38,14 @@ public interface PhotoDao {
     @Query("DELETE FROM Photo WHERE rowid NOT IN (SELECT MIN(rowid) FROM Photo GROUP BY filePath)")
     void deleteDuplicatePhotos();
 
-    // 객체 인식 결과 있는 사진만
-    @Query("SELECT * FROM Photo WHERE detectedObjectPairs IS NOT NULL")
+    // 객체 인식 결과 있는 사진만 - detectedObjects 기준 (민서-클린 브랜치에서 가져옴)
+    @Query("SELECT * FROM Photo WHERE detectedObjects IS NOT NULL")
     List<Photo> getPhotosWithObjects();
+
+    // 객체 인식 결과 있는 사진만 - detectedObjectPairs 기준 (마스터 브랜치에서 가져옴)
+    @Query("SELECT * FROM Photo WHERE detectedObjectPairs IS NOT NULL")
+    List<Photo> getPhotosWithObjectPairs();
+
     // 날짜만 추출 (yyyy-MM-dd)
     @Query("SELECT DISTINCT SUBSTR(dateTaken, 1, 10) as date FROM Photo")
     List<String> getAvailableDates();
@@ -45,18 +54,21 @@ public interface PhotoDao {
     @Query("SELECT * FROM Photo WHERE dateTaken LIKE :date || '%'")
     List<Photo> getPhotosForDate(String date);
 
-    // 위치 + 객체가 있는 사진만
-    @Query("SELECT * FROM Photo WHERE latitude IS NOT NULL AND longitude IS NOT NULL AND detectedObjectPairs IS NOT NULL")
+    // 위치 + 객체가 있는 사진만 - detectedObjects 기준 (민서-클린 브랜치에서 가져옴)
+    @Query("SELECT * FROM Photo WHERE latitude IS NOT NULL AND longitude IS NOT NULL AND detectedObjects IS NOT NULL")
     List<Photo> getPhotosWithLocationAndObjects();
+
+    // 위치 + 객체가 있는 사진만 - detectedObjectPairs 기준 (마스터 브랜치에서 가져옴)
+    @Query("SELECT * FROM Photo WHERE latitude IS NOT NULL AND longitude IS NOT NULL AND detectedObjectPairs IS NOT NULL")
+    List<Photo> getPhotosWithLocationAndObjectPairs();
 
     // 중복 검사용: 파일 경로로 사진조회
     @Query("SELECT * FROM Photo WHERE filePath = :filePath LIMIT 1")
     Photo getPhotoByFilePath(String filePath);
 
     // 모델 예측 결과 업데이트
-
-    @Query("UPDATE Photo SET detectedObjectPairs = :detectedPairs WHERE filePath = :filePath")
-    void updateDetectedObjectPairs(String filePath, List<Pair<String, Float>> detectedPairs);
+    @Query("UPDATE Photo SET detectedObjectPairs = :pairs WHERE filePath = :filePath")
+    void updateDetectedObjectPairs(String filePath, List<Pair<String, Float>> pairs);
 
     // 전체 주소 업데이트
     @Query("UPDATE Photo SET fullAddress = :address WHERE filePath = :filePath")
@@ -70,10 +82,47 @@ public interface PhotoDao {
     @Query("SELECT * FROM Photo WHERE filePath = :filePath LIMIT 1")
     Photo getPhotoWithDetectedPairs(String filePath);
 
+    // 캡션 업데이트 (민서-클린 브랜치에서 가져옴)
+    @Query("UPDATE Photo SET caption = :caption WHERE filePath = :filePath")
+    void updateCaption(String filePath, String caption);
+
+    // 캡션이 없는 사진 조회 (민서-클린 브랜치에서 가져옴)
+    @Query("SELECT * FROM Photo WHERE caption IS NULL OR caption = ''")
+    List<Photo> getPhotosWithoutCaptions();
+
+    // 특정 날짜의 사진 중 캡션이 없는 사진 조회 (민서-클린 브랜치에서 가져옴)
+    @Query("SELECT * FROM Photo WHERE dateTaken LIKE :date || '%' AND (caption IS NULL OR caption = '')")
+    List<Photo> getPhotosForDateWithoutCaptions(String date);
+
+    // 스토리 업데이트 (민서-클린 브랜치에서 가져옴)
+    @Query("UPDATE Photo SET story = :story WHERE filePath = :filePath")
+    void updateStory(String filePath, String story);
+
+    // 스토리가 없는 사진 조회 (민서-클린 브랜치에서 가져옴)
+    @Query("SELECT * FROM Photo WHERE story IS NULL OR story = ''")
+    List<Photo> getPhotosWithoutStories();
+
+    // 특정 날짜의 사진 중 스토리가 없는 사진 조회 (민서-클린 브랜치에서 가져옴)
+    @Query("SELECT * FROM Photo WHERE dateTaken LIKE :date || '%' AND (story IS NULL OR story = '')")
+    List<Photo> getPhotosForDateWithoutStories(String date);
+
+    // ✅ 감지된 객체 문자열 업데이트 (민서-클린 브랜치에서 가져옴)
+    @Query("UPDATE Photo SET detectedObjects = :objects WHERE filePath = :filePath")
+    void updateObjectLabels(String filePath, String objects);
+
+    // detectedObjects 조회 (민서-클린 브랜치에서 가져옴)
+    @Query("SELECT detectedObjects FROM Photo WHERE filePath = :filePath")
+    String getDetectedObjects(String filePath);
+
+    // country 관련 쿼리 (마스터 브랜치에서 가져옴)
     @Query("SELECT DISTINCT country FROM Photo WHERE country IS NOT NULL")
     List<String> getAllCountries();
 
+    // 국가별 사진 조회 (마스터 브랜치에서 가져옴)
     @Query("SELECT * FROM Photo WHERE country = :country")
     List<Photo> getPhotosByCountry(String country);
 
+    // country 업데이트 (새로 추가)
+    @Query("UPDATE Photo SET country = :country WHERE filePath = :filePath")
+    void updateCountry(String filePath, String country);
 }

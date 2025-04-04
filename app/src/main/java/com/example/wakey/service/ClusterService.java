@@ -2,6 +2,7 @@ package com.example.wakey.service;
 
 import android.content.Context;
 import android.util.Log;
+import android.util.Pair;
 
 import com.example.wakey.data.model.PhotoInfo;
 import com.example.wakey.data.model.TimelineItem;
@@ -16,6 +17,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class ClusterService {
     private static final String TAG = "ClusterService";
@@ -99,7 +101,6 @@ public class ClusterService {
             LatLng latLng = photo.getLatLng();
             if (latLng != null) {
                 String activityType = inferActivityByTime(photo.getDateTaken());
-
                 TimelineItem item = new TimelineItem.Builder()
                         .setTime(photo.getDateTaken())
                         .setLocation(photo.getPlaceName() != null ? photo.getPlaceName() : "미상")
@@ -107,10 +108,18 @@ public class ClusterService {
                         .setLatLng(latLng)
                         .setDescription(generateDescription(photo))
                         .setActivityType(activityType)
-                        .setDetectedObjectPairs(photo.getDetectedObjectPairs()) // ✅ 이 줄 추가
+                        .setDetectedObjectPairs(
+                                photo.getDetectedObjectPairs() != null ?
+                                        photo.getDetectedObjectPairs().stream()
+                                                .collect(Collectors.toMap(
+                                                        pair -> pair.first,
+                                                        pair -> pair.second
+                                                ))
+                                        : new HashMap<>()
+                        )
                         .build();
 
-                timelineItems.add(item);
+
             } else {
                 Log.w(TAG, "위치 정보 없는 사진 제외됨 (타임라인): " + photo.getFilePath());
             }

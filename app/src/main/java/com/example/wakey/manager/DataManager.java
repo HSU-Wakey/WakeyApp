@@ -181,4 +181,34 @@ public class DataManager {
     public List<TimelineItem> getCachedTimeline(String dateString) {
         return timelineCache.getOrDefault(dateString, new ArrayList<>());
     }
+
+    /**
+     * 사진 데이터 로드 메서드 추가
+     * MainActivity에서 호출되는 메서드
+     */
+    public void loadPhotoData() {
+        if (photoRepository == null) return;
+
+        // 백그라운드 스레드에서 사진 데이터 로드
+        new Thread(() -> {
+            try {
+                // 참고: loadPhotosFromDevice는 정의되어 있지 않으므로 이를 대체하는 코드 사용
+                // 예를 들어, 모든 사진을 로드하는 메서드 사용:
+                List<PhotoInfo> allPhotos = photoRepository.getAllPhotos();
+
+                // 날짜별 사진 캐시 초기화
+                List<String> availableDates = photoRepository.getAvailableDates();
+                for (String date : availableDates) {
+                    List<PhotoInfo> photos = photoRepository.getPhotosForDate(date);
+                    if (photos != null && !photos.isEmpty()) {
+                        photoCache.put(date, photos);
+                    }
+                }
+
+                Log.d(TAG, "사진 데이터 로드 완료: " + availableDates.size() + " 날짜");
+            } catch (Exception e) {
+                Log.e(TAG, "사진 데이터 로드 실패: " + e.getMessage(), e);
+            }
+        }).start();
+    }
 }
