@@ -51,6 +51,7 @@ dependencies {
     implementation(libs.exifinterface)
     implementation(libs.tensorflow.lite.support)
     implementation(libs.tensorflow.lite.metadata)
+    implementation(libs.room.runtime)
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
@@ -71,7 +72,7 @@ dependencies {
     //tf 의존성 추가
     implementation ("org.tensorflow:tensorflow-lite:2.9.0")// 또는 사용하는 버전
     implementation ("org.tensorflow:tensorflow-lite-support:0.4.2")
-
+    annotationProcessor(libs.room.compiler)
 
 
 }

@@ -101,6 +101,19 @@ public class PhotoRepository {
         return dateToRouteMap.getOrDefault(dateString, new ArrayList<>());
     }
 
+    public List<PhotoInfo> getAllPhotos() {
+        List<String> dates = getAvailableDates();
+        List<PhotoInfo> allPhotos = new ArrayList<>();
+
+        for (String date : dates) {
+            List<PhotoInfo> photosForDate = getPhotosForDate(date);
+            if (photosForDate != null) {
+                allPhotos.addAll(photosForDate);
+            }
+        }
+        return allPhotos;
+    }
+
     // 사진이 있는 날짜 목록 가져오기
     public List<String> getAvailableDates() {
         return new ArrayList<>(dateToPhotosMap.keySet());
