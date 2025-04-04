@@ -8,6 +8,7 @@ import android.Manifest;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.location.Address;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
@@ -19,6 +20,7 @@ import android.widget.Toast;
 import com.example.wakey.data.model.PhotoInfo;
 import com.example.wakey.data.model.PlaceData;
 import com.example.wakey.data.model.TimelineItem;
+import com.example.wakey.data.repository.ImageRepository;
 import com.example.wakey.data.util.DateUtil;
 import com.example.wakey.manager.ApiManager;
 import com.example.wakey.manager.DataManager;
@@ -33,11 +35,14 @@ import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import com.example.wakey.util.ImageUtils;
+import com.example.wakey.data.model.ImageMeta;
 
 /**
  * 메인 액티비티 클래스
@@ -69,7 +74,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     // 지도 설정
     private boolean clusteringEnabled = true;
     private boolean showPOIs = false;
-
+    private ImageRepository imageRepository;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -96,6 +101,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         // 권한 요청
         requestLocationPermission();
+
+        imageRepository = new ImageRepository(this);
     }
 
     /**
@@ -276,7 +283,21 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private void loadPhotoData() {
         dataManager.loadPhotoData();
         loadDataForDate(uiManager.getFormattedDate());
+
+        new Thread(() -> {
+            List<PhotoInfo> allPhotos = dataManager.getAllPhotoInfo();
+            for (PhotoInfo photo : allPhotos) {
+                Uri uri = Uri.fromFile(new File(photo.getFilePath()));
+                Bitmap bitmap = ImageUtils.loadBitmapFromUri(this, uri);
+
+                if (bitmap != null) {
+                    ImageMeta meta = imageRepository.classifyImage(uri, bitmap);
+                    imageRepository.savePhotoToDB(uri, meta);
+                }
+            }
+        }).start();
     }
+
 
     /**
      * 모든 사진 지도에 로드
