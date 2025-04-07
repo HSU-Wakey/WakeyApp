@@ -390,9 +390,7 @@ public class UIManager {
         return (Calendar) currentSelectedDate.clone();
     }
 
-    /**
-     * 검색 대화상자 표시 (수정된 버전)
-     */
+
     /**
      * 검색 대화상자 표시 (오류 해결)
      */
