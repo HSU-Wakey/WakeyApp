@@ -6,9 +6,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
-import android.net.Uri;
 import android.os.Build;
-import android.util.Log;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -16,7 +14,6 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
-import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -25,24 +22,16 @@ import androidx.fragment.app.FragmentManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.bumptech.glide.Glide;
 import com.example.wakey.R;
-import com.example.wakey.data.local.AppDatabase;
-import com.example.wakey.data.local.Photo;
 import com.example.wakey.data.model.SearchHistoryItem;
 import com.example.wakey.data.model.TimelineItem;
 import com.example.wakey.data.repository.SearchHistoryRepository;
-import com.example.wakey.data.util.SimilarityUtil;
 import com.example.wakey.service.SearchService;
-import com.example.wakey.tflite.ClipTextEncoder;
-import com.example.wakey.tflite.ClipTokenizer;
 import com.example.wakey.ui.map.PlaceDetailsBottomSheet;
 import com.example.wakey.ui.photo.PhotoDetailFragment;
 import com.example.wakey.ui.search.SearchActivity;
 import com.example.wakey.ui.search.SearchHistoryAdapter;
-import com.example.wakey.ui.timeline.StoryAdapter;
 import com.example.wakey.ui.timeline.TimelineAdapter;
-import com.example.wakey.ui.timeline.TimelineManager;
 import com.example.wakey.ui.timeline.TimelineRenderer;
 import com.example.wakey.util.ToastManager;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
@@ -58,6 +47,7 @@ import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+
 
 /**
  * UI 관련 기능을 관리하는 매니저 클래스
@@ -80,13 +70,6 @@ public class UIManager {
     private BottomSheetBehavior<View> bottomSheetBehavior;
     private RecyclerView timelineRecyclerView;
     private TimelineAdapter timelineAdapter;
-
-    // 스토리 관련 변수 (추가)
-    private RecyclerView storyRecyclerView;
-    private StoryAdapter storyAdapter;
-    private TabLayout tabLayout;
-    private boolean isTimelineTabSelected = true; // 현재 선택된 탭 (기본: 타임라인)
-
     private List<TimelineItem> timelineItems = new ArrayList<>();
 
     // 바텀 시트 상태 관리
@@ -97,28 +80,20 @@ public class UIManager {
 
     // 검색 대화상자
     private AlertDialog searchDialog;
-    private OnSearchQueryListener searchQueryListener;
+    private OnSearchPerformedListener searchListener;
 
     // 인터페이스 정의
     public interface OnDateChangedListener {
         void onDateChanged(String formattedDate);
     }
 
-    public interface OnTimelineItemClickListener {
-        void onTimelineItemClick(TimelineItem item, int position);
-    }
-
-    // 검색 관련 인터페이스
-    public interface OnSearchQueryListener {
-        void onSearch(String query);
-    }
-
-    // 검색 결과 인터페이스
     public interface OnSearchPerformedListener {
         void onSearchPerformed(String query);
     }
 
-    private OnSearchPerformedListener searchListener;
+    public interface OnTimelineItemClickListener {
+        void onTimelineItemClick(TimelineItem item, int position);
+    }
 
     private UIManager(Context context) {
         this.context = context.getApplicationContext();
@@ -138,30 +113,10 @@ public class UIManager {
     /**
      * 초기화 메소드
      */
-    /**
-     * 초기화 메소드
-     */
     public void init(Activity activity, FragmentManager fragmentManager,
                      TextView dateTextView, TextView bottomSheetDateTextView,
                      OnDateChangedListener dateChangedListener,
-                     OnSearchQueryListener searchQueryListener) {
-        this.activity = activity;
-        this.fragmentManager = fragmentManager;
-        this.dateTextView = dateTextView;
-        this.bottomSheetDateTextView = bottomSheetDateTextView;
-        this.dateChangedListener = dateChangedListener;
-        this.searchQueryListener = searchQueryListener;
-
-        updateDateDisplay();
-    }
-
-    /**
-     * 초기화 메소드 (검색 기능 추가)
-     */
-    public void initWithSearchPerformer(Activity activity, FragmentManager fragmentManager,
-                                        TextView dateTextView, TextView bottomSheetDateTextView,
-                                        OnDateChangedListener dateChangedListener,
-                                        OnSearchPerformedListener searchListener) {
+                     OnSearchPerformedListener searchListener) {
         this.activity = activity;
         this.fragmentManager = fragmentManager;
         this.dateTextView = dateTextView;
@@ -186,6 +141,7 @@ public class UIManager {
         bottomSheetBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);
 
         // 반쯤 펼쳐진 상태의 높이 설정
+        int halfExpandedRatio = 50; // 화면의 50%
         bottomSheetBehavior.setHalfExpandedRatio(0.5f);
 
         // 드래그 가능하도록 설정
@@ -200,49 +156,12 @@ public class UIManager {
         // 타임라인 렌더러 추가
         timelineRecyclerView.addItemDecoration(new TimelineRenderer(context));
 
-        // 스토리 리사이클러뷰 설정 (추가)
-        storyRecyclerView = bottomSheetView.findViewById(R.id.storyRecyclerView);
-        if (storyRecyclerView != null) {
-            storyRecyclerView.setLayoutManager(new LinearLayoutManager(context));
-            storyAdapter = new StoryAdapter(timelineItems);
-            storyRecyclerView.setAdapter(storyAdapter);
-
-            // 초기 상태는 숨김
-            storyRecyclerView.setVisibility(View.GONE);
-
-            // 스토리 아이템 클릭 리스너
-            storyAdapter.setOnItemClickListener((item, position) -> {
-                if (listener != null) {
-                    listener.onTimelineItemClick(item, position);
-                }
-            });
-        }
-
         // 탭 레이아웃 설정
-        tabLayout = bottomSheetView.findViewById(R.id.tab_layout);
+        TabLayout tabLayout = bottomSheetView.findViewById(R.id.tab_layout);
         tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
             @Override
             public void onTabSelected(TabLayout.Tab tab) {
-                int position = tab.getPosition();
-                if (position == 0) {
-                    // 타임라인 탭 선택
-                    timelineRecyclerView.setVisibility(View.VISIBLE);
-                    if (storyRecyclerView != null) {
-                        storyRecyclerView.setVisibility(View.GONE);
-                    }
-                    isTimelineTabSelected = true;
-                } else if (position == 1) {
-                    // 스토리 탭 선택
-                    timelineRecyclerView.setVisibility(View.GONE);
-                    if (storyRecyclerView != null) {
-                        storyRecyclerView.setVisibility(View.VISIBLE);
-
-                        // 스토리 탭 선택 시 스토리 생성 시작
-                        TimelineManager timelineManager = TimelineManager.getInstance(context);
-                        timelineManager.generateStoriesForTimelineOptimized(timelineItems);
-                    }
-                    isTimelineTabSelected = false;
-                }
+                // 탭 선택 시 필터링 로직 추가 가능
             }
 
             @Override
@@ -282,16 +201,29 @@ public class UIManager {
 
     /**
      * 바텀 시트 상태 토글
+     * 1. 숨김 -> 반쯤 펼침
+     * 2. 반쯤 펼침 -> 완전히 펼침
+     * 3. 완전히 펼침 -> 숨김
      */
     public void toggleBottomSheetState() {
         if (bottomSheetBehavior == null) return;
 
-        if (currentBottomSheetState == BOTTOM_SHEET_HIDDEN) {
-            setBottomSheetState(BOTTOM_SHEET_HALF_EXPANDED);
-        } else if (currentBottomSheetState == BOTTOM_SHEET_HALF_EXPANDED) {
-            setBottomSheetState(BOTTOM_SHEET_EXPANDED);
-        } else {
-            setBottomSheetState(BOTTOM_SHEET_HIDDEN);
+        // 현재 상태에 따라 다음 상태로 전환
+        switch (currentBottomSheetState) {
+            case BOTTOM_SHEET_HIDDEN:
+                // 숨김 -> 반쯤 펼침
+                bottomSheetBehavior.setState(BottomSheetBehavior.STATE_HALF_EXPANDED);
+                break;
+
+            case BOTTOM_SHEET_HALF_EXPANDED:
+                // 반쯤 펼침 -> 완전히 펼침
+                bottomSheetBehavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+                break;
+
+            case BOTTOM_SHEET_EXPANDED:
+                // 완전히 펼침 -> 반쯤 펼침 (토글 시 바로 닫히지 않고 중간 단계로)
+                bottomSheetBehavior.setState(BottomSheetBehavior.STATE_HALF_EXPANDED);
+                break;
         }
     }
 
@@ -300,10 +232,6 @@ public class UIManager {
      */
     public void setBottomSheetState(int state) {
         if (bottomSheetBehavior == null) return;
-
-        if (currentBottomSheetState == state) {
-            return; // 변경 없음
-        }
 
         switch (state) {
             case BOTTOM_SHEET_HIDDEN:
@@ -316,38 +244,25 @@ public class UIManager {
                 bottomSheetBehavior.setState(BottomSheetBehavior.STATE_EXPANDED);
                 break;
         }
-
-        currentBottomSheetState = state;
     }
 
     /**
      * 타임라인 데이터 업데이트
      */
     public void updateTimelineData(List<TimelineItem> items) {
-        if (items == null) return;
-
         this.timelineItems.clear();
-        this.timelineItems.addAll(items);
-        Collections.sort(this.timelineItems, Comparator.comparing(TimelineItem::getTime));
+        if (items != null) {
+            this.timelineItems.addAll(items);
+            Collections.sort(this.timelineItems, Comparator.comparing(TimelineItem::getTime));
+        }
 
-        // 타임라인 어댑터 업데이트
         if (timelineAdapter != null) {
             timelineAdapter.updateItems(this.timelineItems);
-        }
-
-        // 스토리 어댑터 업데이트 (추가)
-        if (storyAdapter != null) {
-            storyAdapter.updateItems(this.timelineItems);
-        }
-
-        // 데이터가 있으면 바텀 시트 표시
-        if (!this.timelineItems.isEmpty() && currentBottomSheetState == BOTTOM_SHEET_HIDDEN) {
-            setBottomSheetState(BOTTOM_SHEET_HALF_EXPANDED);
         }
     }
 
     /**
-     * 타임라인 항목 강조 표시
+     * 타임라인 항목 강조
      */
     public void highlightTimelineItem(String photoPath) {
         if (timelineItems == null || timelineRecyclerView == null) return;
@@ -374,7 +289,7 @@ public class UIManager {
     }
 
     /**
-     * 장소 세부정보 표시
+     * 장소 세부정보 바텀시트 표시
      */
     public void showPlaceDetails(String placeId) {
         if (fragmentManager == null || placeId == null) return;
@@ -386,19 +301,19 @@ public class UIManager {
     /**
      * 날짜 표시 업데이트
      */
-    private void updateDateDisplay() {
-        // ✅ 수정된 포맷 - 일(dd)을 포함
-        SimpleDateFormat yearMonthDayFormat = new SimpleDateFormat("yyyy년 MM월 dd일", Locale.getDefault());
-        SimpleDateFormat shortDateFormat = new SimpleDateFormat("yyyy.M.d", Locale.getDefault());  // 간단한 형식도 수정
+    public void updateDateDisplay() {
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy.MM.dd", Locale.getDefault());
+        String formattedDate = dateFormat.format(currentSelectedDate.getTime());
 
         if (dateTextView != null) {
-            // ✅ 일을 포함한 포맷 사용
-            dateTextView.setText(yearMonthDayFormat.format(currentSelectedDate.getTime()));
+            dateTextView.setText(formattedDate);
         }
+
         if (bottomSheetDateTextView != null) {
-            bottomSheetDateTextView.setText(shortDateFormat.format(currentSelectedDate.getTime()));
+            bottomSheetDateTextView.setText(formattedDate);
         }
     }
+
     /**
      * 날짜 선택 대화상자 표시
      */
@@ -435,34 +350,33 @@ public class UIManager {
     }
 
     /**
-     * 이전 날짜로 이동
+     * 이전 날짜로 변경
      */
     public void goToPreviousDate() {
         currentSelectedDate.add(Calendar.DAY_OF_MONTH, -1);
         updateDateDisplay();
-        notifyDateChanged();
-    }
 
-    /**
-     * 다음 날짜로 이동
-     */
-    public void goToNextDate() {
-        currentSelectedDate.add(Calendar.DAY_OF_MONTH, 1);
-        updateDateDisplay();
-        notifyDateChanged();
-    }
-
-    /**
-     * 날짜 변경 시 호출
-     */
-    private void notifyDateChanged() {
+        // 리스너 호출
         if (dateChangedListener != null) {
             dateChangedListener.onDateChanged(getFormattedDate());
         }
     }
 
     /**
-     * 포맷된 날짜 문자열 반환
+     * 다음 날짜로 변경
+     */
+    public void goToNextDate() {
+        currentSelectedDate.add(Calendar.DAY_OF_MONTH, 1);
+        updateDateDisplay();
+
+        // 리스너 호출
+        if (dateChangedListener != null) {
+            dateChangedListener.onDateChanged(getFormattedDate());
+        }
+    }
+
+    /**
+     * 형식화된 날짜 문자열 가져오기 (yyyy-MM-dd)
      */
     public String getFormattedDate() {
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
@@ -470,23 +384,21 @@ public class UIManager {
     }
 
     /**
-     * 날짜 설정
+     * 현재 선택된 날짜 가져오기
      */
-    public void setDate(Date date) {
-        if (date != null) {
-            currentSelectedDate.setTime(date);
-            updateDateDisplay();
-            notifyDateChanged();
-        }
+    public Calendar getCurrentSelectedDate() {
+        return (Calendar) currentSelectedDate.clone();
     }
 
+
     /**
-     * 검색 대화상자 표시
+     * 검색 대화상자 표시 (오류 해결)
      */
     public void showSearchDialog() {
         if (activity == null) return;
         Intent intent = new Intent(activity, SearchActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        activity.startActivity(intent);
 
         // 검색 서비스 초기화
         SearchService searchService = SearchService.getInstance(context);
@@ -553,58 +465,14 @@ public class UIManager {
 
         // 6. 검색 EditText 설정
         EditText searchEditText = searchView.findViewById(R.id.searchEditText);
-        TextView resultTextView = searchView.findViewById(R.id.searchResultTextView);
-        ImageView resultImageView = searchView.findViewById(R.id.resultImageView);
-
         searchEditText.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH) {
                 String query = searchEditText.getText().toString().trim();
-                if (!query.isEmpty()) {
-                    resultTextView.setText("🔍 \"" + query + "\" 검색 중...");
-
-                    new Thread(() -> {
-                        try {
-                            // 1. 텍스트 → 벡터
-                            ClipTokenizer tokenizer = new ClipTokenizer(context);
-                            int[] tokenIds = tokenizer.tokenize(query);
-                            ClipTextEncoder encoder = new ClipTextEncoder(context);
-                            float[] textVec = encoder.getTextEncoding(tokenIds);
-                            encoder.close();
-
-                            // 2. DB에서 이미지 벡터 가져와 유사도 비교
-                            List<Photo> photoList = AppDatabase.getInstance(context).photoDao().getAllPhotos();
-                            float maxSim = -1f;
-                            Photo bestPhoto = null;
-                            for (Photo photo : photoList) {
-                                float[] imageVec = photo.getEmbeddingVector();
-                                if (imageVec == null) continue;
-                                float sim = SimilarityUtil.cosineSimilarity(textVec, imageVec);
-                                if (sim > maxSim) {
-                                    maxSim = sim;
-                                    bestPhoto = photo;
-                                }
-                            }
-
-                            // 3. UI 업데이트
-                            Photo finalBestPhoto = bestPhoto;
-                            float finalMaxSim = maxSim;
-                            activity.runOnUiThread(() -> {
-                                if (finalBestPhoto != null) {
-                                    Glide.with(context)
-                                            .load(Uri.parse(finalBestPhoto.getFilePath()))
-                                            .into(resultImageView);
-                                    resultTextView.setText("✅ 가장 유사한 이미지 유사도: " + String.format("%.3f", finalMaxSim));
-                                } else {
-                                    resultTextView.setText("❌ 유사한 이미지를 찾을 수 없습니다.");
-                                }
-                            });
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                            activity.runOnUiThread(() -> {
-                                resultTextView.setText("❌ 오류 발생: " + e.getMessage());
-                            });
-                        }
-                    }).start();
+                if (!query.isEmpty() && searchListener != null) {
+                    searchListener.onSearchPerformed(query);
+                    if (searchDialog != null && searchDialog.isShowing()) {
+                        searchDialog.dismiss();
+                    }
                 }
                 return true;
             }
@@ -627,7 +495,11 @@ public class UIManager {
             searchDialog = null;
         }
 
-        // 8. Dialog 생성 (전체화면 테마 적용)
+        // 8. Dialog 생성 (전체화면 테마 적용) - 주요 수정 부분
+        // 1) requestWindowFeature 제거 - 이미 Dialog.Builder에서 처리됨
+        // 2) 백그라운드 블러 처리 try-catch로 감싸기
+
+        // Dialog 생성
         AlertDialog.Builder builder = new AlertDialog.Builder(activity, R.style.FullScreenDialogStyle);
         builder.setView(searchView);
         searchDialog = builder.create();
@@ -695,27 +567,6 @@ public class UIManager {
                 e.printStackTrace();
             }
         }, 200);  // 지연 시간 증가
-    }
-
-    /**
-     * 현재 바텀 시트 상태 반환
-     */
-    public int getCurrentBottomSheetState() {
-        return currentBottomSheetState;
-    }
-
-    /**
-     * 토스트 메시지 표시
-     */
-    public void showToast(String message) {
-        ToastManager.getInstance().showToast(message);
-    }
-
-    /**
-     * 현재 날짜로 업데이트
-     */
-    public void updateToToday() {
-        setDate(new Date());
     }
 
     /**
@@ -846,5 +697,33 @@ public class UIManager {
         void onTransitToggled(boolean enabled);
 
         void onOptionsApplied();
+    }
+
+    /**
+     * 현재 바텀 시트 상태 가져오기
+     */
+    public int getCurrentBottomSheetState() {
+        return currentBottomSheetState;
+    }
+
+    /**
+     * 날짜 설정
+     */
+    public void setDate(Date date) {
+        if (date != null) {
+            currentSelectedDate.setTime(date);
+            updateDateDisplay();
+
+            if (dateChangedListener != null) {
+                dateChangedListener.onDateChanged(getFormattedDate());
+            }
+        }
+    }
+
+    /**
+     * 토스트 메시지 표시
+     */
+    public void showToast(String message) {
+        ToastManager.getInstance().showToast(message);
     }
 }
