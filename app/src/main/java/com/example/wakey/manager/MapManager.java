@@ -36,12 +36,12 @@ public class MapManager {
     private GoogleMap googleMap;
     private ClusterManager<PhotoClusterItem> clusterManager;
 
-    // 맵 설정 변수 (맵설변)
+    // 맵 설정 변수
     private boolean clusteringEnabled = true;
     private boolean showPOIs = false;
     private static final int POI_SEARCH_RADIUS = 300; // 미터 단위
 
-    // 인터페이스 정의 (인정의)
+    // 인터페이스 정의
     public interface OnMarkerClickListener {
         void onMarkerClick(PhotoInfo photoInfo);
         void onClusterClick(LatLng position);

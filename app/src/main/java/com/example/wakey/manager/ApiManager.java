@@ -34,7 +34,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * API 관련 기능을 관리하는 매니저 클래스 (에관매)
+ * API 관련 기능을 관리하는 매니저 클래스
  */
 public class ApiManager {
     private static final String TAG = "ApiManager";
