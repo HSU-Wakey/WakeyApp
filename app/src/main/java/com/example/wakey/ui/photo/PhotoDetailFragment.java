@@ -289,32 +289,83 @@ public class PhotoDetailFragment extends DialogFragment {
                             1
                     );
                     if (addresses != null && !addresses.isEmpty()) {
-                        String addressStr = addresses.get(0).getAddressLine(0);
-                        requireActivity().runOnUiThread(() ->
-                                addressTextView.setText(addressStr));
+                        Address address = addresses.get(0);
+                        String addressStr = address.getAddressLine(0);
+
+                        // 위치 정보를 풍부하게 가공 (이 부분이 핵심!)
+                        final String locationDisplay;
+                        String locality = address.getLocality();        // 예: 종로구
+                        String subLocality = address.getSubLocality();  // 예: 혜화동
+                        String featureName = address.getFeatureName();  // 예: 302-12
+
+                        if (locality != null && subLocality != null) {
+                            locationDisplay = locality + " " + subLocality;
+                        } else if (locality != null) {
+                            locationDisplay = locality;
+                        } else if (addressStr != null) {
+                            // 주소에서 마지막 두 부분만 추출 (간소화된 위치)
+                            String[] parts = addressStr.split(" ");
+                            if (parts.length >= 2) {
+                                locationDisplay = parts[parts.length - 2] + " " + parts[parts.length - 1];
+                            } else {
+                                locationDisplay = addressStr;
+                            }
+                        } else {
+                            locationDisplay = "위치 정보 없음";
+                        }
+
+                        requireActivity().runOnUiThread(() -> {
+                            // 주소는 기존처럼 전체 주소 표시
+                            addressTextView.setText(addressStr);
+
+                            // 위치 이름은 가공된 형태로 표시
+                            locationTextView.setText(locationDisplay);
+                        });
                     } else {
-                        requireActivity().runOnUiThread(() ->
-                                addressTextView.setText("위치 정보 없음"));
+                        requireActivity().runOnUiThread(() -> {
+                            addressTextView.setText("위치 정보 없음");
+
+                            // TimelineItem의 location 정보가 있으면 사용, 없으면 기본값
+                            if (timelineItem.getLocation() != null &&
+                                    !timelineItem.getLocation().equals("미상") &&
+                                    !timelineItem.getLocation().equals("알 수 없는 위치")) {
+                                locationTextView.setText(timelineItem.getLocation());
+                            } else {
+                                locationTextView.setText("위치 정보 없음");
+                            }
+                        });
                     }
                 } catch (Exception e) {
-                    requireActivity().runOnUiThread(() ->
-                            addressTextView.setText("위치 정보 불러오기 실패"));
+                    requireActivity().runOnUiThread(() -> {
+                        addressTextView.setText("위치 정보 불러오기 실패");
+
+                        // 실패 시에는 기존 location 정보 사용
+                        if (timelineItem.getLocation() != null && !timelineItem.getLocation().isEmpty() &&
+                                !timelineItem.getLocation().equals("미상") &&
+                                !timelineItem.getLocation().equals("알 수 없는 위치")) {
+                            locationTextView.setText(timelineItem.getLocation());
+                        } else {
+                            locationTextView.setText("위치 정보 없음");
+                        }
+                    });
                     e.printStackTrace();
                 }
             }).start();
         } else {
             addressTextView.setText("위치 정보 없음");
+
+            // 위도/경도가 없는 경우, 기존 location 정보 사용
+            if (timelineItem.getLocation() != null && !timelineItem.getLocation().isEmpty() &&
+                    !timelineItem.getLocation().equals("미상") &&
+                    !timelineItem.getLocation().equals("알 수 없는 위치")) {
+                locationTextView.setText(timelineItem.getLocation());
+            } else {
+                locationTextView.setText("위치 정보 없음");
+            }
         }
 
         // 4. 타임라인 텍스트 설정
         captionTextView.setText(timelineItem.getDescription());
-
-        // 위치 정보 확실히 설정
-        if (timelineItem.getLocation() != null && !timelineItem.getLocation().isEmpty()) {
-            locationTextView.setText(timelineItem.getLocation());
-        } else {
-            locationTextView.setText("장소 미상");
-        }
 
         // 날짜 형식 수정: YYYY.MM.DD(요일) HH:MM 형식으로
         String dateTimeStr = DateUtil.formatDate(timelineItem.getTime(), "yyyy.MM.dd(E) HH:mm");

@@ -64,7 +64,7 @@ public class ApiManager {
     }
 
     /**
-     * 싱글톤 인스턴스 반환 (싱인반)
+     * 싱글톤 인스턴스 반환
      */
     public static synchronized ApiManager getInstance(Context context) {
         if (instance == null) {
@@ -74,7 +74,7 @@ public class ApiManager {
     }
 
     /**
-     * 초기화 메소드 (초메)
+     * 초기화 메소드
      */
     public void init(Context context) {
         // Places API 초기화
@@ -142,7 +142,7 @@ public class ApiManager {
     }
 
     /**
-     * 주소 및 POI 정보 가져오기 (주포정가)
+     * 주소 및 POI 정보 가져오기
      */
     public void fetchAddressAndPOIs(PhotoInfo photoInfo, OnAddressResolvedListener listener) {
         if (photoInfo == null || photoInfo.getLatLng() == null || listener == null) return;
@@ -190,7 +190,7 @@ public class ApiManager {
     }
 
     /**
-     * 타임라인 항목 생성 (타항생)
+     * 타임라인 항목 생성
      */
     public TimelineItem createTimelineItem(PhotoInfo photo, Address address, List<PlaceData> places) {
         if (photo == null) return null;
@@ -243,7 +243,7 @@ public class ApiManager {
 
 
     /**
-     * 주변 장소 검색 (주장검)
+     * 주변 장소 검색
      */
     public void searchNearbyPlaces(LatLng location, PlaceHelper.OnPlaceFoundListener listener) {
         if (placesClient == null || location == null || listener == null) return;
