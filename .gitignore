@@ -16,3 +16,4 @@ local.properties
 app/src/main/assets/openai_clip-clipimageencoder-snapdragon_8_elite.tflite
 app/src/main/assets/openai_clip-cliptextencoder-snapdragon_8_elite.tflite
 .idea/deploymentTargetSelector.xml
+.idea/deploymentTargetSelector.xml
