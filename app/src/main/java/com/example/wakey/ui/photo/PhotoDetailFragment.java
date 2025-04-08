@@ -3,6 +3,7 @@ package com.example.wakey.ui.photo;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.location.Address;
 import android.location.Geocoder;
 import android.os.Bundle;
@@ -12,8 +13,10 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageButton;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.DialogFragment;
 
 import com.bumptech.glide.Glide;
@@ -110,10 +113,8 @@ public class PhotoDetailFragment extends DialogFragment {
 
         // 기본 뷰 참조 찾기
         ImageView photoImageView = view.findViewById(R.id.photoDetailImageView);
-        TextView captionTextView = view.findViewById(R.id.photoDetailCaptionTextView);
         TextView locationTextView = view.findViewById(R.id.photoDetailLocationTextView);
         TextView timeTextView = view.findViewById(R.id.photoDetailTimeTextView);
-        TextView predictionTextView = view.findViewById(R.id.photoDetailPredictionTextView);
         TextView addressTextView = view.findViewById(R.id.photoDetailAddressTextView);
         TextView activityChip = view.findViewById(R.id.activityChip);
 
@@ -135,8 +136,13 @@ public class PhotoDetailFragment extends DialogFragment {
         });
 
         // 현재 타임라인 아이템이 있으면 UI 업데이트
-        updateUI(photoImageView, captionTextView, locationTextView, timeTextView,
-                predictionTextView, addressTextView, activityChip);
+        updateUI(
+                photoImageView,
+                locationTextView,
+                timeTextView,
+                addressTextView,
+                activityChip
+        );
 
         // 닫기 버튼
         closeButton.setOnClickListener(v -> dismiss());
@@ -177,12 +183,11 @@ public class PhotoDetailFragment extends DialogFragment {
                 locationTextView.setText("장소"); // 기본값
             }
 
+            // Updated call without predictionTextView parameter
             updateUI(
                     view.findViewById(R.id.photoDetailImageView),
-                    view.findViewById(R.id.photoDetailCaptionTextView),
                     locationTextView,
                     view.findViewById(R.id.photoDetailTimeTextView),
-                    view.findViewById(R.id.photoDetailPredictionTextView),
                     view.findViewById(R.id.photoDetailAddressTextView),
                     view.findViewById(R.id.activityChip)
             );
@@ -217,12 +222,11 @@ public class PhotoDetailFragment extends DialogFragment {
                 locationTextView.setText("장소"); // 기본값
             }
 
+            // Updated call without predictionTextView parameter
             updateUI(
                     view.findViewById(R.id.photoDetailImageView),
-                    view.findViewById(R.id.photoDetailCaptionTextView),
                     locationTextView,
                     view.findViewById(R.id.photoDetailTimeTextView),
-                    view.findViewById(R.id.photoDetailPredictionTextView),
                     view.findViewById(R.id.photoDetailAddressTextView),
                     view.findViewById(R.id.activityChip)
             );
@@ -238,10 +242,10 @@ public class PhotoDetailFragment extends DialogFragment {
         ToastManager.getInstance().showToast("다음 사진으로 이동했습니다");
     }
 
-    private void updateUI(ImageView photoImageView, TextView captionTextView,
+    // updateUI
+    private void updateUI(ImageView photoImageView,
                           TextView locationTextView, TextView timeTextView,
-                          TextView predictionTextView, TextView addressTextView,
-                          TextView activityChip) {
+                          TextView addressTextView, TextView activityChip) {
         if (timelineItem == null) {
             return;
         }
@@ -256,23 +260,34 @@ public class PhotoDetailFragment extends DialogFragment {
             if (imgFile.exists()) {
                 Bitmap bitmap = BitmapFactory.decodeFile(imgFile.getAbsolutePath());
 
-                // 2. 이미지 분류 실행 (AI 예측 결과)
+                // 2. 이미지 분류 실행 (AI 예측 결과) - modified to use createHashtags
                 try {
                     ImageClassifier classifier = new ImageClassifier(requireContext());
                     List<Pair<String, Float>> predictions = classifier.classifyImage(bitmap);
 
-                    // 텍스트 포맷팅 변경 - 심플하게
-                    StringBuilder sb = new StringBuilder();
-                    for (Pair<String, Float> pred : predictions) {
-                        sb.append("• ").append(pred.first)
-                                .append(" (").append(String.format("%.2f", pred.second)).append("%)")
-                                .append("\n");
-                    }
-                    predictionTextView.setText(sb.toString());
+                    // Create individual hashtags instead of a single text view
+                    createHashtags(predictions);
 
                     classifier.close();
                 } catch (Exception e) {
-                    predictionTextView.setText("• 이미지 분석 실패");
+                    // Create a single default hashtag
+                    View currentView = getView();
+                    if (currentView != null) {
+                        LinearLayout hashtagContainer = currentView.findViewById(R.id.hashtagContainer);
+                        hashtagContainer.removeAllViews();
+
+                        TextView tagView = new TextView(requireContext());
+                        tagView.setText("#Photo");
+                        tagView.setTextSize(12);
+                        tagView.setTextColor(Color.BLACK);
+
+                        int paddingPixels = (int) (12 * getResources().getDisplayMetrics().density);
+                        int topBottomPadding = (int) (6 * getResources().getDisplayMetrics().density);
+                        tagView.setPadding(paddingPixels, topBottomPadding, paddingPixels, topBottomPadding);
+
+                        tagView.setBackground(ContextCompat.getDrawable(requireContext(), R.drawable.hash_tag_background));
+                        hashtagContainer.addView(tagView);
+                    }
                     e.printStackTrace();
                 }
             }
@@ -280,6 +295,7 @@ public class PhotoDetailFragment extends DialogFragment {
 
         // 3. 주소 정보 가져오기 (Geocoder)
         if (timelineItem.getLatLng() != null) {
+            // Rest of the method remains the same...
             Geocoder geocoder = new Geocoder(requireContext(), Locale.getDefault());
             new Thread(() -> {
                 try {
@@ -292,11 +308,11 @@ public class PhotoDetailFragment extends DialogFragment {
                         Address address = addresses.get(0);
                         String addressStr = address.getAddressLine(0);
 
-                        // 위치 정보를 풍부하게 가공 (이 부분이 핵심!)
+                        // 위치 정보를 풍부하게 가공
                         final String locationDisplay;
-                        String locality = address.getLocality();        // 예: 종로구
-                        String subLocality = address.getSubLocality();  // 예: 혜화동
-                        String featureName = address.getFeatureName();  // 예: 302-12
+                        String locality = address.getLocality();
+                        String subLocality = address.getSubLocality();
+                        String featureName = address.getFeatureName();
 
                         if (locality != null && subLocality != null) {
                             locationDisplay = locality + " " + subLocality;
@@ -364,10 +380,7 @@ public class PhotoDetailFragment extends DialogFragment {
             }
         }
 
-        // 4. 타임라인 텍스트 설정
-        captionTextView.setText(timelineItem.getDescription());
-
-        // 날짜 형식 수정: YYYY.MM.DD(요일) HH:MM 형식으로
+        // 4. 날짜 형식 수정: YYYY.MM.DD(요일) HH:MM 형식으로
         String dateTimeStr = DateUtil.formatDate(timelineItem.getTime(), "yyyy.MM.dd(E) HH:mm");
         timeTextView.setText(dateTimeStr);
 
@@ -379,4 +392,71 @@ public class PhotoDetailFragment extends DialogFragment {
             activityChip.setVisibility(View.GONE);
         }
     }
+
+    /**
+     * Creates individual hashtag views from classifier predictions
+     */
+    private void createHashtags(List<Pair<String, Float>> predictions) {
+        // Find the container
+        LinearLayout hashtagContainer = getView().findViewById(R.id.hashtagContainer);
+
+        // Clear existing tags
+        hashtagContainer.removeAllViews();
+
+        // Create individual tag for each prediction (limit to 5)
+        int count = 0;
+        for (Pair<String, Float> pred : predictions) {
+            if (count >= 5) break; // Limit to 5 tags maximum
+
+            // Extract main term before comma or parenthesis
+            String term = pred.first.split(",")[0].trim();
+            term = term.split("\\(")[0].trim();
+            String hashtag = "#" + term.replace(" ", "");
+
+            // Create a TextView for the hashtag
+            TextView tagView = new TextView(requireContext());
+            tagView.setText(hashtag);
+            tagView.setTextSize(12);
+            tagView.setTextColor(Color.BLACK);
+
+            // Set padding and margin
+            int paddingPixels = (int) (12 * getResources().getDisplayMetrics().density);
+            int topBottomPadding = (int) (6 * getResources().getDisplayMetrics().density);
+            tagView.setPadding(paddingPixels, topBottomPadding, paddingPixels, topBottomPadding);
+
+            // Create layout parameters with margin
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+            );
+            if (count < predictions.size() - 1) {
+                int marginPixels = (int) (6 * getResources().getDisplayMetrics().density);
+                params.rightMargin = marginPixels;
+            }
+            tagView.setLayoutParams(params);
+
+            // Set the background
+            tagView.setBackground(ContextCompat.getDrawable(requireContext(), R.drawable.hash_tag_background));
+
+            // Add to container
+            hashtagContainer.addView(tagView);
+            count++;
+        }
+
+        // If no predictions or error, add a single default tag
+        if (count == 0) {
+            TextView tagView = new TextView(requireContext());
+            tagView.setText("#Photo");
+            tagView.setTextSize(12);
+            tagView.setTextColor(Color.BLACK);
+
+            int paddingPixels = (int) (12 * getResources().getDisplayMetrics().density);
+            int topBottomPadding = (int) (6 * getResources().getDisplayMetrics().density);
+            tagView.setPadding(paddingPixels, topBottomPadding, paddingPixels, topBottomPadding);
+
+            tagView.setBackground(ContextCompat.getDrawable(requireContext(), R.drawable.hash_tag_background));
+            hashtagContainer.addView(tagView);
+        }
+    }
 }
+
