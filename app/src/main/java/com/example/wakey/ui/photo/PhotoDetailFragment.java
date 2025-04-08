@@ -198,9 +198,6 @@ public class PhotoDetailFragment extends DialogFragment {
                     view.findViewById(R.id.btnNext)
             );
         }
-
-        // 이동 알림 - 나중에 삭제
-        ToastManager.getInstance().showToast("이전 사진으로 이동했습니다");
     }
 
     private void navigateToNext() {
@@ -237,9 +234,6 @@ public class PhotoDetailFragment extends DialogFragment {
                     view.findViewById(R.id.btnNext)
             );
         }
-
-        // 이동 알림 - 나중에 삭제
-        ToastManager.getInstance().showToast("다음 사진으로 이동했습니다");
     }
 
     // updateUI
