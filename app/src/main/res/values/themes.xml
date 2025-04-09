@@ -10,8 +10,8 @@
         <item name="colorOnPrimary">#FFFFFF</item>        <!-- 주요 색상 위의 텍스트/아이콘 색상 -->
 
         <!-- 글꼴 설정 -->
-        <item name="android:fontFamily">@font/medium</item>
-        <item name="fontFamily">@font/medium</item>
+        <item name="android:fontFamily">@font/semibold</item>
+        <item name="fontFamily">@font/semibold</item>
     </style>
 
     <style name="DialogAnimation">
@@ -20,6 +20,10 @@
     </style>
 
     <style name="FullScreenDialogStyle" parent="Theme.AppCompat.Dialog">
+        <!-- 글꼴 설정 -->
+        <item name="android:fontFamily">@font/semibold</item>
+        <item name="fontFamily">@font/semibold</item>
+
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowFullscreen">true</item>
         <item name="android:windowIsFloating">false</item>
@@ -29,12 +33,6 @@
         <item name="android:windowTranslucentStatus">true</item>
         <item name="android:windowContentOverlay">@null</item>
         <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
-        <item name="android:windowBlurBehindEnabled">true</item>
-        <item name="android:windowBlurBehindRadius">25dp</item>
-
-        <!-- 글꼴 설정 -->
-        <item name="android:fontFamily">@font/semibold</item>
-        <item name="fontFamily">@font/semibold</item>
     </style>
 
     <style name="CustomMaterialCalendarTheme" parent="ThemeOverlay.MaterialComponents.MaterialCalendar">
