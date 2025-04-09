@@ -390,9 +390,7 @@ public class UIManager {
         return (Calendar) currentSelectedDate.clone();
     }
 
-    /**
-     * 검색 대화상자 표시 (수정된 버전)
-     */
+
     /**
      * 검색 대화상자 표시 (오류 해결)
      */
@@ -497,9 +495,11 @@ public class UIManager {
             searchDialog = null;
         }
 
-        // 8. Dialog 생성 (전체화면 테마 적용) - 주요 수정 부분
-        // 1) requestWindowFeature 제거 - 이미 Dialog.Builder에서 처리됨
-        // 2) 백그라운드 블러 처리 try-catch로 감싸기
+        // 8. Dialog 생성 (전체화면 테마 적용)
+         /*
+         1) requestWindowFeature 제거 - 이미 Dialog.Builder에서 처리됨
+         2) 백그라운드 블러 처리 try-catch로 감싸기
+         */
 
         // Dialog 생성
         AlertDialog.Builder builder = new AlertDialog.Builder(activity, R.style.FullScreenDialogStyle);
