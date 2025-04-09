@@ -16,6 +16,7 @@ litertApi = "1.2.0"
 litertSupportApi = "1.2.0"
 roomRuntime = "2.6.1"
 roomCompiler = "2.6.1"
+roomCommon = "2.6.1"
 
 [libraries]
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -34,6 +35,7 @@ litert-api = { group = "com.google.ai.edge.litert", name = "litert-api", version
 litert-support-api = { group = "com.google.ai.edge.litert", name = "litert-support-api", version.ref = "litertSupportApi" }
 room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "roomRuntime" }
 room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "roomCompiler" }
+room-common = { group = "androidx.room", name = "room-common", version.ref = "roomCommon" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

@@ -4,10 +4,6 @@ import android.app.Activity;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Color;
-import android.util.Log;
-
-import androidx.annotation.NonNull;
-import androidx.core.app.ActivityCompat;
 
 import com.example.wakey.R;
 import com.example.wakey.data.model.PhotoInfo;
@@ -20,9 +16,9 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.PolylineOptions;
-import com.google.maps.android.clustering.Cluster;
 import com.google.maps.android.clustering.ClusterManager;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -309,4 +305,31 @@ public class MapManager {
                 .position(location)
                 .title(title != null ? title : "검색 결과"));
     }
+
+    /**
+     * 객체 탐지 결과와 위치 정보를 기반으로 마커 클러스터 추가
+     */
+    public void addObjectClusters(List<PhotoInfo> photoList) {
+        if (photoList == null || photoList.isEmpty() || clusterManager == null) return;
+
+        for (PhotoInfo photo : photoList) {
+            if (photo.getLatLng() != null && photo.getObjects() != null) {
+                List<String> objects = photo.getObjects();
+
+
+                // 클러스터 항목 생성 (Bitmap 없음 → null, 필요시 썸네일 처리 가능)
+                PhotoClusterItem item = new PhotoClusterItem(
+                        photo.getLatLng(),
+                        DateUtil.formatTime(photo.getDateTaken()),
+                        String.join(", ", objects),  // snippet으로 객체 표시
+                        photo,  // tag
+                        null   // 썸네일 Bitmap 필요시 추후 삽입
+                );
+                clusterManager.addItem(item);
+            }
+        }
+
+        clusterManager.cluster();
+    }
+
 }
