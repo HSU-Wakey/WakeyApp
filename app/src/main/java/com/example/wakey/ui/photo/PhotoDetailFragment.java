@@ -57,7 +57,7 @@ public class PhotoDetailFragment extends DialogFragment {
         TextView locationTextView = view.findViewById(R.id.photoDetailLocationTextView);
         TextView timeTextView = view.findViewById(R.id.photoDetailTimeTextView);
         TextView predictionTextView = view.findViewById(R.id.photoDetailPredictionTextView);
-        TextView addressTextView = view.findViewById(R.id.photoDetailAddressTextView); // ⬅️ 주소 출력용 텍스트뷰
+        TextView addressTextView = view.findViewById(R.id.photoDetailAddressTextView);
         View closeButton = view.findViewById(R.id.closeButton);
 
         if (timelineItem != null) {
