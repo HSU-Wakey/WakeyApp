@@ -1,0 +1,130 @@
+// 프로젝트 구조 및 코드 설명
+
+app/src/main/java/com/example/wakey
+├── MainActivity.java
+├── WakeyApplication.java
+├── data
+│   ├── local
+│   │   ├── AppDatabase.java
+│   │   ├── Photo.java
+│   │   └── PhotoDao.java
+│   ├── model
+│   │   ├── ImageMeta.java
+│   │   ├── PhotoInfo.java
+│   │   ├── PlaceData.java
+│   │   ├── SearchHistoryItem.java
+│   │   └── TimelineItem.java
+│   ├── repository
+│   │   ├── ImageRepository.java
+│   │   ├── PhotoRepository.java
+│   │   ├── SearchHistoryRepository.java
+│   │   └── TimelineManager.java
+│   └── util
+│       ├── DateUtil.java
+│       ├── ExifUtil.java
+│       ├── ImageCaptureUtil.java
+│       ├── PlaceHelper.java
+│       └── SimilarityUtil.java
+├── manager
+│   ├── ApiManager.java
+│   ├── DataManager.java
+│   ├── MapManager.java
+│   └── UIManager.java
+├── project structure
+├── service
+│   ├── CaptionService.java
+│   ├── ClusterService.java
+│   ├── PlaceService.java
+│   └── SearchService.java
+├── tflite
+│   ├── ClipImageEncoder.java
+│   ├── ClipTextEncoder.java
+│   ├── ClipTokenizer.java
+│   └── ImageClassifier.java
+├── ui
+│   ├── map
+│   │   ├── PhotoClusterItem.java
+│   │   ├── PlaceDetailsBottomSheet.java
+│   │   └── ReviewAdapter.java
+│   ├── photo
+│   │   └── PhotoDetailFragment.java
+│   ├── search
+│   │   ├── SearchActivity.java
+│   │   └── SearchHistoryAdapter.java
+│   └── timeline
+│       ├── TimelineAdapter.java
+│       └── TimelineRenderer.java
+└── util
+    ├── ImageUtils.java
+    ├── LocationUtils.java
+    └── ToastManager.java
+
+
+디렉토리 | 주요 파일 | 예상 역할
+MainActivity.java → 앱의 주요 진입점, 사용자 인터페이스와 지도 초기화
+WakeyApplication.java → 앱 전역 설정 및 매니저 클래스 초기화 관리
+
+/data/local → 로컬 데이터베이스 관리 (Room 사용)
+AppDatabase.java: Room 데이터베이스 정의
+Photo.java: 사진 정보를 위한 데이터베이스 엔티티
+PhotoDao.java: 사진 데이터 접근 인터페이스
+
+/data/model → 데이터 모델 정의, 앱 내 데이터 구조화
+ImageMeta.java: 이미지 메타데이터 모델
+PhotoInfo.java: 사진 기본 정보(경로, 촬영일, 위치) 관리
+PlaceData.java: 위치 정보 모델(이름, 주소, 좌표, 유형)
+SearchHistoryItem.java: 검색 기록 모델
+TimelineItem.java: 타임라인 항목 모델(시간, 위치, 사진 등)
+
+/data/repository → 데이터 소스 추상화, 데이터 접근 관리
+ImageRepository.java: 이미지 분류 및 DB 저장 관리
+PhotoRepository.java: 기기 내 사진 접근 및 관리
+SearchHistoryRepository.java: 검색 기록 유지
+TimelineManager.java: 타임라인 데이터 관리
+
+/data/util → 데이터 관련 유틸리티 함수 제공
+DateUtil.java: 날짜/시간 형식 변환 유틸리티
+ExifUtil.java: 사진 EXIF 메타데이터 추출
+ImageCaptureUtil.java: 화면 캡처 유틸리티
+PlaceHelper.java: 위치 정보 처리 헬퍼
+SimilarityUtil.java: 벡터 유사도 계산 (CLIP 모델용)
+
+/manager → API, 데이터, 맵, UI 관리 클래스
+ApiManager.java: Google Places API 등 외부 API 요청 관리
+DataManager.java: 데이터 로드 및 처리 흐름 관리
+MapManager.java: 구글 지도 기능 및 마커 관리
+UIManager.java: UI 요소 및 상호작용 관리(bottom_sheet, dialog, etc)
+
+/service → 캡션, 클러스터링, 장소, 검색 서비스 제공
+CaptionService.java: 사진에 대한 캡션 생성
+ClusterService.java: 위치 기반 사진 클러스터링
+PlaceService.java: 주변 장소 검색 및 처리
+SearchService.java: 검색 기능 처리(날짜/위치/텍스트)
+
+/tflite → TensorFlow Lite 모델 사용, 이미지/텍스트 처리
+ClipImageEncoder.java: 이미지 임베딩(CLIP 모델)
+ClipTextEncoder.java: 텍스트 임베딩(CLIP 모델)
+ClipTokenizer.java: 텍스트 토큰화(CLIP 모델)
+ImageClassifier.java: 이미지 분류(MobileNet)
+
+
+/ui/map → 맵 관련 UI 컴포넌트, 클러스터 및 리뷰 관리
+PhotoClusterItem.java: 지도 클러스터 아이템
+PlaceDetailsBottomSheet.java: 장소 상세정보 바텀시트
+ReviewAdapter.java: 장소 리뷰 표시 어댑터
+
+/ui/photo
+PhotoDetailFragment.java: 사진 상세 보기 프래그먼트
+
+/ui/search → 검색 기능 UI, 히스토리 관리
+SearchActivity.java: 검색 화면 활동
+SearchHistoryAdapter.java: 검색 기록 표시 어댑터
+
+/ui/timeline → 타임라인 UI 렌더링 및 어댑터
+TimelineAdapter.java: 타임라인 항목 표시 어댑터
+TimelineRenderer.java: 타임라인 시각적 렌더링
+
+/util → 일반 유틸리티, 이미지 처리, 위치 관리
+ImageUtils.java: 이미지 처리 유틸리티
+LocationUtils.java: 위치 관련 유틸리티(좌표 → 주소 변환 등)
+ToastManager.java: 토스트 메시지 관리(중복방지)
