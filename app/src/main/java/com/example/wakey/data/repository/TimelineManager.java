@@ -4,10 +4,13 @@ package com.example.wakey.data.repository;
 
 import android.content.Context;
 
+import com.example.wakey.data.model.PhotoInfo;
 import com.example.wakey.data.model.TimelineItem;
 import com.example.wakey.service.ClusterService;
+import com.google.android.gms.maps.model.LatLng;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 
@@ -86,4 +89,35 @@ public class TimelineManager {
             }
         }
     }
+
+    // 타임라인 생성할 때, 객체 인식 결과도 함께 넣기
+    public List<TimelineItem> buildTimelineWithObjects(List<PhotoInfo> photos) {
+        List<TimelineItem> items = new ArrayList<>();
+
+        for (PhotoInfo photo : photos) {
+            LatLng latLng = photo.getLatLng();
+            String location = photo.getAddress() != null ? photo.getAddress() : "위치 정보 없음";
+            String description = "";  // 기본값
+
+            List<String> objects = new ArrayList<>();
+            if (photo.getObjects() != null && !photo.getObjects().isEmpty()) {
+                objects = photo.getObjects();  // ✅ 리스트 그대로 사용
+                description = "📌 " + String.join(", ", objects);  // ✅ 문자열로 이어 붙이기
+            }
+
+            TimelineItem item = new TimelineItem(
+                    photo.getDateTaken(),
+                    location,
+                    photo.getFilePath(),
+                    latLng,
+                    description
+            );
+
+            item.setDetectedObjects(objects); // ✅ 객체 리스트 저장
+            items.add(item);
+        }
+
+        return items;
+    }
+
 }
