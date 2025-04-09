@@ -69,15 +69,19 @@ public class PhotoRepository {
         for (Photo photo : photoList) {
             Log.d(TAG, "🖼️ 파일: " + photo.filePath + " / 날짜: " + photo.dateTaken + " / 객체: " + photo.detectedObjects);
 
-            LatLng latLng = new LatLng(photo.latitude, photo.longitude);
-            String address = photo.locationDo + " " + photo.locationGu + " " + photo.locationStreet;
+            // ✅ null 체크 추가!
+            LatLng latLng = null;
+            if (photo.latitude != null && photo.longitude != null) {
+                latLng = new LatLng(photo.latitude, photo.longitude);
+            }
 
+            String address = photo.locationDo + " " + photo.locationGu + " " + photo.locationStreet;
             Log.d(TAG, "🏠 주소: " + address);
 
             PhotoInfo info = new PhotoInfo(
                     photo.filePath,
                     parseDate(photo.dateTaken),
-                    latLng,
+                    latLng,  
                     null,
                     null,
                     address,
@@ -89,6 +93,7 @@ public class PhotoRepository {
 
         return photoInfoList;
     }
+
 
     public List<PhotoInfo> getAllPhotos() {
         List<String> dates = getAvailableDates();
