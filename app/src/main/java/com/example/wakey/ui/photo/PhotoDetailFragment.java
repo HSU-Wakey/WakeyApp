@@ -72,24 +72,20 @@ public class PhotoDetailFragment extends DialogFragment {
                     Bitmap bitmap = BitmapFactory.decodeFile(imgFile.getAbsolutePath());
 
                     // 2. 이미지 분류 실행 (AI 예측 결과)
-                    try {
-                        ImageClassifier classifier = new ImageClassifier(requireContext());
-                        List<Pair<String, Float>> predictions = classifier.classifyImage(bitmap); // 수정
-
-                        StringBuilder sb = new StringBuilder();
-                        sb.append("🔍 예측 결과 (Top 5):\n\n");
-                        for (Pair<String, Float> pred : predictions) {
-                            sb.append("• ").append(pred.first).append(" (")
-                                    .append(String.format("%.2f", pred.second)).append("%)\n");
+                    if (imgFile.exists()) {
+                        // 🔁 예측 결과는 DB에서 직접 불러와 표시
+                        List<String> detectedObjects = timelineItem.getDetectedObjects();
+                        if (detectedObjects != null && !detectedObjects.isEmpty()) {
+                            StringBuilder sb = new StringBuilder();
+                            sb.append("🔍 인식된 객체:\n\n");
+                            for (String obj : detectedObjects) {
+                                sb.append("• ").append(obj).append("\n");
+                            }
+                            predictionTextView.setText(sb.toString());
+                        } else {
+                            predictionTextView.setText("인식된 결과가 없습니다.");
                         }
-                        predictionTextView.setText(sb.toString());
-
-                        classifier.close();
-                    } catch (Exception e) {
-                        predictionTextView.setText("AI 분류 실패");
-                        e.printStackTrace();
                     }
-
                 }
             }
 
