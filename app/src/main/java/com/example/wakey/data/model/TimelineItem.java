@@ -22,6 +22,8 @@ public class TimelineItem implements Serializable {
     private float placeProbability;   // 장소 확률 점수
     private List<String> nearbyPOIs;  // 주변 관심 장소
 
+    private List<String> detectedObjects;
+
     // 생성자
     public TimelineItem(Date time, String location, String photoPath, LatLng latLng,
                         String description) {
@@ -31,6 +33,7 @@ public class TimelineItem implements Serializable {
         this.latLng = latLng;
         this.description = description;
         this.nearbyPOIs = new ArrayList<>();
+        this.detectedObjects = new ArrayList<>();
     }
 
     // 확장된 생성자
@@ -83,6 +86,10 @@ public class TimelineItem implements Serializable {
         return nearbyPOIs;
     }
 
+    public List<String> getDetectedObjects() {
+        return detectedObjects;
+    }
+
     // Setters
     public void setTime(Date time) {
         this.time = time;
@@ -115,6 +122,11 @@ public class TimelineItem implements Serializable {
     public void setPlaceProbability(float placeProbability) {
         this.placeProbability = placeProbability;
     }
+
+    public void setDetectedObjects(List<String> detectedObjects) {
+        this.detectedObjects = detectedObjects;
+    }
+
 
     public void setNearbyPOIs(List<String> nearbyPOIs) {
         this.nearbyPOIs = nearbyPOIs;

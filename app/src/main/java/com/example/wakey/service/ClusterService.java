@@ -106,6 +106,14 @@ public class ClusterService {
      * @return 타임라인 항목 리스트 (시간순 정렬)
      */
     public List<TimelineItem> generateTimelineFromPhotos(String dateString) {
+        // 📍 로그: 위치 정보 확인용
+        for (PhotoInfo photo : photoRepository.getAllPhotos()) {
+            String fullAddress = photo.getLocationDo() + " " +
+                    photo.getLocationGu() + " " +
+                    photo.getLocationStreet();
+            android.util.Log.d("📍주소확인", "불러온 주소: " + fullAddress);
+        }
+
         List<PhotoInfo> photos = photoRepository.getPhotosForDate(dateString);
         if (photos == null || photos.isEmpty()) {
             return new ArrayList<>();
