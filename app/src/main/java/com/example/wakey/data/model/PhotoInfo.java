@@ -2,8 +2,6 @@ package com.example.wakey.data.model;
 
 import com.google.android.gms.maps.model.LatLng;
 
-import android.util.Pair;
-
 import java.util.Date;
 import java.util.List;
 
@@ -14,21 +12,20 @@ public class PhotoInfo {
 
     private String placeId;
     private String placeName;
-    private String address;
+    private String address; // 전체 주소
     private String description;
-
     private List<String> objects;
+
+    // ✅ 새로 추가된 세부 주소 필드
     private String locationDo;
     private String locationGu;
     private String locationStreet;
-
-    private List<Pair<String, Float>> detectedObjectPairs; // ✅ 수정됨
 
     // ✅ 전체 필드 포함 생성자
     public PhotoInfo(String filePath, Date dateTaken, LatLng latLng,
                      String placeId, String placeName,
                      String address, String description,
-                     List<String> objects, List<Pair<String, Float>> detectedObjectPairs) {
+                     List<String> objects) {
         this.filePath = filePath;
         this.dateTaken = dateTaken;
         this.latLng = latLng;
@@ -37,10 +34,34 @@ public class PhotoInfo {
         this.address = address;
         this.description = description;
         this.objects = objects;
-        this.detectedObjectPairs = detectedObjectPairs;
     }
 
-    // ✅ Getters
+    // ✅ 필요한 경우만 사용하는 생성자들
+    public PhotoInfo(String filePath, Date dateTaken, LatLng latLng) {
+        this.filePath = filePath;
+        this.dateTaken = dateTaken;
+        this.latLng = latLng;
+    }
+
+    public PhotoInfo(String filePath, Date dateTaken, LatLng latLng, String placeId, String placeName) {
+        this.filePath = filePath;
+        this.dateTaken = dateTaken;
+        this.latLng = latLng;
+        this.placeId = placeId;
+        this.placeName = placeName;
+    }
+
+    public PhotoInfo(String filePath, Date dateTaken, LatLng latLng, String placeId,
+                     String description, List<String> objects) {
+        this.filePath = filePath;
+        this.dateTaken = dateTaken;
+        this.latLng = latLng;
+        this.placeId = placeId;
+        this.description = description;
+        this.objects = objects;
+    }
+
+    // ✅ Getter
     public String getFilePath() {
         return filePath;
     }
@@ -85,11 +106,15 @@ public class PhotoInfo {
         return objects;
     }
 
-    public List<Pair<String, Float>> getDetectedObjectPairs() {
-        return detectedObjectPairs;
+    // ✅ Setter
+    public void setPlaceId(String placeId) {
+        this.placeId = placeId;
     }
 
-    // ✅ Setters
+    public void setPlaceName(String placeName) {
+        this.placeName = placeName;
+    }
+
     public void setAddress(String address) {
         this.address = address;
     }
@@ -112,9 +137,5 @@ public class PhotoInfo {
 
     public void setObjects(List<String> objects) {
         this.objects = objects;
-    }
-
-    public void setDetectedObjectPairs(List<Pair<String, Float>> detectedObjectPairs) {
-        this.detectedObjectPairs = detectedObjectPairs;
     }
 }

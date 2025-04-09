@@ -3,12 +3,11 @@ package com.example.wakey.manager;
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
-import android.util.Log;
 
 import com.example.wakey.data.model.PhotoInfo;
 import com.example.wakey.data.model.TimelineItem;
 import com.example.wakey.data.repository.PhotoRepository;
-import com.example.wakey.ui.timeline.TimelineManager;
+import com.example.wakey.data.repository.TimelineManager;
 import com.example.wakey.service.ClusterService;
 import com.example.wakey.service.SearchService;
 import com.example.wakey.util.ToastManager;
@@ -32,12 +31,6 @@ public class DataManager {
     private SearchService searchService;
 
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
-
-    // ✅ 날짜별 캐시 저장소
-    private final Map<String, List<TimelineItem>> timelineCache = new HashMap<>();
-    private final Map<String, List<PhotoInfo>> photoCache = new HashMap<>();
-    private final Map<String, Map<LatLng, List<PhotoInfo>>> clusterCache = new HashMap<>();
-    private final Map<String, List<LatLng>> routeCache = new HashMap<>();
 
     public interface OnDataLoadedListener {
         void onPhotosLoaded(List<PhotoInfo> photos, Map<LatLng, List<PhotoInfo>> clusters);
@@ -72,40 +65,28 @@ public class DataManager {
     public void loadPhotosForDate(String dateString, OnDataLoadedListener listener) {
         if (photoRepository == null || listener == null) return;
 
-        // ✅ 캐시 HIT: 바로 응답
-        if (timelineCache.containsKey(dateString) &&
-                photoCache.containsKey(dateString) &&
-                clusterCache.containsKey(dateString) &&
-                routeCache.containsKey(dateString)) {
-
-            Log.d(TAG, "🧠 캐시 HIT → date: " + dateString);
-            mainHandler.post(() -> {
-                listener.onPhotosLoaded(photoCache.get(dateString), clusterCache.get(dateString));
-                listener.onTimelineLoaded(timelineCache.get(dateString));
-                listener.onRouteGenerated(routeCache.get(dateString));
-            });
-            return;
-        }
-
-        // ✅ 캐시 MISS: 새로 로드 후 캐싱
+        //백그라운드에서 접근해야 오류 안난대
         new Thread(() -> {
             List<PhotoInfo> photos = photoRepository.getPhotosForDate(dateString);
-            Map<LatLng, List<PhotoInfo>> clusters = clusterService.clusterPhotosByLocation(dateString, 100.0);
-            List<LatLng> route = clusterService.generateRouteForDate(dateString);
-            List<TimelineItem> timelineItems = timelineManager.loadTimelineForDate(dateString);
 
-            // 캐시 저장
-            timelineCache.put(dateString, timelineItems);
-            photoCache.put(dateString, photos);
-            clusterCache.put(dateString, clusters);
-            routeCache.put(dateString, route);
+            if (photos != null && !photos.isEmpty()) {
+                Map<LatLng, List<PhotoInfo>> clusters = clusterService.clusterPhotosByLocation(dateString, 100.0);
+                List<TimelineItem> timelineItems = timelineManager.loadTimelineForDate(dateString);
+                List<LatLng> route = clusterService.generateRouteForDate(dateString);
 
-            mainHandler.post(() -> {
-                Log.d(TAG, "🆕 캐시 MISS → DB 로드 완료: " + dateString);
-                listener.onPhotosLoaded(photos, clusters);
-                listener.onTimelineLoaded(timelineItems);
-                listener.onRouteGenerated(route);
-            });
+                mainHandler.post(() -> {
+                    listener.onPhotosLoaded(photos, clusters);
+                    listener.onTimelineLoaded(timelineItems);
+                    listener.onRouteGenerated(route);
+                });
+            } else {
+                mainHandler.post(() -> {
+                    listener.onPhotosLoaded(new ArrayList<>(), new HashMap<>());
+                    listener.onTimelineLoaded(new ArrayList<>());
+                    listener.onRouteGenerated(new ArrayList<>());
+                    ToastManager.getInstance().showToast("이 날짜에 사진이 없습니다");
+                });
+            }
         }).start();
     }
 
@@ -121,6 +102,7 @@ public class DataManager {
                 List<PhotoInfo> photos = photoRepository.getPhotosForDate(dateString);
                 if (photos != null && !photos.isEmpty()) {
                     allPhotos.addAll(photos);
+
                     Map<LatLng, List<PhotoInfo>> clusters = clusterService.clusterPhotosByLocation(dateString, 100.0);
                     allClusters.putAll(clusters);
                 }
@@ -175,40 +157,5 @@ public class DataManager {
     public List<PhotoInfo> getAllPhotoInfo() {
         if (photoRepository == null) return new ArrayList<>();
         return photoRepository.getAllPhotos();
-    }
-
-    // ✅ 캐시된 타임라인 반환
-    public List<TimelineItem> getCachedTimeline(String dateString) {
-        return timelineCache.getOrDefault(dateString, new ArrayList<>());
-    }
-
-    /**
-     * 사진 데이터 로드 메서드 추가
-     * MainActivity에서 호출되는 메서드
-     */
-    public void loadPhotoData() {
-        if (photoRepository == null) return;
-
-        // 백그라운드 스레드에서 사진 데이터 로드
-        new Thread(() -> {
-            try {
-                // 참고: loadPhotosFromDevice는 정의되어 있지 않으므로 이를 대체하는 코드 사용
-                // 예를 들어, 모든 사진을 로드하는 메서드 사용:
-                List<PhotoInfo> allPhotos = photoRepository.getAllPhotos();
-
-                // 날짜별 사진 캐시 초기화
-                List<String> availableDates = photoRepository.getAvailableDates();
-                for (String date : availableDates) {
-                    List<PhotoInfo> photos = photoRepository.getPhotosForDate(date);
-                    if (photos != null && !photos.isEmpty()) {
-                        photoCache.put(date, photos);
-                    }
-                }
-
-                Log.d(TAG, "사진 데이터 로드 완료: " + availableDates.size() + " 날짜");
-            } catch (Exception e) {
-                Log.e(TAG, "사진 데이터 로드 실패: " + e.getMessage(), e);
-            }
-        }).start();
     }
 }
