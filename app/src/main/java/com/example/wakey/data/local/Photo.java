@@ -1,12 +1,22 @@
 package com.example.wakey.data.local;
 
+import android.util.Pair;
+
 import androidx.room.ColumnInfo;
 import androidx.room.Entity;
 import androidx.room.Ignore;
 import androidx.room.PrimaryKey;
+import androidx.room.TypeConverters;
+
+import java.util.List;
 
 @Entity
 public class Photo {
+
+    @TypeConverters(Converters.class)
+    @ColumnInfo(name = "detectedObjectPairs")
+    public List<Pair<String, Float>> detectedObjectPairs;
+
     @PrimaryKey(autoGenerate = true)
     public int id;
 
@@ -17,10 +27,10 @@ public class Photo {
     public String dateTaken;
 
     @ColumnInfo(name = "latitude")
-    public Double latitude; // ✅ 기본형(double) → 객체형(Double)로 수정
+    public Double latitude;
 
     @ColumnInfo(name = "longitude")
-    public Double longitude; // ✅ 동일하게 수정
+    public Double longitude;
 
     @ColumnInfo(name = "locationDo")
     public String locationDo;
@@ -40,7 +50,6 @@ public class Photo {
     @ColumnInfo(name = "detectedObjects")
     public String detectedObjects;
 
-    // ✅ Room이 무시하도록 @Ignore 생성자 정의
     @Ignore
     public Photo(String filePath, String dateTaken, String locationDo, String locationSi,
                  String locationGu, String locationStreet, String caption,
@@ -57,6 +66,6 @@ public class Photo {
         this.detectedObjects = detectedObjects;
     }
 
-    // ✅ Room을 위한 기본 생성자 (반드시 있어야 함)
+    // Room을 위한 기본 생성자
     public Photo() {}
 }

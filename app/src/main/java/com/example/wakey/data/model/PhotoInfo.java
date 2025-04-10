@@ -15,8 +15,6 @@ public class PhotoInfo {
     private String address; // 전체 주소
     private String description;
     private List<String> objects;
-
-    // ✅ 새로 추가된 세부 주소 필드
     private String locationDo;
     private String locationGu;
     private String locationStreet;
@@ -36,7 +34,7 @@ public class PhotoInfo {
         this.objects = objects;
     }
 
-    // ✅ 필요한 경우만 사용하는 생성자들
+    // 필요한 경우만 사용하는 생성자들
     public PhotoInfo(String filePath, Date dateTaken, LatLng latLng) {
         this.filePath = filePath;
         this.dateTaken = dateTaken;

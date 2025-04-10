@@ -37,13 +37,11 @@ public class PhotoRepository {
         ).fallbackToDestructiveMigration().build();
     }
 
-    // ✅ 중복 체크 함수
     public boolean isPhotoAlreadyExists(String filePath) {
         Photo existing = appDatabase.photoDao().getPhotoByFilePath(filePath);
         return existing != null;
     }
 
-    // ✅ 중복 제거용 메서드 (선택)
     public void removeDuplicatePhotos() {
         new Thread(() -> {
             appDatabase.photoDao().deleteDuplicatePhotos();
@@ -59,6 +57,7 @@ public class PhotoRepository {
         Log.d(TAG, "📆 날짜 기반 사진 조회 요청: " + dateString);
 
         List<Photo> photoList = appDatabase.photoDao().getPhotosForDate(dateString);
+        Log.d("DB_CHECK", "📦 DB에서 사진 개수: " + (photoList != null ? photoList.size() : 0));
         Log.d(TAG, "📸 불러온 Photo 개수: " + (photoList != null ? photoList.size() : 0));
 
         for (Photo photo : photoList) {
@@ -69,19 +68,29 @@ public class PhotoRepository {
         for (Photo photo : photoList) {
             Log.d(TAG, "🖼️ 파일: " + photo.filePath + " / 날짜: " + photo.dateTaken + " / 객체: " + photo.detectedObjects);
 
-            // ✅ null 체크 추가!
+            // ✅ 위경도 로그 및 필터링
+            Log.d("LATLNG_CHECK", "📍 위도: " + photo.latitude + ", 경도: " + photo.longitude);
             LatLng latLng = null;
-            if (photo.latitude != null && photo.longitude != null) {
+            if (photo.latitude != null && photo.longitude != null &&
+                    (photo.latitude != 0.0 || photo.longitude != 0.0)) {
                 latLng = new LatLng(photo.latitude, photo.longitude);
+                Log.d("LATLNG_CHECK", "✅ 유효한 LatLng 생성됨: " + latLng.toString());
+            } else {
+                Log.w("LATLNG_CHECK", "⚠️ 유효하지 않은 위치 → null 처리됨");
             }
 
-            String address = photo.locationDo + " " + photo.locationGu + " " + photo.locationStreet;
+            // ✅ 주소 조합 (null-safe)
+            String doStr = photo.locationDo != null ? photo.locationDo : "";
+            String guStr = photo.locationGu != null ? photo.locationGu : "";
+            String streetStr = photo.locationStreet != null ? photo.locationStreet : "";
+            String address = (doStr + " " + guStr + " " + streetStr).trim();
+
             Log.d(TAG, "🏠 주소: " + address);
 
             PhotoInfo info = new PhotoInfo(
                     photo.filePath,
                     parseDate(photo.dateTaken),
-                    latLng,  
+                    latLng,
                     null,
                     null,
                     address,
@@ -93,7 +102,6 @@ public class PhotoRepository {
 
         return photoInfoList;
     }
-
 
     public List<PhotoInfo> getAllPhotos() {
         List<String> dates = getAvailableDates();
