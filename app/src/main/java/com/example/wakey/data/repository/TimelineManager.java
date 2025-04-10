@@ -3,6 +3,7 @@
 package com.example.wakey.data.repository;
 
 import android.content.Context;
+import android.util.Log;
 
 import com.example.wakey.data.model.PhotoInfo;
 import com.example.wakey.data.model.TimelineItem;
@@ -95,14 +96,27 @@ public class TimelineManager {
         List<TimelineItem> items = new ArrayList<>();
 
         for (PhotoInfo photo : photos) {
-            LatLng latLng = photo.getLatLng();
-            String location = photo.getAddress() != null ? photo.getAddress() : "위치 정보 없음";
-            String description = "";  // 기본값
+            LatLng latLng = null;
+
+            // 로그 추가
+            if (photo.getLatLng() != null) {
+                latLng = photo.getLatLng();
+                Log.d("LATLNG_CHECK", "📍 위도: " + latLng.latitude + ", 경도: " + latLng.longitude);
+                Log.d("LATLNG_CHECK", "✅ 유효한 LatLng 생성됨: " + latLng.toString());
+            } else {
+                Log.w("LATLNG_CHECK", "⚠️ 유효하지 않은 위치 → null 처리됨");
+            }
+
+            // 위치 정보 우선순위: address → "위치 정보 없음"
+            String location = (photo.getAddress() != null && !photo.getAddress().isEmpty())
+                    ? photo.getAddress()
+                    : "위치 정보 없음";
+            String description = "";
 
             List<String> objects = new ArrayList<>();
             if (photo.getObjects() != null && !photo.getObjects().isEmpty()) {
-                objects = photo.getObjects();  // ✅ 리스트 그대로 사용
-                description = "📌 " + String.join(", ", objects);  // ✅ 문자열로 이어 붙이기
+                objects = photo.getObjects();
+                description = "📌 " + String.join(", ", objects);
             }
 
             TimelineItem item = new TimelineItem(
@@ -113,7 +127,8 @@ public class TimelineManager {
                     description
             );
 
-            item.setDetectedObjects(objects); // ✅ 객체 리스트 저장
+            item.setDetectedObjects(objects);
+            item.setLatLng(latLng); // 🔥 LatLng 재설정 (getLatLng() 내부에서 latitude/longitude도 업데이트됨)
             items.add(item);
         }
 

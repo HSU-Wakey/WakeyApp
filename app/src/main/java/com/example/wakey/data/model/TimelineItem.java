@@ -1,5 +1,7 @@
 package com.example.wakey.data.model;
 
+import android.util.Pair;
+
 import com.google.android.gms.maps.model.LatLng;
 
 import java.io.Serializable;
@@ -13,8 +15,6 @@ public class TimelineItem implements Serializable {
     private String photoPath;
     private LatLng latLng;
     private String description;
-
-    // 직렬화를 위해 위도, 경도를 별도 저장
     private double latitude;
     private double longitude;
 
@@ -23,6 +23,17 @@ public class TimelineItem implements Serializable {
     private List<String> nearbyPOIs;  // 주변 관심 장소
 
     private List<String> detectedObjects;
+
+    private List<Pair<String, Float>> detectedObjectPairs = new ArrayList<>();
+
+    public List<Pair<String, Float>> getDetectedObjectPairs() {
+        return detectedObjectPairs;
+    }
+
+    public void setDetectedObjectPairs(List<Pair<String, Float>> pairs) {
+        this.detectedObjectPairs = pairs;
+    }
+
 
     // 생성자
     public TimelineItem(Date time, String location, String photoPath, LatLng latLng,

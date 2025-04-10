@@ -1,5 +1,7 @@
 package com.example.wakey.data.local;
 
+import android.util.Pair;
+
 import androidx.room.Dao;
 import androidx.room.Insert;
 import androidx.room.Query;
@@ -44,7 +46,15 @@ public interface PhotoDao {
     @Query("SELECT * FROM Photo WHERE latitude IS NOT NULL AND longitude IS NOT NULL AND detectedObjects IS NOT NULL")
     List<Photo> getPhotosWithLocationAndObjects();
 
-    // ✅ 중복 검사용: 파일 경로로 사진 조회
+    // ✅ 중복 검사용: 파일 경로로 사진조회
     @Query("SELECT * FROM Photo WHERE filePath = :filePath LIMIT 1")
     Photo getPhotoByFilePath(String filePath);
+
+    @Query("UPDATE Photo SET detectedObjectPairs = :pairs WHERE filePath = :filePath")
+    void updateDetectedObjectPairs(String filePath, List<Pair<String, Float>> pairs);
+
+    @Query("SELECT * FROM Photo WHERE filePath = :filePath LIMIT 1")
+    Photo getPhotoWithDetectedPairs(String filePath);
+
+
 }
