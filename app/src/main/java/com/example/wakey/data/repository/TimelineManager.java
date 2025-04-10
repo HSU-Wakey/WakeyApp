@@ -3,11 +3,15 @@
 package com.example.wakey.data.repository;
 
 import android.content.Context;
+import android.util.Log;
 
+import com.example.wakey.data.model.PhotoInfo;
 import com.example.wakey.data.model.TimelineItem;
 import com.example.wakey.service.ClusterService;
+import com.google.android.gms.maps.model.LatLng;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 
@@ -86,4 +90,49 @@ public class TimelineManager {
             }
         }
     }
+
+    // 타임라인 생성할 때, 객체 인식 결과도 함께 넣기
+    public List<TimelineItem> buildTimelineWithObjects(List<PhotoInfo> photos) {
+        List<TimelineItem> items = new ArrayList<>();
+
+        for (PhotoInfo photo : photos) {
+            LatLng latLng = null;
+
+            // 로그 추가
+            if (photo.getLatLng() != null) {
+                latLng = photo.getLatLng();
+                Log.d("LATLNG_CHECK", "📍 위도: " + latLng.latitude + ", 경도: " + latLng.longitude);
+                Log.d("LATLNG_CHECK", "✅ 유효한 LatLng 생성됨: " + latLng.toString());
+            } else {
+                Log.w("LATLNG_CHECK", "⚠️ 유효하지 않은 위치 → null 처리됨");
+            }
+
+            // 위치 정보 우선순위: address → "위치 정보 없음"
+            String location = (photo.getAddress() != null && !photo.getAddress().isEmpty())
+                    ? photo.getAddress()
+                    : "위치 정보 없음";
+            String description = "";
+
+            List<String> objects = new ArrayList<>();
+            if (photo.getObjects() != null && !photo.getObjects().isEmpty()) {
+                objects = photo.getObjects();
+                description = "📌 " + String.join(", ", objects);
+            }
+
+            TimelineItem item = new TimelineItem(
+                    photo.getDateTaken(),
+                    location,
+                    photo.getFilePath(),
+                    latLng,
+                    description
+            );
+
+            item.setDetectedObjects(objects);
+            item.setLatLng(latLng); // 🔥 LatLng 재설정 (getLatLng() 내부에서 latitude/longitude도 업데이트됨)
+            items.add(item);
+        }
+
+        return items;
+    }
+
 }
