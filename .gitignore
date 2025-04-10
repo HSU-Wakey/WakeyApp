@@ -17,3 +17,4 @@ app/src/main/assets/openai_clip-clipimageencoder-snapdragon_8_elite.tflite
 app/src/main/assets/openai_clip-cliptextencoder-snapdragon_8_elite.tflite
 .idea/deploymentTargetSelector.xml
 .idea/deploymentTargetSelector.xml
+app/src/main/assets/beit-snapdragon_8_elite.tflite
