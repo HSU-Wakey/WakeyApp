@@ -5,134 +5,136 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:paddingBottom="8dp">
+    android:background="@android:color/transparent"
+    android:paddingVertical="12dp">
 
-    <!-- Time indicator -->
+    <!-- Time indicator with improved styling -->
     <TextView
         android:id="@+id/timeTextView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="20dp"
-        android:layout_marginTop="16dp"
-        android:background="@drawable/time_bg"
-        android:paddingStart="12dp"
-        android:paddingTop="4dp"
-        android:paddingEnd="12dp"
-        android:paddingBottom="4dp"
+        android:layout_marginStart="10dp"
+        android:background="@drawable/rounded_time_background"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="6dp"
         android:text="10:00"
-        android:textColor="#FFFFFF"
-        android:textSize="14sp"
+        android:textColor="@android:color/black"
+        android:textSize="13sp"
+        android:textStyle="bold"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- Timeline vertical line -->
+    <!-- Timeline vertical line with gradient -->
     <View
         android:id="@+id/timelineView"
-        android:layout_width="2dp"
+        android:layout_width="3dp"
         android:layout_height="0dp"
         android:layout_marginStart="8dp"
-        android:background="#2196F3"
+        android:background="@drawable/timeline_gradient"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toEndOf="@+id/timeTextView"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- Timeline dot -->
+    <!-- Timeline dot with shadow -->
     <View
         android:id="@+id/timelineDot"
-        android:layout_width="12dp"
-        android:layout_height="12dp"
+        android:layout_width="13dp"
+        android:layout_height="13dp"
         android:layout_marginStart="3dp"
-        android:background="@drawable/timeline_dot"
+        android:background="@drawable/timeline_dot_with_shadow"
         app:layout_constraintBottom_toBottomOf="@+id/timeTextView"
         app:layout_constraintStart_toEndOf="@+id/timeTextView"
         app:layout_constraintTop_toTopOf="@+id/timeTextView" />
 
-    <!-- Card with content -->
+    <!-- Card with improved elevation and corner radius -->
     <androidx.cardview.widget.CardView
         android:id="@+id/cardView"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
         android:layout_marginTop="8dp"
-        android:layout_marginEnd="20dp"
-        app:cardCornerRadius="12dp"
-        app:cardElevation="4dp"
+        android:layout_marginEnd="16dp"
+        app:cardBackgroundColor="@android:color/white"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="0dp"
+        app:cardPreventCornerOverlap="true"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toEndOf="@+id/timelineView"
         app:layout_constraintTop_toTopOf="parent">
 
         <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/cardContent"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content">
+            android:layout_height="wrap_content"
+            android:padding="10dp">
 
-            <!-- Location name -->
+            <!-- Location name with improved styling -->
             <TextView
                 android:id="@+id/locationTextView"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
-                android:layout_marginTop="12dp"
-                android:layout_marginEnd="12dp"
+                android:layout_marginStart="4dp"
+                android:layout_marginEnd="48dp"
                 android:text="기흥 휴게소"
-                android:textColor="#000000"
+                android:textColor="@android:color/black"
                 android:textSize="16sp"
-                android:textStyle="bold"
-                app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
 
-            <ImageView
-                android:id="@+id/activityIconView"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:layout_marginEnd="12dp"
-                android:contentDescription="Activity icon"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toTopOf="@+id/locationTextView"
-                app:layout_constraintBottom_toBottomOf="@+id/locationTextView" />
 
-
-            <!-- Description -->
+            <!-- Description with softer color -->
             <TextView
                 android:id="@+id/captionTextView"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
-                android:layout_marginTop="4dp"
-                android:layout_marginEnd="12dp"
-                android:text="기흥 휴게소에서의 푸른 하늘"
+                android:layout_marginStart="4dp"
+                android:layout_marginTop="2dp"
+                android:text="20XX.XX.XX(요일) XX:XX"
                 android:textColor="#666666"
-                android:textSize="14sp"
+                android:textSize="12sp"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@+id/locationTextView" />
 
-            <!-- Photo -->
-            <ImageView
+            <!-- Photo with improved corner radius -->
+            <com.google.android.material.imageview.ShapeableImageView
                 android:id="@+id/photoImageView"
                 android:layout_width="match_parent"
-                android:layout_height="180dp"
-                android:layout_marginTop="8dp"
+                android:layout_height="140dp"
+                android:layout_marginTop="6dp"
                 android:scaleType="centerCrop"
+                app:shapeAppearanceOverlay="@style/RoundedImageStyle"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@+id/captionTextView"
                 tools:src="@tools:sample/backgrounds/scenic" />
 
-            <!-- 활동 태그 (Activity Chip) -->
-            <com.google.android.material.chip.Chip
-                android:id="@+id/activityChip"
+            <!-- Activity Chip with softer design -->
+            <LinearLayout
+                android:id="@+id/activityTagContainer"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
                 android:layout_marginTop="8dp"
-                android:layout_marginBottom="12dp"
-                android:text="관광"
-                app:chipBackgroundColor="#50007AFF"
-                app:chipIcon="@drawable/ic_activity"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/photoImageView" />
+                android:background="@drawable/gradient_rounded_background"
+                android:gravity="center"
+                android:orientation="horizontal"
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="6dp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/photoImageView">
+
+                <TextView
+                    android:id="@+id/activityText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:layout_marginEnd="6dp"
+                    android:text="관광"
+                    android:textColor="@android:color/black"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    app:fontFamily="@font/bold" />
+            </LinearLayout>
         </androidx.constraintlayout.widget.ConstraintLayout>
     </androidx.cardview.widget.CardView>
 </androidx.constraintlayout.widget.ConstraintLayout>
