@@ -39,7 +39,7 @@ public class ImageRepository {
             throw new RuntimeException("모델 로드 실패", e);
         }
         db = Room.databaseBuilder(context, AppDatabase.class, "AppDatabase").build();
-        photoRepository = PhotoRepository.getInstance(context); // ✅ PhotoRepository 인스턴스 생성
+        photoRepository = PhotoRepository.getInstance(context);
     }
 
     public ImageMeta classifyImage(Uri uri, Bitmap bitmap) {

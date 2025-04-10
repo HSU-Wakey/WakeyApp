@@ -178,7 +178,7 @@
                             android:layout_gravity="center_vertical"
                             android:layout_marginEnd="8dp"
                             android:src="@drawable/ic_place"
-                            android:tint="#F44336" />
+                            app:tint="#F44336" />
 
                         <TextView
                             android:id="@+id/photoDetailAddressTextView"
@@ -202,62 +202,6 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:orientation="horizontal">
-
-                            <!-- Sample tags (will be created programmatically) -->
-                            <TextView
-                                android:id="@+id/sampleHashtag1"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:background="@drawable/hash_tag_background"
-                                android:layout_marginEnd="6dp"
-                                android:paddingStart="12dp"
-                                android:paddingEnd="12dp"
-                                android:paddingTop="6dp"
-                                android:paddingBottom="6dp"
-                                android:text="#HashTag"
-                                android:textSize="12sp"
-                                android:textColor="#000000" />
-
-                            <TextView
-                                android:id="@+id/sampleHashtag2"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:background="@drawable/hash_tag_background"
-                                android:layout_marginEnd="6dp"
-                                android:paddingStart="12dp"
-                                android:paddingEnd="12dp"
-                                android:paddingTop="6dp"
-                                android:paddingBottom="6dp"
-                                android:text="#HashTag"
-                                android:textSize="12sp"
-                                android:textColor="#000000" />
-
-                            <TextView
-                                android:id="@+id/sampleHashtag3"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:background="@drawable/hash_tag_background"
-                                android:layout_marginEnd="6dp"
-                                android:paddingStart="12dp"
-                                android:paddingEnd="12dp"
-                                android:paddingTop="6dp"
-                                android:paddingBottom="6dp"
-                                android:text="#HashTag"
-                                android:textSize="12sp"
-                                android:textColor="#000000" />
-
-                            <TextView
-                                android:id="@+id/sampleHashtag4"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:background="@drawable/hash_tag_background"
-                                android:paddingStart="12dp"
-                                android:paddingEnd="12dp"
-                                android:paddingTop="6dp"
-                                android:paddingBottom="6dp"
-                                android:text="#HashTag"
-                                android:textSize="12sp"
-                                android:textColor="#000000" />
 
                         </LinearLayout>
                     </HorizontalScrollView>
