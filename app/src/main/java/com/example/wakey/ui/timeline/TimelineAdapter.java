@@ -6,6 +6,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -58,10 +59,6 @@ public class TimelineAdapter extends RecyclerView.Adapter<TimelineAdapter.ViewHo
         String formattedTime = timeFormat.format(item.getTime());
         holder.timeTextView.setText(formattedTime);
 
-        // 시간 설정
-        String timeStr = DateUtil.formatTime(item.getTime());
-        holder.timeTextView.setText(timeStr);
-
         // 장소 이름
         holder.locationTextView.setText(item.getLocation());
 
@@ -70,10 +67,10 @@ public class TimelineAdapter extends RecyclerView.Adapter<TimelineAdapter.ViewHo
 
         // 활동 유형 태그 (있는 경우)
         if (item.getActivityType() != null && !item.getActivityType().isEmpty()) {
-            holder.activityChip.setVisibility(View.VISIBLE);
-            holder.activityChip.setText(item.getActivityType());
+            holder.activityTagContainer.setVisibility(View.VISIBLE);
+            holder.activityText.setText(item.getActivityType());
         } else {
-            holder.activityChip.setVisibility(View.GONE);
+            holder.activityTagContainer.setVisibility(View.GONE);
         }
 
         // 사진 로드 (있는 경우)
@@ -103,21 +100,6 @@ public class TimelineAdapter extends RecyclerView.Adapter<TimelineAdapter.ViewHo
         });
     }
 
-    // Add a method to map activity types to icon resources
-    private int getActivityIcon(String activityType) {
-        if (activityType == null) return R.drawable.ic_activity_default;
-
-        switch (activityType) {
-//            case "아침 식사": return R.drawable.ic_breakfast;
-//            case "점심 식사": return R.drawable.ic_lunch;
-//            case "저녁 식사": return R.drawable.ic_dinner;
-//            case "오전 관광": return R.drawable.ic_tourism;
-//            case "오후 관광": return R.drawable.ic_tourism;
-//            case "야간 활동": return R.drawable.ic_night;
-            default: return R.drawable.ic_activity_default;
-        }
-    }
-
     @Override
     public int getItemCount() {
         return items != null ? items.size() : 0;
@@ -135,9 +117,9 @@ public class TimelineAdapter extends RecyclerView.Adapter<TimelineAdapter.ViewHo
         ImageView photoImageView;
         View timelineView;
         View timelineDot;
-        Chip activityChip;
+        LinearLayout activityTagContainer;
+        TextView activityText;
         CardView cardView;
-        ImageView activityIconView;
 
         ViewHolder(View itemView) {
             super(itemView);
@@ -147,9 +129,9 @@ public class TimelineAdapter extends RecyclerView.Adapter<TimelineAdapter.ViewHo
             photoImageView = itemView.findViewById(R.id.photoImageView);
             timelineView = itemView.findViewById(R.id.timelineView);
             timelineDot = itemView.findViewById(R.id.timelineDot);
-            activityChip = itemView.findViewById(R.id.activityChip);
-            cardView = (CardView) itemView.findViewById(R.id.cardView);
-            activityIconView = itemView.findViewById(R.id.activityIconView);
+            activityTagContainer = itemView.findViewById(R.id.activityTagContainer);
+            activityText = itemView.findViewById(R.id.activityText);
+            cardView = itemView.findViewById(R.id.cardView);
         }
     }
 }
