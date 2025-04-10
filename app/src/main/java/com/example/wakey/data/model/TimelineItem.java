@@ -1,5 +1,7 @@
 package com.example.wakey.data.model;
 
+import android.util.Pair;
+
 import com.google.android.gms.maps.model.LatLng;
 
 import java.io.Serializable;
@@ -13,14 +15,25 @@ public class TimelineItem implements Serializable {
     private String photoPath;
     private LatLng latLng;
     private String description;
-
-    // 직렬화를 위해 위도, 경도를 별도 저장
     private double latitude;
     private double longitude;
 
     private String activityType;      // 활동 유형 (식사, 관광 등)
     private float placeProbability;   // 장소 확률 점수
     private List<String> nearbyPOIs;  // 주변 관심 장소
+
+    private List<String> detectedObjects;
+
+    private List<Pair<String, Float>> detectedObjectPairs = new ArrayList<>();
+
+    public List<Pair<String, Float>> getDetectedObjectPairs() {
+        return detectedObjectPairs;
+    }
+
+    public void setDetectedObjectPairs(List<Pair<String, Float>> pairs) {
+        this.detectedObjectPairs = pairs;
+    }
+
 
     // 생성자
     public TimelineItem(Date time, String location, String photoPath, LatLng latLng,
@@ -31,6 +44,7 @@ public class TimelineItem implements Serializable {
         this.latLng = latLng;
         this.description = description;
         this.nearbyPOIs = new ArrayList<>();
+        this.detectedObjects = new ArrayList<>();
     }
 
     // 확장된 생성자
@@ -83,6 +97,10 @@ public class TimelineItem implements Serializable {
         return nearbyPOIs;
     }
 
+    public List<String> getDetectedObjects() {
+        return detectedObjects;
+    }
+
     // Setters
     public void setTime(Date time) {
         this.time = time;
@@ -115,6 +133,11 @@ public class TimelineItem implements Serializable {
     public void setPlaceProbability(float placeProbability) {
         this.placeProbability = placeProbability;
     }
+
+    public void setDetectedObjects(List<String> detectedObjects) {
+        this.detectedObjects = detectedObjects;
+    }
+
 
     public void setNearbyPOIs(List<String> nearbyPOIs) {
         this.nearbyPOIs = nearbyPOIs;

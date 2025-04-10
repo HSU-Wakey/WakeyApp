@@ -7,6 +7,7 @@ import android.graphics.Color;
 import android.location.Address;
 import android.location.Geocoder;
 import android.os.Bundle;
+import android.util.Log;
 import android.util.Pair;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -21,6 +22,8 @@ import androidx.fragment.app.DialogFragment;
 
 import com.bumptech.glide.Glide;
 import com.example.wakey.R;
+import com.example.wakey.data.local.AppDatabase;
+import com.example.wakey.data.local.Photo;
 import com.example.wakey.data.model.TimelineItem;
 import com.example.wakey.data.repository.TimelineManager;
 import com.example.wakey.data.util.DateUtil;
@@ -30,8 +33,12 @@ import com.example.wakey.util.ToastManager;
 import java.io.File;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class PhotoDetailFragment extends DialogFragment {
+
+    private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
     private static final String ARG_TIMELINE_ITEM = "timelineItem";
     private static final String ARG_DATE = "date";
@@ -75,8 +82,47 @@ public class PhotoDetailFragment extends DialogFragment {
             }
         }
 
-        // 현재 날짜의 모든 타임라인 아이템 가져오기
-        loadTimelineItems();
+        executor.execute(() -> {
+            if (currentDate == null && timelineItem != null && timelineItem.getTime() != null) {
+                currentDate = DateUtil.getFormattedDateString(timelineItem.getTime());
+            }
+
+            if (currentDate != null) {
+                timelineItems = TimelineManager.getInstance(requireContext())
+                        .loadTimelineForDate(currentDate);
+
+                // currentPosition 계산
+                if (currentPosition == 0 && timelineItem != null) {
+                    for (int i = 0; i < timelineItems.size(); i++) {
+                        TimelineItem item = timelineItems.get(i);
+                        if (item.getPhotoPath() != null &&
+                                item.getPhotoPath().equals(timelineItem.getPhotoPath())) {
+                            currentPosition = i;
+                            break;
+                        }
+                    }
+                }
+
+                requireActivity().runOnUiThread(() -> {
+                    // 타임라인 로딩 후 UI 초기화 필요 시 여기에
+                    View view = getView();
+                    if (view != null) {
+                        updateUI(
+                                view.findViewById(R.id.photoDetailImageView),
+                                view.findViewById(R.id.photoDetailLocationTextView),
+                                view.findViewById(R.id.photoDetailTimeTextView),
+                                view.findViewById(R.id.photoDetailAddressTextView),
+                                view.findViewById(R.id.activityChip)
+                        );
+                        updateNavigationButtons(
+                                view.findViewById(R.id.btnPrevious),
+                                view.findViewById(R.id.btnNext)
+                        );
+                    }
+                });
+            }
+        });
+
 
         setStyle(DialogFragment.STYLE_NORMAL, R.style.FullScreenDialogStyle);
     }
@@ -240,56 +286,46 @@ public class PhotoDetailFragment extends DialogFragment {
     private void updateUI(ImageView photoImageView,
                           TextView locationTextView, TextView timeTextView,
                           TextView addressTextView, TextView activityChip) {
-        if (timelineItem == null) {
-            return;
-        }
+
+        if (timelineItem == null) return;
 
         // 1. 사진 이미지 로드
-        if (timelineItem.getPhotoPath() != null) {
-            Glide.with(this)
-                    .load(timelineItem.getPhotoPath())
-                    .into(photoImageView);
+        String photoPath = timelineItem.getPhotoPath();
+        if (photoPath != null) {
+            Glide.with(this).load(photoPath).into(photoImageView);
 
-            File imgFile = new File(timelineItem.getPhotoPath());
-            if (imgFile.exists()) {
-                Bitmap bitmap = BitmapFactory.decodeFile(imgFile.getAbsolutePath());
+            try {
+                Bitmap bitmap = BitmapFactory.decodeStream(
+                        requireContext().getContentResolver().openInputStream(android.net.Uri.parse(photoPath))
+                );
 
-                // 2. 이미지 분류 실행 (AI 예측 결과) - modified to use createHashtags
-                try {
-                    ImageClassifier classifier = new ImageClassifier(requireContext());
-                    List<Pair<String, Float>> predictions = classifier.classifyImage(bitmap);
+                if (bitmap != null) {
+                    List<Pair<String, Float>> predictions;
 
-                    // Create individual hashtags instead of a single text view
-                    createHashtags(predictions);
+                    if (timelineItem.getDetectedObjectPairs() != null && !timelineItem.getDetectedObjectPairs().isEmpty()) {
+                        predictions = timelineItem.getDetectedObjectPairs();
+                    } else {
+                        ImageClassifier classifier = new ImageClassifier(requireContext());
+                        predictions = classifier.classifyImage(bitmap);
+                        classifier.close();
 
-                    classifier.close();
-                } catch (Exception e) {
-                    // Create a single default hashtag
-                    View currentView = getView();
-                    if (currentView != null) {
-                        LinearLayout hashtagContainer = currentView.findViewById(R.id.hashtagContainer);
-                        hashtagContainer.removeAllViews();
-
-                        TextView tagView = new TextView(requireContext());
-                        tagView.setText("#Photo");
-                        tagView.setTextSize(12);
-                        tagView.setTextColor(Color.BLACK);
-
-                        int paddingPixels = (int) (12 * getResources().getDisplayMetrics().density);
-                        int topBottomPadding = (int) (6 * getResources().getDisplayMetrics().density);
-                        tagView.setPadding(paddingPixels, topBottomPadding, paddingPixels, topBottomPadding);
-
-                        tagView.setBackground(ContextCompat.getDrawable(requireContext(), R.drawable.hash_tag_background));
-                        hashtagContainer.addView(tagView);
+                        timelineItem.setDetectedObjectPairs(predictions);
+                        executor.execute(() -> {
+                            AppDatabase db = AppDatabase.getInstance(requireContext());
+                            db.photoDao().updateDetectedObjectPairs(timelineItem.getPhotoPath(), predictions);
+                        });
                     }
-                    e.printStackTrace();
+
+                    createHashtags(predictions);
                 }
+
+            } catch (Exception e) {
+                Log.e("HASHTAG", "이미지 분석 중 오류: " + e.getMessage(), e);
             }
         }
 
-        // 3. 주소 정보 가져오기 (Geocoder)
+        // 2. 주소 및 위치
         if (timelineItem.getLatLng() != null) {
-            // Rest of the method remains the same...
             Geocoder geocoder = new Geocoder(requireContext(), Locale.getDefault());
             new Thread(() -> {
                 try {
@@ -298,87 +334,71 @@ public class PhotoDetailFragment extends DialogFragment {
                             timelineItem.getLatLng().longitude,
                             1
                     );
+
                     if (addresses != null && !addresses.isEmpty()) {
                         Address address = addresses.get(0);
+
+                        String adminArea = address.getAdminArea();
+                        String subAdminArea = address.getSubAdminArea();
+                        String subLocality = address.getSubLocality();
+
+                        StringBuilder locationBuilder = new StringBuilder();
+                        if (adminArea != null) locationBuilder.append(adminArea).append(" ");
+                        if (subAdminArea != null) locationBuilder.append(subAdminArea).append(" ");
+                        if (subLocality != null) locationBuilder.append(subLocality);
+
+                        String locationStr = locationBuilder.toString().trim();
+                        if (locationStr.isEmpty()) locationStr = "위치 정보 없음";
+
                         String addressStr = address.getAddressLine(0);
 
-                        // 위치 정보를 풍부하게 가공
-                        final String locationDisplay;
-                        String locality = address.getLocality();
-                        String subLocality = address.getSubLocality();
-                        String featureName = address.getFeatureName();
+                        // DB에 주소 업데이트
+                        String finalLocationStr1 = locationStr;
+                        executor.execute(() -> {
+                            AppDatabase db = AppDatabase.getInstance(requireContext());
+                            db.photoDao().updateFullAddress(timelineItem.getPhotoPath(), finalLocationStr1);
+                        });
 
-                        if (locality != null && subLocality != null) {
-                            locationDisplay = locality + " " + subLocality;
-                        } else if (locality != null) {
-                            locationDisplay = locality;
-                        } else if (addressStr != null) {
-                            // 주소에서 마지막 두 부분만 추출 (간소화된 위치)
-                            String[] parts = addressStr.split(" ");
-                            if (parts.length >= 2) {
-                                locationDisplay = parts[parts.length - 2] + " " + parts[parts.length - 1];
-                            } else {
-                                locationDisplay = addressStr;
-                            }
-                        } else {
-                            locationDisplay = "위치 정보 없음";
-                        }
-
+                        String finalLocationStr = locationStr;
                         requireActivity().runOnUiThread(() -> {
-                            // 주소는 기존처럼 전체 주소 표시
                             addressTextView.setText(addressStr);
-
-                            // 위치 이름은 가공된 형태로 표시
-                            locationTextView.setText(locationDisplay);
+                            locationTextView.setText(finalLocationStr);
+                            locationTextView.setVisibility(View.VISIBLE);
                         });
                     } else {
                         requireActivity().runOnUiThread(() -> {
                             addressTextView.setText("위치 정보 없음");
-
-                            // TimelineItem의 location 정보가 있으면 사용, 없으면 기본값
-                            if (timelineItem.getLocation() != null &&
-                                    !timelineItem.getLocation().equals("미상") &&
-                                    !timelineItem.getLocation().equals("알 수 없는 위치")) {
-                                locationTextView.setText(timelineItem.getLocation());
-                            } else {
-                                locationTextView.setText("위치 정보 없음");
-                            }
+                            locationTextView.setText("위치 정보 없음");
+                            locationTextView.setVisibility(View.VISIBLE);
                         });
                     }
+
                 } catch (Exception e) {
+                    Log.e("GEO", "주소 변환 실패: " + e.getMessage(), e);
                     requireActivity().runOnUiThread(() -> {
                         addressTextView.setText("위치 정보 불러오기 실패");
-
-                        // 실패 시에는 기존 location 정보 사용
-                        if (timelineItem.getLocation() != null && !timelineItem.getLocation().isEmpty() &&
-                                !timelineItem.getLocation().equals("미상") &&
-                                !timelineItem.getLocation().equals("알 수 없는 위치")) {
-                            locationTextView.setText(timelineItem.getLocation());
-                        } else {
-                            locationTextView.setText("위치 정보 없음");
-                        }
+                        locationTextView.setText("위치 정보 없음");
+                        locationTextView.setVisibility(View.VISIBLE);
                     });
-                    e.printStackTrace();
                 }
             }).start();
         } else {
             addressTextView.setText("위치 정보 없음");
 
-            // 위도/경도가 없는 경우, 기존 location 정보 사용
-            if (timelineItem.getLocation() != null && !timelineItem.getLocation().isEmpty() &&
-                    !timelineItem.getLocation().equals("미상") &&
-                    !timelineItem.getLocation().equals("알 수 없는 위치")) {
-                locationTextView.setText(timelineItem.getLocation());
-            } else {
-                locationTextView.setText("위치 정보 없음");
+            String fallbackLoc = timelineItem.getLocation();
+            if (fallbackLoc == null || fallbackLoc.trim().isEmpty()) {
+                fallbackLoc = "위치 정보 없음";
             }
+
+            locationTextView.setText(fallbackLoc);
+            locationTextView.setVisibility(View.VISIBLE);
         }
 
-        // 4. 날짜 형식 수정: YYYY.MM.DD(요일) HH:MM 형식으로
+        // 3. 시간
         String dateTimeStr = DateUtil.formatDate(timelineItem.getTime(), "yyyy.MM.dd(E) HH:mm");
         timeTextView.setText(dateTimeStr);
 
-        // 5. 활동 유형 설정
+        // 4. 활동 유형
         if (timelineItem.getActivityType() != null && !timelineItem.getActivityType().isEmpty()) {
             activityChip.setText(timelineItem.getActivityType());
             activityChip.setVisibility(View.VISIBLE);
@@ -387,70 +407,63 @@ public class PhotoDetailFragment extends DialogFragment {
         }
     }
 
+
     /**
      * Creates individual hashtag views from classifier predictions
      */
     private void createHashtags(List<Pair<String, Float>> predictions) {
-        // Find the container
-        LinearLayout hashtagContainer = getView().findViewById(R.id.hashtagContainer);
+        View currentView = getView();
+        if (currentView == null) {
+            return;
+        }
 
-        // Clear existing tags
+        LinearLayout hashtagContainer = getView().findViewById(R.id.hashtagContainer);
+        if (hashtagContainer == null) {
+            return;
+        }
+
         hashtagContainer.removeAllViews();
 
-        // Create individual tag for each prediction (limit to 5)
         int count = 0;
         for (Pair<String, Float> pred : predictions) {
-            if (count >= 5) break; // Limit to 5 tags maximum
-
-            // Extract main term before comma or parenthesis
-            String term = pred.first.split(",")[0].trim();
-            term = term.split("\\(")[0].trim();
+            // 예측 항목에서 해시태그 추출
+            String term = pred.first != null ? pred.first.split(",")[0].trim() : "";
             String hashtag = "#" + term.replace(" ", "");
 
-            // Create a TextView for the hashtag
+            // TextView 생성
             TextView tagView = new TextView(requireContext());
             tagView.setText(hashtag);
             tagView.setTextSize(12);
             tagView.setTextColor(Color.BLACK);
 
-            // Set padding and margin
             int paddingPixels = (int) (12 * getResources().getDisplayMetrics().density);
             int topBottomPadding = (int) (6 * getResources().getDisplayMetrics().density);
             tagView.setPadding(paddingPixels, topBottomPadding, paddingPixels, topBottomPadding);
 
-            // Create layout parameters with margin
             LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.WRAP_CONTENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT
             );
-            if (count < predictions.size() - 1) {
-                int marginPixels = (int) (6 * getResources().getDisplayMetrics().density);
-                params.rightMargin = marginPixels;
-            }
+            int marginPixels = (int) (6 * getResources().getDisplayMetrics().density);
+            params.rightMargin = marginPixels;
             tagView.setLayoutParams(params);
 
-            // Set the background
             tagView.setBackground(ContextCompat.getDrawable(requireContext(), R.drawable.hash_tag_background));
-
-            // Add to container
             hashtagContainer.addView(tagView);
             count++;
         }
 
-        // If no predictions or error, add a single default tag
+        // 예측 결과 없을 경우 기본 태그
         if (count == 0) {
             TextView tagView = new TextView(requireContext());
             tagView.setText("#Photo");
             tagView.setTextSize(12);
             tagView.setTextColor(Color.BLACK);
-
             int paddingPixels = (int) (12 * getResources().getDisplayMetrics().density);
             int topBottomPadding = (int) (6 * getResources().getDisplayMetrics().density);
             tagView.setPadding(paddingPixels, topBottomPadding, paddingPixels, topBottomPadding);
-
             tagView.setBackground(ContextCompat.getDrawable(requireContext(), R.drawable.hash_tag_background));
             hashtagContainer.addView(tagView);
         }
     }
 }
-
