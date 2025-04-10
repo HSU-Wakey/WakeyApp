@@ -338,7 +338,6 @@ public class PhotoDetailFragment extends DialogFragment {
                     if (addresses != null && !addresses.isEmpty()) {
                         Address address = addresses.get(0);
 
-
                         String adminArea = address.getAdminArea();
                         String subAdminArea = address.getSubAdminArea();
                         String subLocality = address.getSubLocality();
@@ -351,9 +350,14 @@ public class PhotoDetailFragment extends DialogFragment {
                         String locationStr = locationBuilder.toString().trim();
                         if (locationStr.isEmpty()) locationStr = "위치 정보 없음";
 
-
                         String addressStr = address.getAddressLine(0);
 
+                        // DB에 주소 업데이트
+                        String finalLocationStr1 = locationStr;
+                        executor.execute(() -> {
+                            AppDatabase db = AppDatabase.getInstance(requireContext());
+                            db.photoDao().updateFullAddress(timelineItem.getPhotoPath(), finalLocationStr1);
+                        });
 
                         String finalLocationStr = locationStr;
                         requireActivity().runOnUiThread(() -> {
@@ -389,7 +393,6 @@ public class PhotoDetailFragment extends DialogFragment {
             locationTextView.setText(fallbackLoc);
             locationTextView.setVisibility(View.VISIBLE);
         }
-
 
         // 3. 시간
         String dateTimeStr = DateUtil.formatDate(timelineItem.getTime(), "yyyy.MM.dd(E) HH:mm");

@@ -57,22 +57,22 @@ public class ImageRepository {
             try {
                 String filePath = uri.toString();
 
-                // ✅ 중복 검사
+                // 중복 검사
                 if (photoRepository.isPhotoAlreadyExists(filePath)) {
                     Log.d("ImageRepository", "⚠️ 중복 사진 → 저장 생략됨: " + filePath);
                     return;
                 }
 
-                String detectedObjects = meta.getPredictions().toString();
+                String detectedObjects = meta.getPredictions().toString(); // List<Pair<String, Float>> -> String 변환
                 String dateTaken = ImageUtils.getExifDateTaken(context, uri);
                 Log.d("ImageRepository", "🕒 원본 dateTaken: " + dateTaken);
 
-                // ✅ 포맷이 없거나 깨진 경우 대비: 현재 시간으로 설정
+                // 포맷이 없거나 깨진 경우 대비: 현재 시간으로 설정
                 if (dateTaken == null || dateTaken.isEmpty()) {
                     dateTaken = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
                             .format(new Date());
                 }
-                // ✅ "yyyy:MM:dd HH:mm:ss" 포맷일 경우 → 변환
+                // "yyyy:MM:dd HH:mm:ss" 포맷일 경우 → 변환
                 else if (dateTaken.contains(":")) {
                     try {
                         Date parsed = new SimpleDateFormat("yyyy:MM:dd HH:mm:ss", Locale.getDefault()).parse(dateTaken);
@@ -91,13 +91,13 @@ public class ImageRepository {
                 Double latitude = null;
                 Double longitude = null;
 
-                // ✅ ExifUtil을 사용해서 GPS 추출
+                // ExifUtil을 사용해서 GPS 추출
                 double[] latLng = ExifUtil.getLatLngFromExif(FileUtils.getPath(context, uri)); // 절대 경로 필요
                 if (latLng != null) {
                     latitude = latLng[0];
                     longitude = latLng[1];
 
-                    // ✅ 위도/경도로 주소 파싱
+                    // 위도/경도로 주소 파싱
                     List<Address> addresses = new Geocoder(context, Locale.KOREA)
                             .getFromLocation(latitude, longitude, 1);
                     if (addresses != null && !addresses.isEmpty()) {
@@ -113,7 +113,7 @@ public class ImageRepository {
                     }
                 }
 
-                // ✅ DB 저장
+                // DB 저장
                 Photo photo = new Photo(
                         filePath,
                         dateTaken,
@@ -121,11 +121,13 @@ public class ImageRepository {
                         locationSi,
                         locationGu,
                         locationStreet,
-                        null,            // caption
+                        "",             // caption
                         latitude,
                         longitude,
-                        detectedObjects
+                        detectedObjects,
+                        meta.getPredictions()
                 );
+
 
                 db.photoDao().insertPhoto(photo);
                 Log.d("ImageRepository", "📥 Photo saved to DB with date: " + dateTaken);
