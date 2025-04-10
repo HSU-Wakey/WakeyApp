@@ -44,6 +44,9 @@ public class Photo {
     @ColumnInfo(name = "locationStreet")
     public String locationStreet;
 
+    @ColumnInfo(name = "fullAddress")
+    public String fullAddress;
+
     @ColumnInfo(name = "caption")
     public String caption;
 
@@ -53,7 +56,8 @@ public class Photo {
     @Ignore
     public Photo(String filePath, String dateTaken, String locationDo, String locationSi,
                  String locationGu, String locationStreet, String caption,
-                 Double latitude, Double longitude, String detectedObjects) {
+                 Double latitude, Double longitude, String detectedObjects,
+                 List<Pair<String, Float>> detectedObjectPairs) {
         this.filePath = filePath;
         this.dateTaken = dateTaken;
         this.locationDo = locationDo;
@@ -64,7 +68,9 @@ public class Photo {
         this.latitude = latitude;
         this.longitude = longitude;
         this.detectedObjects = detectedObjects;
+        this.detectedObjectPairs = detectedObjectPairs;
     }
+
 
     // Room을 위한 기본 생성자
     public Photo() {}
