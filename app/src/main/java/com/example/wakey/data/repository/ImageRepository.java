@@ -60,21 +60,18 @@ public class ImageRepository {
                 // 중복 검사 (절대 경로 기준)
                 if (photoRepository.isPhotoAlreadyExists(absolutePath)) {
                     Log.d("ImageRepository", "⚠️ 중복 사진 → 저장 생략됨: " + absolutePath);
+                    Log.d("DB_CHECK", "⚠️ 이미 존재 → 저장 안함: " + uri.toString());
                     return;
                 }
 
-
-                String detectedObjects = meta.getPredictions().toString(); // List<Pair<String, Float>> -> String 변환
+                String detectedObjects = meta.getPredictions().toString();
                 String dateTaken = ImageUtils.getExifDateTaken(context, uri);
                 Log.d("ImageRepository", "🕒 원본 dateTaken: " + dateTaken);
 
-                // 포맷이 없거나 깨진 경우 대비: 현재 시간으로 설정
                 if (dateTaken == null || dateTaken.isEmpty()) {
                     dateTaken = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
                             .format(new Date());
-                }
-                // "yyyy:MM:dd HH:mm:ss" 포맷일 경우 → 변환
-                else if (dateTaken.contains(":")) {
+                } else if (dateTaken.contains(":")) {
                     try {
                         Date parsed = new SimpleDateFormat("yyyy:MM:dd HH:mm:ss", Locale.getDefault()).parse(dateTaken);
                         dateTaken = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(parsed);
@@ -92,13 +89,11 @@ public class ImageRepository {
                 Double latitude = null;
                 Double longitude = null;
 
-                // ExifUtil을 사용해서 GPS 추출
-                double[] latLng = ExifUtil.getLatLngFromExif(FileUtils.getPath(context, uri)); // 절대 경로 필요
+                double[] latLng = ExifUtil.getLatLngFromExif(FileUtils.getPath(context, uri));
                 if (latLng != null) {
                     latitude = latLng[0];
                     longitude = latLng[1];
 
-                    // 위도/경도로 주소 파싱
                     List<Address> addresses = new Geocoder(context, Locale.KOREA)
                             .getFromLocation(latitude, longitude, 1);
                     if (addresses != null && !addresses.isEmpty()) {
@@ -106,15 +101,12 @@ public class ImageRepository {
                         locationDo = addr.getAdminArea();
                         locationSi = addr.getLocality();
                         locationGu = addr.getSubLocality() != null ? addr.getSubLocality() : addr.getThoroughfare();
-
-                        // 도로명 + 번지 통합
                         String thoroughfare = addr.getThoroughfare() != null ? addr.getThoroughfare() : "";
                         String featureName = addr.getFeatureName() != null ? addr.getFeatureName() : "";
                         locationStreet = (thoroughfare + " " + featureName).trim();
                     }
                 }
 
-                // DB 저장
                 Photo photo = new Photo(
                         absolutePath,
                         dateTaken,
@@ -122,16 +114,16 @@ public class ImageRepository {
                         locationSi,
                         locationGu,
                         locationStreet,
-                        "",             // caption
+                        "",
                         latitude,
                         longitude,
                         detectedObjects,
                         meta.getPredictions()
                 );
 
-
                 db.photoDao().insertPhoto(photo);
                 Log.d("ImageRepository", "📥 Photo saved to DB with date: " + dateTaken);
+                Log.d("DB_CHECK", "✅ DB에 저장됨: " + uri.toString());
             } catch (Exception e) {
                 Log.e("ImageRepository", "🛑 사진 저장 중 오류 발생", e);
             }
