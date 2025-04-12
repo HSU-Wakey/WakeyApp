@@ -27,7 +27,7 @@ import com.example.wakey.data.local.Photo;
 import com.example.wakey.data.model.TimelineItem;
 import com.example.wakey.data.repository.TimelineManager;
 import com.example.wakey.data.util.DateUtil;
-import com.example.wakey.tflite.ImageClassifier;
+import com.example.wakey.tflite.BeitClassifier;
 import com.example.wakey.util.ToastManager;
 
 import java.io.File;
@@ -305,7 +305,7 @@ public class PhotoDetailFragment extends DialogFragment {
                     if (timelineItem.getDetectedObjectPairs() != null && !timelineItem.getDetectedObjectPairs().isEmpty()) {
                         predictions = timelineItem.getDetectedObjectPairs();
                     } else {
-                        ImageClassifier classifier = new ImageClassifier(requireContext());
+                        BeitClassifier classifier = new BeitClassifier(requireContext());
                         predictions = classifier.classifyImage(bitmap);
                         classifier.close();
 
