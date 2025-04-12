@@ -242,6 +242,10 @@ public class UIManager {
     public void setBottomSheetState(int state) {
         if (bottomSheetBehavior == null) return;
 
+        if (currentBottomSheetState == state) {
+            return; // 변경 없음
+        }
+
         switch (state) {
             case BOTTOM_SHEET_HIDDEN:
                 bottomSheetBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);
@@ -253,7 +257,10 @@ public class UIManager {
                 bottomSheetBehavior.setState(BottomSheetBehavior.STATE_EXPANDED);
                 break;
         }
+
+        Log.d("BOTTOM_SHEET", "🔄 바텀시트 상태 변경: " + state);
     }
+
 
     /**
      * 타임라인 데이터 업데이트
@@ -261,40 +268,20 @@ public class UIManager {
     public void updateTimelineData(List<TimelineItem> items) {
         if (items == null) return;
 
-// ✅ 기존 데이터 초기화를 위해 빈 리스트도 반영해야 함
         this.timelineItems.clear();
         this.timelineItems.addAll(items);
         Collections.sort(this.timelineItems, Comparator.comparing(TimelineItem::getTime));
+
+        Log.d("TIMELINE_UI", "🔄 타임라인 갱신: " + items.size() + "개 항목");
 
         if (timelineAdapter != null) {
             timelineAdapter.updateItems(this.timelineItems);
         }
 
-
-        // 타임라인 비교 시 equals 대신 간단한 hash 비교 또는 사이즈/경로 기반 비교 권장
-        if (this.timelineItems.size() == items.size()) {
-            boolean same = true;
-            for (int i = 0; i < items.size(); i++) {
-                if (!this.timelineItems.get(i).getPhotoPath().equals(items.get(i).getPhotoPath())) {
-                    same = false;
-                    break;
-                }
-            }
-            if (same) {
-                Log.d("TIMELINE_UI", "✅ 동일한 타임라인 → UI 갱신 생략");
-                return;
-            }
-        }
-
-        this.timelineItems.clear();
-        this.timelineItems.addAll(items);
-        Collections.sort(this.timelineItems, Comparator.comparing(TimelineItem::getTime));
-
-        if (timelineAdapter != null) {
-            timelineAdapter.updateItems(this.timelineItems);
+        if (!this.timelineItems.isEmpty() && currentBottomSheetState == BOTTOM_SHEET_HIDDEN) {
+            setBottomSheetState(BOTTOM_SHEET_HALF_EXPANDED);
         }
     }
-
 
     /**
      * 타임라인 항목 강조
@@ -806,4 +793,9 @@ public class UIManager {
     public void showToast(String message) {
         ToastManager.getInstance().showToast(message);
     }
+
+    public void updateToToday() {
+        setDate(new Date());
+    }
+
 }
