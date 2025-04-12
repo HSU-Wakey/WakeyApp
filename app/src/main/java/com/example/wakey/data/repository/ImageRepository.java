@@ -55,13 +55,14 @@ public class ImageRepository {
     public void savePhotoToDB(Uri uri, ImageMeta meta) {
         new Thread(() -> {
             try {
-                String filePath = uri.toString();
+                String absolutePath = FileUtils.getPath(context, uri);
 
-                // 중복 검사
-                if (photoRepository.isPhotoAlreadyExists(filePath)) {
-                    Log.d("ImageRepository", "⚠️ 중복 사진 → 저장 생략됨: " + filePath);
+                // 중복 검사 (절대 경로 기준)
+                if (photoRepository.isPhotoAlreadyExists(absolutePath)) {
+                    Log.d("ImageRepository", "⚠️ 중복 사진 → 저장 생략됨: " + absolutePath);
                     return;
                 }
+
 
                 String detectedObjects = meta.getPredictions().toString(); // List<Pair<String, Float>> -> String 변환
                 String dateTaken = ImageUtils.getExifDateTaken(context, uri);
@@ -115,7 +116,7 @@ public class ImageRepository {
 
                 // DB 저장
                 Photo photo = new Photo(
-                        filePath,
+                        absolutePath,
                         dateTaken,
                         locationDo,
                         locationSi,

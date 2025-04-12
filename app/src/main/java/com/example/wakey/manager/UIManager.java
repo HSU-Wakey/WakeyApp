@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Build;
+import android.util.Log;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -250,16 +251,42 @@ public class UIManager {
      * 타임라인 데이터 업데이트
      */
     public void updateTimelineData(List<TimelineItem> items) {
+        if (items == null) return;
+
+// ✅ 기존 데이터 초기화를 위해 빈 리스트도 반영해야 함
         this.timelineItems.clear();
-        if (items != null) {
-            this.timelineItems.addAll(items);
-            Collections.sort(this.timelineItems, Comparator.comparing(TimelineItem::getTime));
+        this.timelineItems.addAll(items);
+        Collections.sort(this.timelineItems, Comparator.comparing(TimelineItem::getTime));
+
+        if (timelineAdapter != null) {
+            timelineAdapter.updateItems(this.timelineItems);
         }
+
+
+        // 타임라인 비교 시 equals 대신 간단한 hash 비교 또는 사이즈/경로 기반 비교 권장
+        if (this.timelineItems.size() == items.size()) {
+            boolean same = true;
+            for (int i = 0; i < items.size(); i++) {
+                if (!this.timelineItems.get(i).getPhotoPath().equals(items.get(i).getPhotoPath())) {
+                    same = false;
+                    break;
+                }
+            }
+            if (same) {
+                Log.d("TIMELINE_UI", "✅ 동일한 타임라인 → UI 갱신 생략");
+                return;
+            }
+        }
+
+        this.timelineItems.clear();
+        this.timelineItems.addAll(items);
+        Collections.sort(this.timelineItems, Comparator.comparing(TimelineItem::getTime));
 
         if (timelineAdapter != null) {
             timelineAdapter.updateItems(this.timelineItems);
         }
     }
+
 
     /**
      * 타임라인 항목 강조
