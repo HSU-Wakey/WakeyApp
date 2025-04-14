@@ -15,7 +15,7 @@ import androidx.room.Room;
 import com.example.wakey.data.local.AppDatabase;
 import com.example.wakey.data.local.Photo;
 import com.example.wakey.data.model.ImageMeta;
-import com.example.wakey.tflite.BeitClassifier;
+import com.example.wakey.tflite.ImageClassifier;
 import com.example.wakey.data.util.ExifUtil;
 import com.example.wakey.tflite.ClipImageEncoder;
 import com.example.wakey.util.FileUtils;
@@ -28,7 +28,7 @@ import java.util.List;
 import java.util.Locale;
 
 public class ImageRepository {
-    private final BeitClassifier beitClassifier;
+    private final ImageClassifier imageClassifier;
     private final Context context;
     private final AppDatabase db;
     private final PhotoRepository photoRepository;
@@ -37,8 +37,8 @@ public class ImageRepository {
     public ImageRepository(Context context) {
         this.context = context;
         try {
-            this.beitClassifier = new BeitClassifier(context);
             this.clipImageEncoder = new ClipImageEncoder(context);
+            this.imageClassifier = new ImageClassifier(context);
         } catch (Exception e) {
             throw new RuntimeException("모델 로드 실패", e);
         }
@@ -47,12 +47,11 @@ public class ImageRepository {
     }
 
     public ImageMeta classifyImage(Uri uri, Bitmap bitmap) {
-        List<Pair<String, Float>> predictions = beitClassifier.classifyImage(bitmap);
-
         // 2. 벡터 추출 (CLIP)
         float[] embeddingVector = clipImageEncoder.getImageEncoding(bitmap);  // ✅ CLIP으로부터 벡터 추출
         Log.d("ImageRepository", "🧬 CLIP 임베딩 벡터 길이: " + (embeddingVector != null ? embeddingVector.length : -1));
 
+        List<Pair<String, Float>> predictions = imageClassifier.classifyImage(bitmap);
         String region = null;
         Location location = ImageUtils.getExifLocation(context, uri);
         if (location != null) {
@@ -173,6 +172,6 @@ public class ImageRepository {
     }
 
     public void close() {
-        beitClassifier.close();
+        imageClassifier.close();
     }
 }

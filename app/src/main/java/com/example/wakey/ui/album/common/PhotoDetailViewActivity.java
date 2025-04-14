@@ -1,7 +1,10 @@
-package com.example.wakey.ui.album;
+package com.example.wakey.ui.album.common;
+
+import static android.content.ContentValues.TAG;
 
 import android.net.Uri;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
@@ -103,13 +106,37 @@ public class PhotoDetailViewActivity extends AppCompatActivity {
     }
 
     private void loadPhotoDetails() {
+
         // Load photo image with Glide
-        if (photoPath.startsWith("/") || photoPath.startsWith("content:")) {
-            Glide.with(this)
-                    .load(Uri.parse(photoPath))
-                    .into(fullScreenPhotoView);
+        if (photoPath != null && !photoPath.isEmpty()) {
+            try {
+                if (photoPath.startsWith("/") || photoPath.startsWith("content:") ||
+                        photoPath.startsWith("file:")) {
+
+                    Uri photoUri = Uri.parse(photoPath);
+
+                    // 안전한 이미지 로딩
+                    Glide.with(this)
+                            .load(photoUri)
+                            .placeholder(R.drawable.placeholder_image)
+                            .error(R.drawable.error_image)
+                            .into(fullScreenPhotoView);
+                } else {
+                    // 리소스 ID로 추정되는 경우
+                    try {
+                        int resourceId = Integer.parseInt(photoPath.replace("photo_", ""));
+                        fullScreenPhotoView.setImageResource(R.drawable.placeholder_image);
+                    } catch (NumberFormatException e) {
+                        // 기본 이미지 표시
+                        fullScreenPhotoView.setImageResource(R.drawable.placeholder_image);
+                    }
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error loading image: " + e.getMessage());
+                fullScreenPhotoView.setImageResource(R.drawable.error_image);
+            }
         } else {
-            // For demo/placeholder paths
+            // photoPath가 null이거나 비어있는 경우
             fullScreenPhotoView.setImageResource(R.drawable.placeholder_image);
         }
 

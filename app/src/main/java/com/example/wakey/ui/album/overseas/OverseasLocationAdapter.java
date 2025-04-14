@@ -1,4 +1,4 @@
-package com.example.wakey.ui.album;
+package com.example.wakey.ui.album.overseas;
 
 import android.net.Uri;
 import android.view.LayoutInflater;
@@ -15,16 +15,16 @@ import com.example.wakey.R;
 
 import java.util.List;
 
-public class LocationAdapter extends RecyclerView.Adapter<LocationAdapter.LocationViewHolder> {
+public class OverseasLocationAdapter extends RecyclerView.Adapter<OverseasLocationAdapter.LocationViewHolder> {
 
-    private List<SmartAlbumActivity.LocationItem> locations;
+    private List<OverseasFragment.OverseasLocationItem> locations;
     private OnLocationClickListener listener;
 
     public interface OnLocationClickListener {
-        void onLocationClick(SmartAlbumActivity.LocationItem item);
+        void onLocationClick(OverseasFragment.OverseasLocationItem item);
     }
 
-    public LocationAdapter(List<SmartAlbumActivity.LocationItem> locations, OnLocationClickListener listener) {
+    public OverseasLocationAdapter(List<OverseasFragment.OverseasLocationItem> locations, OnLocationClickListener listener) {
         this.locations = locations;
         this.listener = listener;
     }
@@ -39,8 +39,15 @@ public class LocationAdapter extends RecyclerView.Adapter<LocationAdapter.Locati
 
     @Override
     public void onBindViewHolder(@NonNull LocationViewHolder holder, int position) {
-        SmartAlbumActivity.LocationItem item = locations.get(position);
+        OverseasFragment.OverseasLocationItem item = locations.get(position);
+
+        // 한글 국가명 표시
         holder.locationName.setText(item.getName());
+
+        // 사진 개수 표시 - 원래 UI와 동일하게
+        if (holder.locationPhotoCount != null) {
+            holder.locationPhotoCount.setText("사진 " + item.getPhotoCount() + "장");
+        }
 
         // Load thumbnail if available
         if (item.getThumbnailPath() != null && !item.getThumbnailPath().isEmpty()) {
@@ -68,6 +75,7 @@ public class LocationAdapter extends RecyclerView.Adapter<LocationAdapter.Locati
     static class LocationViewHolder extends RecyclerView.ViewHolder {
         ImageView locationThumbnail;
         TextView locationName;
+        TextView locationPhotoCount;
 
         public LocationViewHolder(@NonNull View itemView) {
             super(itemView);
