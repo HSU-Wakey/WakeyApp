@@ -1,7 +1,6 @@
-package com.example.wakey.ui.album;
+package com.example.wakey.ui.album.diary;
 
 import android.content.Context;
-import android.net.Uri;
 
 import com.example.wakey.R;
 import com.example.wakey.data.local.AppDatabase;
