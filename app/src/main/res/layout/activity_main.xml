@@ -93,7 +93,7 @@
             </RelativeLayout>
         </LinearLayout>
 
-        <!-- Right Side Buttons -->
+        <!-- Right Side Buttons - Updated with 3 buttons -->
         <LinearLayout
             android:id="@+id/rightButtonsLayout"
             android:layout_width="wrap_content"
@@ -110,17 +110,28 @@
                 android:layout_height="40dp"
                 android:layout_marginBottom="2dp"
                 android:padding="8dp"
-                android:background="@drawable/white_up_bg"
+                android:background="@drawable/white_top_bg"
                 android:src="@drawable/ic_map"
                 android:scaleType="fitCenter"
                 android:contentDescription="Map Options" />
+
+            <ImageButton
+                android:id="@+id/albumButton"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginBottom="2dp"
+                android:padding="8dp"
+                android:background="@drawable/white_middle_bg"
+                android:src="@drawable/ic_album"
+                android:scaleType="fitCenter"
+                android:contentDescription="Smart Album" />
 
             <ImageButton
                 android:id="@+id/searchButton"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
                 android:padding="8dp"
-                android:background="@drawable/white_down_bg"
+                android:background="@drawable/white_bottom_bg"
                 android:src="@drawable/ic_search"
                 android:scaleType="fitCenter"
                 android:contentDescription="Search" />
