@@ -1,4 +1,4 @@
-package com.example.wakey.ui.album;
+package com.example.wakey.ui.album.common;
 
 import android.net.Uri;
 import android.view.LayoutInflater;

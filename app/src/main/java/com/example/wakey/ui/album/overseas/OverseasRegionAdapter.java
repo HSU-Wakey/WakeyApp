@@ -1,4 +1,4 @@
-package com.example.wakey.ui.album;
+package com.example.wakey.ui.album.overseas;
 
 import android.net.Uri;
 import android.view.LayoutInflater;
@@ -16,36 +16,16 @@ import com.example.wakey.R;
 
 import java.util.List;
 
-public class RegionAdapter extends RecyclerView.Adapter<RegionAdapter.RegionViewHolder> {
+public class OverseasRegionAdapter extends RecyclerView.Adapter<OverseasRegionAdapter.RegionViewHolder> {
 
-    // 지역 아이템 모델 클래스
-    public static class RegionItem {
-        private String name;
-        private String code;
-        private String date;
-        private String thumbnailUrl;
-
-        public RegionItem(String name, String code, String date, String thumbnailUrl) {
-            this.name = name;
-            this.code = code;
-            this.date = date;
-            this.thumbnailUrl = thumbnailUrl;
-        }
-
-        public String getName() { return name; }
-        public String getCode() { return code; }
-        public String getDate() { return date; }
-        public String getThumbnailUrl() { return thumbnailUrl; }
-    }
-
-    private List<RegionItem> regions;
+    private List<OverseasRegionActivity.OverseasRegionItem> regions;
     private OnRegionClickListener listener;
 
     public interface OnRegionClickListener {
-        void onRegionClick(RegionItem item);
+        void onRegionClick(OverseasRegionActivity.OverseasRegionItem item);
     }
 
-    public RegionAdapter(List<RegionItem> regions, OnRegionClickListener listener) {
+    public OverseasRegionAdapter(List<OverseasRegionActivity.OverseasRegionItem> regions, OnRegionClickListener listener) {
         this.regions = regions;
         this.listener = listener;
     }
@@ -60,11 +40,18 @@ public class RegionAdapter extends RecyclerView.Adapter<RegionAdapter.RegionView
 
     @Override
     public void onBindViewHolder(@NonNull RegionViewHolder holder, int position) {
-        RegionItem item = regions.get(position);
+        OverseasRegionActivity.OverseasRegionItem item = regions.get(position);
         holder.locationName.setText(item.getName());
-        holder.locationDate.setText(item.getDate());
 
-        // 썸네일 로드 (실제 앱에서는 Glide 사용)
+        // 원래 포맷대로 날짜와 사진 개수 표시
+        String dateText = item.getDate();
+        if (dateText != null && !dateText.isEmpty()) {
+            holder.locationDate.setText(dateText + " • 사진 " + item.getPhotoCount() + "장");
+        } else {
+            holder.locationDate.setText("사진 " + item.getPhotoCount() + "장");
+        }
+
+        // 썸네일 로드
         if (item.getThumbnailUrl() != null && !item.getThumbnailUrl().isEmpty()) {
             Glide.with(holder.itemView.getContext())
                     .load(Uri.parse(item.getThumbnailUrl()))

@@ -97,51 +97,14 @@
                 android:background="@drawable/tab_unselected_bg"/>
         </LinearLayout>
 
-        <!-- Grid of location cards -->
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/locationsRecyclerView"
+        <!-- Fragment Container -->
+        <FrameLayout
+            android:id="@+id/fragmentContainer"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_marginTop="16dp"
-            android:padding="8dp"
-            android:clipToPadding="false"
             app:layout_constraintTop_toBottomOf="@id/tabContainer"
             app:layout_constraintBottom_toBottomOf="parent"/>
-
-        <!-- Empty state for diary tab when no entries yet -->
-        <LinearLayout
-            android:id="@+id/emptyDiaryState"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:visibility="gone"
-            app:layout_constraintTop_toBottomOf="@id/tabContainer"
-            app:layout_constraintBottom_toBottomOf="parent">
-
-            <ImageView
-                android:layout_width="120dp"
-                android:layout_height="120dp"
-                android:src="@drawable/ic_diary_empty"
-                android:alpha="0.5"
-                android:contentDescription="Empty diary"/>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:text="여행 일기가 없습니다"
-                android:textSize="18sp"
-                android:textColor="#757575"/>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="아래 버튼을 눌러 첫 여행 일기를 작성해보세요"
-                android:textSize="14sp"
-                android:textColor="#9E9E9E"/>
-        </LinearLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
