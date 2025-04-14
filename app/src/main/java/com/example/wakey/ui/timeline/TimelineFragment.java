@@ -17,7 +17,6 @@ import com.example.wakey.data.local.Photo;
 import com.example.wakey.data.model.PhotoInfo;
 import com.example.wakey.data.model.TimelineItem;
 import com.example.wakey.data.repository.PhotoRepository;
-import com.example.wakey.data.repository.TimelineManager;
 import com.google.android.gms.maps.model.LatLng;
 
 import java.text.ParseException;

@@ -23,14 +23,11 @@ import androidx.fragment.app.DialogFragment;
 import com.bumptech.glide.Glide;
 import com.example.wakey.R;
 import com.example.wakey.data.local.AppDatabase;
-import com.example.wakey.data.local.Photo;
 import com.example.wakey.data.model.TimelineItem;
-import com.example.wakey.data.repository.TimelineManager;
+import com.example.wakey.ui.timeline.TimelineManager;
 import com.example.wakey.data.util.DateUtil;
 import com.example.wakey.tflite.ImageClassifier;
-import com.example.wakey.util.ToastManager;
 
-import java.io.File;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
