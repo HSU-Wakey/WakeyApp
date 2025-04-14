@@ -30,6 +30,7 @@ public class ImageRepository {
     private final Context context;
     private final AppDatabase db;
     private final PhotoRepository photoRepository;
+    private final LocationUtils locationUtils;
 
     public ImageRepository(Context context) {
         this.context = context;
@@ -40,6 +41,7 @@ public class ImageRepository {
         }
         db = Room.databaseBuilder(context, AppDatabase.class, "AppDatabase").build();
         photoRepository = PhotoRepository.getInstance(context);
+        locationUtils = LocationUtils.getInstance(context);
     }
 
     public ImageMeta classifyImage(Uri uri, Bitmap bitmap) {
@@ -47,7 +49,8 @@ public class ImageRepository {
         String region = null;
         Location location = ImageUtils.getExifLocation(context, uri);
         if (location != null) {
-            region = LocationUtils.getRegionFromLocation(context, location);
+            // LocationUtils 인스턴스 메서드 사용
+            region = locationUtils.getRegionFromLocation(location);
         }
         return new ImageMeta(uri.toString(), region, predictions);
     }
@@ -98,18 +101,23 @@ public class ImageRepository {
                     longitude = latLng[1];
 
                     // 위도/경도로 주소 파싱
-                    List<Address> addresses = new Geocoder(context, Locale.KOREA)
-                            .getFromLocation(latitude, longitude, 1);
-                    if (addresses != null && !addresses.isEmpty()) {
-                        Address addr = addresses.get(0);
-                        locationDo = addr.getAdminArea();
-                        locationSi = addr.getLocality();
-                        locationGu = addr.getSubLocality() != null ? addr.getSubLocality() : addr.getThoroughfare();
+                    Geocoder geocoder = new Geocoder(context, Locale.KOREA);
+                    List<Address> addresses = null;
+                    try {
+                        addresses = geocoder.getFromLocation(latitude, longitude, 1);
+                        if (addresses != null && !addresses.isEmpty()) {
+                            Address addr = addresses.get(0);
+                            locationDo = addr.getAdminArea();
+                            locationSi = addr.getLocality();
+                            locationGu = addr.getSubLocality() != null ? addr.getSubLocality() : addr.getThoroughfare();
 
-                        // 도로명 + 번지 통합
-                        String thoroughfare = addr.getThoroughfare() != null ? addr.getThoroughfare() : "";
-                        String featureName = addr.getFeatureName() != null ? addr.getFeatureName() : "";
-                        locationStreet = (thoroughfare + " " + featureName).trim();
+                            // 도로명 + 번지 통합
+                            String thoroughfare = addr.getThoroughfare() != null ? addr.getThoroughfare() : "";
+                            String featureName = addr.getFeatureName() != null ? addr.getFeatureName() : "";
+                            locationStreet = (thoroughfare + " " + featureName).trim();
+                        }
+                    } catch (Exception e) {
+                        Log.e("ImageRepository", "❌ 주소 변환 실패", e);
                     }
                 }
 
@@ -127,7 +135,6 @@ public class ImageRepository {
                         detectedObjects,
                         meta.getPredictions()
                 );
-
 
                 db.photoDao().insertPhoto(photo);
                 Log.d("ImageRepository", "📥 Photo saved to DB with date: " + dateTaken);
@@ -159,7 +166,14 @@ public class ImageRepository {
         }).start();
     }
 
+    // 앱이 종료될 때 리소스 정리
     public void close() {
-        imageClassifier.close();
+        if (imageClassifier != null) {
+            imageClassifier.close();
+        }
+        // db 인스턴스도 닫아주기
+        if (db != null && db.isOpen()) {
+            db.close();
+        }
     }
 }
