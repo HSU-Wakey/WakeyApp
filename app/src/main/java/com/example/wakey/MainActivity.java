@@ -5,6 +5,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 
 import android.Manifest;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.location.Address;
@@ -26,6 +27,7 @@ import com.example.wakey.manager.ApiManager;
 import com.example.wakey.manager.DataManager;
 import com.example.wakey.manager.MapManager;
 import com.example.wakey.manager.UIManager;
+import com.example.wakey.ui.album.SmartAlbumActivity;
 import com.example.wakey.util.ImageUtils;
 import com.example.wakey.util.ToastManager;
 import com.example.wakey.data.model.ImageMeta;
@@ -37,9 +39,7 @@ import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 
-import java.io.File;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -54,7 +54,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private ApiManager apiManager;
 
     private TextView dateTextView;
-    private ImageButton mapButton, searchButton, prevDateBtn, nextDateBtn;
+    private ImageButton mapButton, albumButton, searchButton, prevDateBtn, nextDateBtn;
     private TextView bottomSheetDateTextView;
 
     private GoogleMap mMap;
@@ -87,6 +87,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private void initUI() {
         dateTextView = findViewById(R.id.dateTextView);
         mapButton = findViewById(R.id.mapButton);
+        albumButton = findViewById(R.id.albumButton); // New album button
         searchButton = findViewById(R.id.searchButton);
         prevDateBtn = findViewById(R.id.prevDateBtn);
         nextDateBtn = findViewById(R.id.nextDateBtn);
@@ -147,11 +148,19 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 loadDataForDate(uiManager.getFormattedDate());
             }
         });
+
+        // New album button click listener
+        albumButton.setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, SmartAlbumActivity.class);
+            startActivity(intent);
+        });
+
         searchButton.setOnClickListener(v -> uiManager.showSearchDialog());
         prevDateBtn.setOnClickListener(v -> uiManager.goToPreviousDate());
         nextDateBtn.setOnClickListener(v -> uiManager.goToNextDate());
     }
 
+    // Rest of the code remains the same
     private void requestLocationPermission() {
         List<String> permissions = new ArrayList<>();
         permissions.add(Manifest.permission.ACCESS_FINE_LOCATION);
