@@ -54,6 +54,9 @@ dependencies {
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
 
+    // PhotoView 라이브러리
+    implementation("com.github.chrisbanes:PhotoView:2.3.0")
+
     // Google Map SDK
     implementation("com.google.maps.android:android-maps-utils:2.3.0")
 
