@@ -5,6 +5,7 @@ import android.content.Context;
 import com.example.wakey.R;
 import com.example.wakey.data.local.AppDatabase;
 import com.example.wakey.data.local.Photo;
+import com.example.wakey.ui.album.SmartAlbumActivity;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -14,7 +15,7 @@ import java.util.concurrent.Executors;
 public class DiaryRepository {
     private static DiaryRepository instance;
     private final Context context;
-    private final List<DiaryItem> diaryItems = new ArrayList<>();
+    private final List<SmartAlbumActivity.DiaryItem> diaryItems = new ArrayList<>();
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
 
     private DiaryRepository(Context context) {
@@ -29,7 +30,7 @@ public class DiaryRepository {
         return instance;
     }
 
-    public List<DiaryItem> getDiaries() {
+    public List<SmartAlbumActivity.DiaryItem> getDiaries() {
         return diaryItems;
     }
 
@@ -45,14 +46,14 @@ public class DiaryRepository {
         }
     }
 
-    public void addDiary(DiaryItem diaryItem) {
+    public void addDiary(SmartAlbumActivity.DiaryItem diaryItem) {
         diaryItems.add(0, diaryItem); // 최신 항목이 맨 위에 오도록
     }
 
     private void loadSampleDiaries() {
         // 샘플 일기 데이터 추가
         String chiangmaiThumbUri = "android.resource://" + context.getPackageName() + "/" + R.drawable.thailand_sample;
-        diaryItems.add(new DiaryItem(
+        diaryItems.add(new SmartAlbumActivity.DiaryItem(
                 "치앙마이에서의 일기",
                 "2024.07.16 ~ 07.23",
                 chiangmaiThumbUri,
@@ -61,7 +62,7 @@ public class DiaryRepository {
 
         // 제주도 일기 썸네일
         String busanThumbUri = "android.resource://" + context.getPackageName() + "/" + R.drawable.busan_sample;
-        diaryItems.add(new DiaryItem(
+        diaryItems.add(new SmartAlbumActivity.DiaryItem(
                 "친구들과 부산 여행",
                 "2025.02.15 ~ 02.17",
                 busanThumbUri,
@@ -70,7 +71,7 @@ public class DiaryRepository {
 
         // 도쿄 일기 썸네일
         String japanThumbUri = "android.resource://" + context.getPackageName() + "/" + R.drawable.japan_sample;
-        diaryItems.add(new DiaryItem(
+        diaryItems.add(new SmartAlbumActivity.DiaryItem(
                 "일본 소도시 여행",
                 "2023.06.21 ~ 07.01",
                 japanThumbUri,
@@ -82,13 +83,13 @@ public class DiaryRepository {
             AppDatabase db = AppDatabase.getInstance(context);
             List<Photo> allPhotos = db.photoDao().getAllPhotos();
 
-            List<DiaryItem> additionalDiaries = new ArrayList<>();
+            List<SmartAlbumActivity.DiaryItem> additionalDiaries = new ArrayList<>();
 
             if (allPhotos.size() > 10) {
-                additionalDiaries.add(new DiaryItem(
+                additionalDiaries.add(new SmartAlbumActivity.DiaryItem(
                         "나의 일상",
                         "2025.02.19 ~ 02.20",
-                        allPhotos.get(0).filePath,
+                        allPhotos.get(320).filePath,
                         3
                 ));
             }
