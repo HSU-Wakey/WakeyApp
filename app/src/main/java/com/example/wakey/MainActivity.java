@@ -62,9 +62,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     private ImageRepository imageRepository;
 
-    private String currentTimelineDate = null;
-    private boolean timelineInitialized = false;
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -122,19 +119,22 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         });
 
         uiManager.init(this, getSupportFragmentManager(), dateTextView, bottomSheetDateTextView,
-                formattedDate -> updateTimelineManually(formattedDate),
+                formattedDate -> loadDataForDate(formattedDate),
                 query -> performSearch(query));
 
         dataManager.init(this);
         apiManager.init(this);
 
         View bottomSheetView = findViewById(R.id.bottom_sheet);
-        uiManager.setupBottomSheet(bottomSheetView, (item, position) -> {
-            if (item.getLatLng() != null) {
-                mapManager.moveCamera(item.getLatLng(), 15f);
-            }
-            if (item.getPhotoPath() != null) {
-                uiManager.showPhotoDetail(item);
+        uiManager.setupBottomSheet(bottomSheetView, new UIManager.OnTimelineItemClickListener() {
+            @Override
+            public void onTimelineItemClick(TimelineItem item, int position) {
+                if (item.getLatLng() != null) {
+                    mapManager.moveCamera(item.getLatLng(), 15f);
+                }
+                if (item.getPhotoPath() != null) {
+                    uiManager.showPhotoDetail(item);
+                }
             }
         });
     }
@@ -143,8 +143,9 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         dateTextView.setOnClickListener(v -> uiManager.showDatePickerDialog());
         mapButton.setOnClickListener(v -> {
             uiManager.toggleBottomSheetState();
-            if (uiManager.getCurrentBottomSheetState() != UIManager.BOTTOM_SHEET_HIDDEN) {
-                updateTimelineManually(uiManager.getFormattedDate());
+            int currentState = uiManager.getCurrentBottomSheetState();
+            if (currentState != UIManager.BOTTOM_SHEET_HIDDEN) {
+                loadDataForDate(uiManager.getFormattedDate());
             }
         });
 
@@ -198,6 +199,19 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
     }
 
+    private void loadPhotoData() {
+        new Thread(() -> {
+            List<Uri> imageUris = ImageUtils.getAllImageUris(this);
+            for (Uri uri : imageUris) {
+                Bitmap bitmap = ImageUtils.loadBitmapFromUri(this, uri);
+                if (bitmap != null) {
+                    ImageMeta meta = imageRepository.classifyImage(uri, bitmap);
+                    imageRepository.savePhotoToDB(uri, meta);
+                }
+            }
+        }).start();
+    }
+
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
@@ -209,26 +223,11 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                     .addOnSuccessListener(this, location -> {
                         if (location != null) {
                             LatLng currentLatLng = new LatLng(location.getLatitude(), location.getLongitude());
-                            Log.d("MapInit", "📍 현재 위치로 지도 이동: " + currentLatLng);
-                            mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(currentLatLng, 15));
-                        } else {
-                            Log.w("MapInit", "❗ 위치 정보 없음 → 기본 위치 사용");
+                            mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(currentLatLng, 10));
                         }
                     });
             loadAllPhotos();
         }
-    }
-
-    public void updateTimelineManually(String selectedDate) {
-        if (selectedDate.equals(currentTimelineDate) && timelineInitialized) {
-            Log.d("TIMELINE", "⏸ 동일 날짜 선택 → 타임라인 재로딩 생략");
-            return;
-        }
-
-        currentTimelineDate = selectedDate;
-        timelineInitialized = true;
-
-        loadDataForDate(selectedDate);
     }
 
     private void loadAllPhotos() {
@@ -241,15 +240,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
             @Override
             public void onTimelineLoaded(List<TimelineItem> timelineItems) {
-                List<TimelineItem> enhancedTimeline = new ArrayList<>();
-                for (TimelineItem item : timelineItems) {
-                    if (item.getDetectedObjects() != null && !item.getDetectedObjects().isEmpty()) {
-                        String desc = "📌 " + String.join(", ", item.getDetectedObjects());
-                        item.setDescription(desc);
-                    }
-                    enhancedTimeline.add(item);
-                }
-                uiManager.updateTimelineData(enhancedTimeline);
+                uiManager.updateTimelineData(timelineItems);
             }
 
             @Override
@@ -258,7 +249,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     private void loadDataForDate(String dateString) {
-        Log.d("WakeyFlow", "📅 loadDataForDate() 호출됨 → date: " + dateString);
         dataManager.loadPhotosForDate(dateString, new DataManager.OnDataLoadedListener() {
             @Override
             public void onPhotosLoaded(List<PhotoInfo> photos, Map<LatLng, List<PhotoInfo>> clusters) {
@@ -272,7 +262,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 List<TimelineItem> enhancedTimeline = new ArrayList<>();
                 for (TimelineItem item : timelineItems) {
                     if (item.getDetectedObjects() != null && !item.getDetectedObjects().isEmpty()) {
-                        String desc = "📌 " + String.join(", ", item.getDetectedObjects());
+                        String desc = "\uD83D\uDCCC " + String.join(", ", item.getDetectedObjects());
                         item.setDescription(desc);
                     }
                     enhancedTimeline.add(item);
@@ -282,9 +272,11 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
             @Override
             public void onRouteGenerated(List<LatLng> route) {
-                if (route != null && !route.isEmpty()) {
+                if (route != null && route.size() > 1) {
                     mapManager.drawRoute(route);
-                    mapManager.moveCamera(route.get(0), 12f);
+                    if (!route.isEmpty()) {
+                        mapManager.moveCamera(route.get(0), 12f);
+                    }
                 }
             }
         });
@@ -294,6 +286,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         if (photos == null || photos.isEmpty()) return;
 
         List<TimelineItem> accumulatedItems = new ArrayList<>();
+
         for (PhotoInfo photo : photos) {
             if (photo.getLatLng() != null && photo.getPlaceId() == null) {
                 apiManager.fetchAddressAndPOIs(photo, new ApiManager.OnAddressResolvedListener() {
@@ -301,8 +294,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                     public void onSuccess(Address address, PhotoInfo photoInfo, List<PlaceData> places) {
                         TimelineItem item = apiManager.createTimelineItem(photoInfo, address, places);
                         runOnUiThread(() -> {
-                            if (item != null &&
-                                    DateUtil.getFormattedDateString(photoInfo.getDateTaken()).equals(uiManager.getFormattedDate())) {
+                            if (item != null) {
                                 accumulatedItems.add(item);
                                 uiManager.updateTimelineData(new ArrayList<>(accumulatedItems));
                             }
@@ -341,30 +333,5 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 }
             }
         });
-    }
-
-    private void loadPhotoData() {
-        new Thread(() -> {
-            List<Uri> imageUris = ImageUtils.getAllImageUris(this);
-            int total = imageUris.size();
-
-            for (int i = 0; i < total; i++) {
-                Uri uri = imageUris.get(i);
-                Bitmap bitmap = ImageUtils.loadBitmapFromUri(this, uri);
-                if (bitmap != null) {
-                    ImageMeta meta = imageRepository.classifyImage(uri, bitmap);
-                    imageRepository.savePhotoToDB(uri, meta);
-                }
-
-                if (i == total - 1) {
-                    runOnUiThread(() -> {
-                        uiManager.updateToToday();
-                        String today = uiManager.getFormattedDate();
-                        Log.d("PhotoSync", "📆 앱 시작 후 오늘 날짜로 타임라인 자동 로드: " + today);
-                        updateTimelineManually(today);
-                    });
-                }
-            }
-        }).start();
     }
 }

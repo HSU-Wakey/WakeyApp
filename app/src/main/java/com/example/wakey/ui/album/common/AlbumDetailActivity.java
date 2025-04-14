@@ -1,4 +1,4 @@
-package com.example.wakey.ui.album;
+package com.example.wakey.ui.album.common;
 
 import android.content.Intent;
 import android.os.Bundle;
