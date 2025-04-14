@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Build;
+import android.util.Log;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -233,6 +234,10 @@ public class UIManager {
     public void setBottomSheetState(int state) {
         if (bottomSheetBehavior == null) return;
 
+        if (currentBottomSheetState == state) {
+            return; // 변경 없음
+        }
+
         switch (state) {
             case BOTTOM_SHEET_HIDDEN:
                 bottomSheetBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);
@@ -244,20 +249,29 @@ public class UIManager {
                 bottomSheetBehavior.setState(BottomSheetBehavior.STATE_EXPANDED);
                 break;
         }
+
+        Log.d("BOTTOM_SHEET", "🔄 바텀시트 상태 변경: " + state);
     }
+
 
     /**
      * 타임라인 데이터 업데이트
      */
     public void updateTimelineData(List<TimelineItem> items) {
+        if (items == null) return;
+
         this.timelineItems.clear();
-        if (items != null) {
-            this.timelineItems.addAll(items);
-            Collections.sort(this.timelineItems, Comparator.comparing(TimelineItem::getTime));
-        }
+        this.timelineItems.addAll(items);
+        Collections.sort(this.timelineItems, Comparator.comparing(TimelineItem::getTime));
+
+        Log.d("TIMELINE_UI", "🔄 타임라인 갱신: " + items.size() + "개 항목");
 
         if (timelineAdapter != null) {
             timelineAdapter.updateItems(this.timelineItems);
+        }
+
+        if (!this.timelineItems.isEmpty() && currentBottomSheetState == BOTTOM_SHEET_HIDDEN) {
+            setBottomSheetState(BOTTOM_SHEET_HALF_EXPANDED);
         }
     }
 
@@ -728,4 +742,9 @@ public class UIManager {
     public void showToast(String message) {
         ToastManager.getInstance().showToast(message);
     }
+
+    public void updateToToday() {
+        setDate(new Date());
+    }
+
 }
