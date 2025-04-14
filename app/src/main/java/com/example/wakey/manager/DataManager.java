@@ -8,7 +8,7 @@ import android.util.Log;
 import com.example.wakey.data.model.PhotoInfo;
 import com.example.wakey.data.model.TimelineItem;
 import com.example.wakey.data.repository.PhotoRepository;
-import com.example.wakey.data.repository.TimelineManager;
+import com.example.wakey.ui.timeline.TimelineManager;
 import com.example.wakey.service.ClusterService;
 import com.example.wakey.service.SearchService;
 import com.example.wakey.util.ToastManager;

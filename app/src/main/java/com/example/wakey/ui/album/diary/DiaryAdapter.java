@@ -1,6 +1,5 @@
-package com.example.wakey.ui.album;
+package com.example.wakey.ui.album.diary;
 
-import android.graphics.Color;
 import android.net.Uri;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -14,6 +13,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 import com.example.wakey.R;
+import com.example.wakey.ui.album.SmartAlbumActivity;
 
 import java.util.List;
 
