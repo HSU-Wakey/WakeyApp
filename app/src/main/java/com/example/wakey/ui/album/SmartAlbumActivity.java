@@ -2,6 +2,7 @@ package com.example.wakey.ui.album;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -15,9 +16,8 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.wakey.R;
 import com.example.wakey.data.local.AppDatabase;
 import com.example.wakey.data.local.Photo;
-import com.example.wakey.ui.album.diary.DiaryAdapter;
-import com.example.wakey.ui.album.diary.DiaryDetailActivity;
-import com.example.wakey.ui.album.diary.DiaryRepository;
+import com.example.wakey.util.ToastManager;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import java.util.ArrayList;
 import java.util.Collections;
