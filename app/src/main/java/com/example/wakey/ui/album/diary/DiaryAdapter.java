@@ -13,19 +13,20 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 import com.example.wakey.R;
+import com.example.wakey.ui.album.SmartAlbumActivity;
 
 import java.util.List;
 
 public class DiaryAdapter extends RecyclerView.Adapter<DiaryAdapter.DiaryViewHolder> {
 
-    private List<DiaryItem> diaryItems;
+    private List<SmartAlbumActivity.DiaryItem> diaryItems;
     private OnDiaryItemClickListener listener;
 
     public interface OnDiaryItemClickListener {
-        void onDiaryItemClick(DiaryItem item);
+        void onDiaryItemClick(SmartAlbumActivity.DiaryItem item);
     }
 
-    public DiaryAdapter(List<DiaryItem> diaryItems, OnDiaryItemClickListener listener) {
+    public DiaryAdapter(List<SmartAlbumActivity.DiaryItem> diaryItems, OnDiaryItemClickListener listener) {
         this.diaryItems = diaryItems;
         this.listener = listener;
     }
@@ -40,7 +41,7 @@ public class DiaryAdapter extends RecyclerView.Adapter<DiaryAdapter.DiaryViewHol
 
     @Override
     public void onBindViewHolder(@NonNull DiaryViewHolder holder, int position) {
-        DiaryItem item = diaryItems.get(position);
+        SmartAlbumActivity.DiaryItem item = diaryItems.get(position);
 
         holder.diaryTitle.setText(item.getTitle());
         holder.diaryDateRange.setText(item.getDateRange());
