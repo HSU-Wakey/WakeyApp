@@ -57,8 +57,7 @@ dependencies {
     // PhotoView 라이브러리
     implementation("com.github.chrisbanes:PhotoView:2.3.0")
 
-    // Google Maps SDK
-    implementation("com.google.android.gms:play-services-maps:18.1.0")
+    // Google Map SDK
     implementation("com.google.maps.android:android-maps-utils:2.3.0")
 
     // Google Places SDK
