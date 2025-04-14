@@ -5,6 +5,7 @@ import android.content.Context;
 import com.example.wakey.R;
 import com.example.wakey.data.local.AppDatabase;
 import com.example.wakey.data.local.Photo;
+import com.example.wakey.ui.album.SmartAlbumActivity;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -88,7 +89,7 @@ public class DiaryRepository {
                 additionalDiaries.add(new DiaryItem(
                         "나의 일상",
                         "2025.02.19 ~ 02.20",
-                        allPhotos.get(0).filePath,
+                        allPhotos.size() > 220 ? allPhotos.get(220).filePath : allPhotos.get(0).filePath,
                         3
                 ));
             }
