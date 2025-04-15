@@ -23,11 +23,14 @@ import androidx.fragment.app.DialogFragment;
 import com.bumptech.glide.Glide;
 import com.example.wakey.R;
 import com.example.wakey.data.local.AppDatabase;
+import com.example.wakey.data.local.Photo;
 import com.example.wakey.data.model.TimelineItem;
-import com.example.wakey.ui.timeline.TimelineManager;
+import com.example.wakey.data.repository.TimelineManager;
 import com.example.wakey.data.util.DateUtil;
-import com.example.wakey.tflite.ImageClassifier;
+import com.example.wakey.tflite.BeitClassifier;
+import com.example.wakey.util.ToastManager;
 
+import java.io.File;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
@@ -302,7 +305,7 @@ public class PhotoDetailFragment extends DialogFragment {
                     if (timelineItem.getDetectedObjectPairs() != null && !timelineItem.getDetectedObjectPairs().isEmpty()) {
                         predictions = timelineItem.getDetectedObjectPairs();
                     } else {
-                        ImageClassifier classifier = new ImageClassifier(requireContext());
+                        BeitClassifier classifier = new BeitClassifier(requireContext());
                         predictions = classifier.classifyImage(bitmap);
                         classifier.close();
 

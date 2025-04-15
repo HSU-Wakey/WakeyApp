@@ -1,11 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
+
     <!-- Required permissions -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_MEDIA_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_MEDIA_LOCATION"/>
+
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
 
@@ -20,12 +22,8 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Wakey"
         tools:targetApi="31">
-        <activity
-            android:name=".ui.album.diary.DiaryDetailActivity"
-            android:exported="false" />
-        <activity
-            android:name=".ui.album.common.PhotoDetailViewActivity"
-            android:exported="false" />
+
+        <!-- Google Maps API Key -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="@string/google_maps_api_key" />
@@ -39,19 +37,14 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
         <activity
             android:name=".ui.search.SearchActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
-        <activity
-            android:name=".ui.album.SmartAlbumActivity"
-            android:exported="false" />
-        <activity
-            android:name=".ui.album.common.AlbumDetailActivity"
-            android:exported="false" />
-        <activity android:name=".ui.album.domestic.DomesticRegionActivity" />
-        <activity android:name=".ui.album.overseas.OverseasRegionActivity" />
 
     </application>
+
+
 
 </manifest>

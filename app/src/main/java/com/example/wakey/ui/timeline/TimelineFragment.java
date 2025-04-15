@@ -13,28 +13,26 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.wakey.R;
-import com.example.wakey.data.local.Photo;
-import com.example.wakey.data.model.PhotoInfo;
 import com.example.wakey.data.model.TimelineItem;
-import com.example.wakey.data.repository.PhotoRepository;
-import com.google.android.gms.maps.model.LatLng;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
 import java.util.List;
-import java.util.Locale;
-import java.util.concurrent.Executors;
 
 public class TimelineFragment extends Fragment {
 
     private RecyclerView recyclerView;
     private TimelineAdapter adapter;
-    private static final String TAG = "TimelineDebug";
+    private List<TimelineItem> timelineItems;
 
     public TimelineFragment() {}
+
+    // ✅ 외부(MainActivity, UIManager 등)에서 데이터 주입
+    public void setTimelineItems(List<TimelineItem> items) {
+        Log.d("WakeyFlow", "🪄 TimelineFragment.setTimelineItems() 호출됨 → " + (items != null ? items.size() : 0) + "개");
+        this.timelineItems = items;
+        if (adapter != null) {
+            adapter.updateItems(items);
+        }
+    }
 
     @Nullable
     @Override
@@ -47,57 +45,9 @@ public class TimelineFragment extends Fragment {
         recyclerView = view.findViewById(R.id.timelineRecyclerView);
         recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
 
-        Executors.newSingleThreadExecutor().execute(() -> {
-            PhotoRepository photoRepository = PhotoRepository.getInstance(requireContext());
-            List<Photo> photoEntities = photoRepository.getPhotosWithObjects();
-
-            List<PhotoInfo> photoInfoList = new ArrayList<>();
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy:MM:dd HH:mm:ss", Locale.getDefault());
-
-            for (Photo photo : photoEntities) {
-                LatLng latLng = new LatLng(photo.latitude, photo.longitude);
-
-                Date date;
-                try {
-                    date = sdf.parse(photo.dateTaken);
-                } catch (ParseException e) {
-                    Log.e(TAG, "날짜 파싱 실패: " + photo.dateTaken, e);
-                    date = new Date();
-                }
-
-                List<String> objects = new ArrayList<>();
-                if (photo.detectedObjects != null && !photo.detectedObjects.isEmpty()) {
-                    objects = Arrays.asList(photo.detectedObjects.split(","));
-                }
-
-                String address = photo.locationDo + " " + photo.locationGu + " " + photo.locationStreet;
-
-                PhotoInfo info = new PhotoInfo(
-                        photo.filePath,
-                        date,
-                        latLng,
-                        null,
-                        null,
-                        address,
-                        photo.caption,
-                        objects
-                );
-
-                info.setLocationDo(photo.locationDo);
-                info.setLocationGu(photo.locationGu);
-                info.setLocationStreet(photo.locationStreet);
-
-                photoInfoList.add(info);
-            }
-
-            List<TimelineItem> timelineItems = TimelineManager.getInstance(requireContext())
-                    .buildTimelineWithObjects(photoInfoList);
-
-            requireActivity().runOnUiThread(() -> {
-                adapter = new TimelineAdapter(timelineItems);
-                recyclerView.setAdapter(adapter);
-            });
-        });
+        // 초기화 시 빈 리스트 또는 전달된 리스트로 어댑터 설정
+        adapter = new TimelineAdapter(timelineItems != null ? timelineItems : List.of());
+        recyclerView.setAdapter(adapter);
 
         return view;
     }

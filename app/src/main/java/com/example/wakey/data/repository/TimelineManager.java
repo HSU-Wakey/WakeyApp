@@ -1,6 +1,6 @@
 // path: com.example.wakey/data/repository/TimelineManager.java
 
-package com.example.wakey.ui.timeline;
+package com.example.wakey.data.repository;
 
 import android.content.Context;
 import android.util.Log;
@@ -11,6 +11,8 @@ import com.example.wakey.service.ClusterService;
 import com.google.android.gms.maps.model.LatLng;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
 
 /**
