@@ -53,11 +53,26 @@ public class Photo {
     @ColumnInfo(name = "detectedObjects")
     public String detectedObjects;
 
+    // ⭐ 벡터 문자열 저장용 필드
+    @ColumnInfo(name = "embedding_vector_str")
+    public String embeddingVectorStr;
+
+    // ⭐ 실제 사용할 float[] 배열 (Room 저장 제외)
     @Ignore
-    public Photo(String filePath, String dateTaken, String locationDo, String locationSi,
-                 String locationGu, String locationStreet, String caption,
-                 Double latitude, Double longitude, String detectedObjects,
-                 List<Pair<String, Float>> detectedObjectPairs) {
+    public float[] embeddingVector;
+
+    // ✅ 생성자 추가 (Room이 무시하도록 @Ignore 붙이기)
+    @Ignore
+    public Photo(String filePath,
+                 String dateTaken,
+                 String locationDo,
+                 String locationSi,
+                 String locationGu,
+                 String locationStreet,
+                 String caption,
+                 Double latitude,
+                 Double longitude,
+                 String detectedObjects) {
         this.filePath = filePath;
         this.dateTaken = dateTaken;
         this.locationDo = locationDo;
@@ -68,7 +83,43 @@ public class Photo {
         this.latitude = latitude;
         this.longitude = longitude;
         this.detectedObjects = detectedObjects;
-        this.detectedObjectPairs = detectedObjectPairs;
+    }
+
+    public String getFilePath() {
+        return filePath;
+    }
+
+    public void setEmbeddingVector(float[] vector) {
+        this.embeddingVector = vector;
+        this.embeddingVectorStr = vectorToString(vector);
+    }
+
+    public String getEmbeddingVectorStr() {
+        return embeddingVectorStr;
+    }
+
+    public float[] getEmbeddingVector() {
+        if (embeddingVector == null && embeddingVectorStr != null) {
+            embeddingVector = stringToVector(embeddingVectorStr);
+        }
+        return embeddingVector;
+    }
+
+    private String vectorToString(float[] vector) {
+        StringBuilder sb = new StringBuilder();
+        for (float v : vector) {
+            sb.append(v).append(",");
+        }
+        return sb.toString();
+    }
+
+    private float[] stringToVector(String str) {
+        String[] parts = str.split(",");
+        float[] vec = new float[parts.length];
+        for (int i = 0; i < parts.length; i++) {
+            vec[i] = Float.parseFloat(parts[i]);
+        }
+        return vec;
     }
 
 

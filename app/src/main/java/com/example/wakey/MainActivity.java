@@ -21,7 +21,6 @@ import com.example.wakey.data.model.PhotoInfo;
 import com.example.wakey.data.model.PlaceData;
 import com.example.wakey.data.model.TimelineItem;
 import com.example.wakey.data.repository.ImageRepository;
-import com.example.wakey.data.util.DateUtil;
 import com.example.wakey.manager.ApiManager;
 import com.example.wakey.manager.DataManager;
 import com.example.wakey.manager.MapManager;
@@ -37,9 +36,7 @@ import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 
-import java.io.File;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
