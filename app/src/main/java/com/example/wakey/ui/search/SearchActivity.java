@@ -1,7 +1,5 @@
 package com.example.wakey.ui.search;
-
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
@@ -12,14 +10,17 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.bumptech.glide.Glide;
 import com.example.wakey.R;
+import com.example.wakey.data.local.AppDatabase;
+import com.example.wakey.data.local.Photo;
 import com.example.wakey.data.repository.SearchHistoryRepository;
 import com.example.wakey.data.util.SimilarityUtil;
-import com.example.wakey.tflite.ClipImageEncoder;
 import com.example.wakey.tflite.ClipTextEncoder;
 import com.example.wakey.tflite.ClipTokenizer;
 
 import java.io.IOException;
+import java.util.List;
 
 public class SearchActivity extends AppCompatActivity {
 
@@ -63,48 +64,41 @@ public class SearchActivity extends AppCompatActivity {
 
     private void analyzeSimilarity() {
         try {
-            String text = searchEditText.getText().toString().trim();
+            String query = searchEditText.getText().toString().trim();
+            if (query.isEmpty()) {
+                Toast.makeText(this, "검색어를 입력해주세요", Toast.LENGTH_SHORT).show();
+                return;
+            }
 
-            // 1. 텍스트 → Token ID
+            // 텍스트 벡터 생성
             ClipTokenizer tokenizer = new ClipTokenizer(this);
-            int[] tokenIds = tokenizer.tokenize(text);
+            int[] tokenIds = tokenizer.tokenize(query);
+            ClipTextEncoder encoder = new ClipTextEncoder(this);
+            float[] queryVec = encoder.getTextEncoding(tokenIds);
+            encoder.close();
 
-            // 2. Token ID → 텍스트 벡터
-            ClipTextEncoder textEncoder = new ClipTextEncoder(this);
-            float[] textVec = textEncoder.getTextEncoding(tokenIds);
-            textEncoder.close();
-
-            // 3. 이미지 리스트를 돌면서 유사도 계산
-            ClipImageEncoder imageEncoder = new ClipImageEncoder(this);
+            // DB의 모든 사진과 비교
+            List<Photo> photos = AppDatabase.getInstance(this).photoDao().getAllPhotos();
             float maxSim = -1f;
-            int bestImageResId = -1;
+            Photo bestMatch = null;
 
-            for (int resId : imageResIds) {
-                Bitmap bitmap = Bitmap.createScaledBitmap(
-                        BitmapFactory.decodeResource(getResources(), resId),
-                        224, 224, true
-                );
-                float[] imageVec = imageEncoder.getImageEncoding(bitmap);
-                float sim = SimilarityUtil.cosineSimilarity(imageVec, textVec);
-
+            for (Photo photo : photos) {
+                float[] vec = photo.getEmbeddingVector();
+                if (vec == null) continue;
+                float sim = SimilarityUtil.cosineSimilarity(queryVec, vec);
                 if (sim > maxSim) {
                     maxSim = sim;
-                    bestImageResId = resId;
+                    bestMatch = photo;
                 }
             }
 
-            imageEncoder.close();
-
-            // 4. 유사도 계산 및 결과 출력
-            if (bestImageResId != -1) {
-                Bitmap bestBitmap = Bitmap.createScaledBitmap(
-                        BitmapFactory.decodeResource(getResources(), bestImageResId),
-                        224, 224, true
-                );
-                resultImageView.setImageBitmap(bestBitmap);
-                Toast.makeText(this, "가장 유사한 이미지 유사도: " + maxSim, Toast.LENGTH_LONG).show();
+            if (bestMatch != null) {
+                Glide.with(this)
+                        .load(Uri.parse(bestMatch.getFilePath()))
+                        .into(resultImageView);
+                Toast.makeText(this, "가장 유사한 사진 유사도: " + maxSim, Toast.LENGTH_LONG).show();
             } else {
-                Toast.makeText(this, "이미지를 찾을 수 없습니다", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "일치하는 이미지가 없습니다", Toast.LENGTH_SHORT).show();
             }
 
         } catch (IOException e) {
