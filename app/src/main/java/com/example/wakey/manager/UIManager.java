@@ -6,6 +6,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
+import android.net.Uri;
 import android.os.Build;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
@@ -14,6 +15,7 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -22,11 +24,17 @@ import androidx.fragment.app.FragmentManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.bumptech.glide.Glide;
 import com.example.wakey.R;
+import com.example.wakey.data.local.AppDatabase;
+import com.example.wakey.data.local.Photo;
 import com.example.wakey.data.model.SearchHistoryItem;
 import com.example.wakey.data.model.TimelineItem;
 import com.example.wakey.data.repository.SearchHistoryRepository;
+import com.example.wakey.data.util.SimilarityUtil;
 import com.example.wakey.service.SearchService;
+import com.example.wakey.tflite.ClipTextEncoder;
+import com.example.wakey.tflite.ClipTokenizer;
 import com.example.wakey.ui.map.PlaceDetailsBottomSheet;
 import com.example.wakey.ui.photo.PhotoDetailFragment;
 import com.example.wakey.ui.search.SearchActivity;
@@ -398,7 +406,6 @@ public class UIManager {
         if (activity == null) return;
         Intent intent = new Intent(activity, SearchActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        activity.startActivity(intent);
 
         // 검색 서비스 초기화
         SearchService searchService = SearchService.getInstance(context);
@@ -465,14 +472,58 @@ public class UIManager {
 
         // 6. 검색 EditText 설정
         EditText searchEditText = searchView.findViewById(R.id.searchEditText);
+        TextView resultTextView = searchView.findViewById(R.id.searchResultTextView);
+        ImageView resultImageView = searchView.findViewById(R.id.resultImageView);
+
         searchEditText.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH) {
                 String query = searchEditText.getText().toString().trim();
-                if (!query.isEmpty() && searchListener != null) {
-                    searchListener.onSearchPerformed(query);
-                    if (searchDialog != null && searchDialog.isShowing()) {
-                        searchDialog.dismiss();
-                    }
+                if (!query.isEmpty()) {
+                    resultTextView.setText("🔍 \"" + query + "\" 검색 중...");
+
+                    new Thread(() -> {
+                        try {
+                            // 1. 텍스트 → 벡터
+                            ClipTokenizer tokenizer = new ClipTokenizer(context);
+                            int[] tokenIds = tokenizer.tokenize(query);
+                            ClipTextEncoder encoder = new ClipTextEncoder(context);
+                            float[] textVec = encoder.getTextEncoding(tokenIds);
+                            encoder.close();
+
+                            // 2. DB에서 이미지 벡터 가져와 유사도 비교
+                            List<Photo> photoList = AppDatabase.getInstance(context).photoDao().getAllPhotos();
+                            float maxSim = -1f;
+                            Photo bestPhoto = null;
+                            for (Photo photo : photoList) {
+                                float[] imageVec = photo.getEmbeddingVector();
+                                if (imageVec == null) continue;
+                                float sim = SimilarityUtil.cosineSimilarity(textVec, imageVec);
+                                if (sim > maxSim) {
+                                    maxSim = sim;
+                                    bestPhoto = photo;
+                                }
+                            }
+
+                            // 3. UI 업데이트
+                            Photo finalBestPhoto = bestPhoto;
+                            float finalMaxSim = maxSim;
+                            activity.runOnUiThread(() -> {
+                                if (finalBestPhoto != null) {
+                                    Glide.with(context)
+                                            .load(Uri.parse(finalBestPhoto.getFilePath()))
+                                            .into(resultImageView);
+                                    resultTextView.setText("✅ 가장 유사한 이미지 유사도: " + String.format("%.3f", finalMaxSim));
+                                } else {
+                                    resultTextView.setText("❌ 유사한 이미지를 찾을 수 없습니다.");
+                                }
+                            });
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                            activity.runOnUiThread(() -> {
+                                resultTextView.setText("❌ 오류 발생: " + e.getMessage());
+                            });
+                        }
+                    }).start();
                 }
                 return true;
             }
