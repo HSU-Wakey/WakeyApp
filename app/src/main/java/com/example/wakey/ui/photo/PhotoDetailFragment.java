@@ -289,15 +289,15 @@ public class PhotoDetailFragment extends DialogFragment {
 
         if (timelineItem == null) return;
 
+
         // 1. 사진 이미지 로드
         String photoPath = timelineItem.getPhotoPath();
         if (photoPath != null) {
-            Glide.with(this).load(photoPath).into(photoImageView);
+            Glide.with(this).load(photoPath).into(photoImageView); // 이건 Glide 그대로 사용해도 OK
 
             try {
-                Bitmap bitmap = BitmapFactory.decodeStream(
-                        requireContext().getContentResolver().openInputStream(android.net.Uri.parse(photoPath))
-                );
+                // 📌 핵심: content://가 아닌 파일 경로 처리에는 decodeFile()을 사용!
+                Bitmap bitmap = BitmapFactory.decodeFile(photoPath);
 
                 if (bitmap != null) {
                     List<Pair<String, Float>> predictions;
