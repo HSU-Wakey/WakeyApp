@@ -6,6 +6,7 @@ import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
 import android.net.Uri;
+import android.provider.MediaStore;
 import android.util.Log;
 import android.util.Pair;
 
@@ -16,6 +17,7 @@ import com.example.wakey.data.local.Photo;
 import com.example.wakey.data.model.ImageMeta;
 import com.example.wakey.tflite.BeitClassifier;
 import com.example.wakey.data.util.ExifUtil;
+import com.example.wakey.tflite.ClipImageEncoder;
 import com.example.wakey.util.FileUtils;
 import com.example.wakey.util.ImageUtils;
 import com.example.wakey.util.LocationUtils;
@@ -30,11 +32,13 @@ public class ImageRepository {
     private final Context context;
     private final AppDatabase db;
     private final PhotoRepository photoRepository;
+    private final ClipImageEncoder clipImageEncoder;
 
     public ImageRepository(Context context) {
         this.context = context;
         try {
             this.beitClassifier = new BeitClassifier(context);
+            this.clipImageEncoder = new ClipImageEncoder(context);
         } catch (Exception e) {
             throw new RuntimeException("모델 로드 실패", e);
         }
@@ -44,12 +48,18 @@ public class ImageRepository {
 
     public ImageMeta classifyImage(Uri uri, Bitmap bitmap) {
         List<Pair<String, Float>> predictions = beitClassifier.classifyImage(bitmap);
+
+        // 2. 벡터 추출 (CLIP)
+        float[] embeddingVector = clipImageEncoder.getImageEncoding(bitmap);  // ✅ CLIP으로부터 벡터 추출
+        Log.d("ImageRepository", "🧬 CLIP 임베딩 벡터 길이: " + (embeddingVector != null ? embeddingVector.length : -1));
+
         String region = null;
         Location location = ImageUtils.getExifLocation(context, uri);
         if (location != null) {
             region = LocationUtils.getRegionFromLocation(context, location);
         }
-        return new ImageMeta(uri.toString(), region, predictions);
+        Log.d("벡터길이", "📐 이미지 벡터 길이: " + embeddingVector.length); // 512여야 함
+        return new ImageMeta(uri.toString(), region, predictions, embeddingVector);
     }
 
     public void savePhotoToDB(Uri uri, ImageMeta meta) {
@@ -124,13 +134,23 @@ public class ImageRepository {
                         "",             // caption
                         latitude,
                         longitude,
-                        detectedObjects,
-                        meta.getPredictions()
+                        detectedObjects
                 );
 
 
+                // embeddingVector가 있을 경우 photo에 설정
+                float[] embeddingVector = meta.getEmbeddingVector();
+                if (embeddingVector != null) {
+                    photo.setEmbeddingVector(embeddingVector); // ✅ 이 라인 없으면 저장 안 됨
+                }
+
+                Log.d("ImageRepository", "🧬 저장 전 벡터 스트링: " + photo.getEmbeddingVectorStr());
+
+                // 실제 Room에 저장
                 db.photoDao().insertPhoto(photo);
                 Log.d("ImageRepository", "📥 Photo saved to DB with date: " + dateTaken);
+                Log.d("ImageRepository", "📥 Photo saved to DB with 벡터 길이: " +
+                        (embeddingVector != null ? embeddingVector.length : 0));
             } catch (Exception e) {
                 Log.e("ImageRepository", "🛑 사진 저장 중 오류 발생", e);
             }

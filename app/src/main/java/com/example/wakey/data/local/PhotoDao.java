@@ -22,6 +22,10 @@ public interface PhotoDao {
     @Query("SELECT * FROM Photo")
     List<Photo> getAllPhotos();
 
+    // ✅ 특정 ID의 사진 조회 (벡터 비교용)
+    @Query("SELECT * FROM Photo WHERE id = :photoId")
+    Photo getPhotoById(int photoId);
+
     // 전체 삭제
     @Query("DELETE FROM Photo")
     void deleteAllPhotos();
