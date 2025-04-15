@@ -21,7 +21,6 @@ import com.example.wakey.data.model.PhotoInfo;
 import com.example.wakey.data.model.PlaceData;
 import com.example.wakey.data.model.TimelineItem;
 import com.example.wakey.data.repository.ImageRepository;
-import com.example.wakey.data.util.DateUtil;
 import com.example.wakey.manager.ApiManager;
 import com.example.wakey.manager.DataManager;
 import com.example.wakey.manager.MapManager;
