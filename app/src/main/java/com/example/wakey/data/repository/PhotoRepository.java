@@ -35,6 +35,16 @@ public class PhotoRepository {
     private LocationUtils locationUtils;
     private SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
 
+    private List<Pair<String, Float>> detectedObjectPairs;
+
+    public void setDetectedObjectPairs(List<Pair<String, Float>> detectedObjectPairs) {
+        this.detectedObjectPairs = detectedObjectPairs;
+    }
+
+    public List<Pair<String, Float>> getDetectedObjectPairs() {
+        return detectedObjectPairs;
+    }
+
     // 생성자를 private으로 변경
     public PhotoRepository(Context context) {
         this.context = context.getApplicationContext(); // 애플리케이션 컨텍스트 사용
@@ -251,6 +261,7 @@ public class PhotoRepository {
         photoInfo.setLocationDo(photo.locationDo);
         photoInfo.setLocationGu(photo.locationGu);
         photoInfo.setLocationStreet(photo.locationStreet);
+        photoInfo.setDetectedObjectPairs(photo.detectedObjectPairs);
 
         return photoInfo;
     }

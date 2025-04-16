@@ -293,15 +293,18 @@ public class PhotoDetailFragment extends DialogFragment {
             Glide.with(this).load(photoPath).into(photoImageView); // 이건 Glide 그대로 사용해도 OK
 
             try {
-                // 📌 핵심: content://가 아닌 파일 경로 처리에는 decodeFile()을 사용!
-                Bitmap bitmap = BitmapFactory.decodeFile(photoPath);
+                Bitmap bitmap = BitmapFactory.decodeStream(
+                        requireContext().getContentResolver().openInputStream(android.net.Uri.parse(photoPath))
+                );
 
                 if (bitmap != null) {
                     List<Pair<String, Float>> predictions;
 
                     if (timelineItem.getDetectedObjectPairs() != null && !timelineItem.getDetectedObjectPairs().isEmpty()) {
+                        Log.d("HASHTAG_CHECK", "🟢 기존 예측 사용: " + timelineItem.getDetectedObjectPairs().toString());
                         predictions = timelineItem.getDetectedObjectPairs();
                     } else {
+                        Log.d("HASHTAG_CHECK", "🔴 예측 없음 → 모델 재분석 시작");
                         ImageClassifier classifier = new ImageClassifier(requireContext());
                         predictions = classifier.classifyImage(bitmap);
                         classifier.close();
@@ -313,6 +316,7 @@ public class PhotoDetailFragment extends DialogFragment {
                         });
                     }
 
+                    Log.d("HASHTAG_CHECK", "🔖 최종 예측값: " + predictions);
                     createHashtags(predictions);
                 }
 
@@ -409,6 +413,7 @@ public class PhotoDetailFragment extends DialogFragment {
      * Creates individual hashtag views from classifier predictions
      */
     private void createHashtags(List<Pair<String, Float>> predictions) {
+        Log.d("HASHTAG_CHECK", "🏷️ 해시태그 생성 진입, 예측 개수: " + (predictions != null ? predictions.size() : 0));
         View currentView = getView();
         if (currentView == null) {
             return;

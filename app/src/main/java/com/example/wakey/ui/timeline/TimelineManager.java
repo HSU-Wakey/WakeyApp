@@ -127,6 +127,8 @@ public class TimelineManager {
 
             item.setDetectedObjects(objects);
             item.setLatLng(latLng); // 🔥 LatLng 재설정 (getLatLng() 내부에서 latitude/longitude도 업데이트됨)
+
+            item.setDetectedObjectPairs(photo.getDetectedObjectPairs());
             items.add(item);
         }
 
