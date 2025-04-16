@@ -13,7 +13,9 @@ import com.google.android.gms.maps.model.LatLng;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 타임라인 데이터 관리 클래스
@@ -44,11 +46,22 @@ public class TimelineManager {
      * @param dateString 날짜 (yyyy-MM-dd 형식)
      * @return 타임라인 항목 리스트
      */
+    private final Map<String, List<TimelineItem>> timelineCache = new HashMap<>();
     public List<TimelineItem> loadTimelineForDate(String dateString) {
+        // ❗ 이미 캐시되어 있으면 그대로 반환
+        if (timelineCache.containsKey(dateString)) {
+            Log.d("TIMELINE", "📁 캐시 사용: " + dateString);
+            currentTimelineItems = timelineCache.get(dateString);
+        } else {
+            Log.d("TIMELINE", "🧲 새로 로드: " + dateString);
+            currentTimelineItems = clusterService.generateTimelineFromPhotos(dateString);
+            timelineCache.put(dateString, currentTimelineItems);
+        }
         currentDate = dateString;
-        currentTimelineItems = clusterService.generateTimelineFromPhotos(dateString);
         return currentTimelineItems;
     }
+
+
 
     /**
      * 현재 로드된 타임라인 항목 가져오기

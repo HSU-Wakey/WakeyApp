@@ -59,10 +59,11 @@ public class PhotoRepository {
         List<PhotoInfo> photoInfoList = new ArrayList<>();
 
         for (Photo photo : photoList) {
-            Log.d("CHECK_DB", "📷 파일 경로: " + photo.filePath);
-            Log.d("CHECK_DB", "📍 위도: " + photo.latitude + ", 경도: " + photo.longitude);
-            Log.d("CHECK_DB", "🏠 주소: " + photo.locationDo + " " + photo.locationGu + " " + photo.locationStreet);
-            Log.d("CHECK_DB", "🧠 객체 인식 결과: " + photo.detectedObjects);
+            Log.d("DB_CHECK", "📷 파일 경로: " + photo.filePath);
+            Log.d("DB_CHECK", "📍 위도: " + photo.latitude + ", 경도: " + photo.longitude);
+            Log.d("DB_CHECK", "🏠 주소: " + photo.locationDo + " " + photo.locationGu + " " + photo.locationStreet);
+            Log.d("DB_CHECK", "🧠 객체 인식 결과: " + photo.detectedObjects);
+
 
             LatLng latLng = null;
             if (photo.latitude != null && photo.longitude != null &&
