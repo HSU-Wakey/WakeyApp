@@ -21,7 +21,7 @@ import java.util.Collections;
 import java.util.List;
 
 public class BeitClassifier {
-    private static final String MODEL_PATH = "beit-snapdragon_8_gen_3.tflite"; // Qualcomm AI Hub 모델
+    private static final String MODEL_PATH = "beit-snapdragon_8_elite.tflite"; // Qualcomm AI Hub 모델
     private static final String LABELS_PATH = "labels.txt"; // ImageNet 레이블
     private static final int IMAGE_SIZE = 224; // 입력 크기
     private static final int NUM_CLASSES = 1000; // 클래스 수

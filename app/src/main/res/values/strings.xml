@@ -1,4 +1,12 @@
 <resources>
     <string name="app_name">Wakey</string>
-    <string name="google_maps_api_key">AIzaSyBgdUwHQyowBVhanjlVESY_IbL6BE97OaM</string>
+    <string name="google_maps_api_key">AIzaSyDFaG3n0bw0gSpNxm8Deuh22Ec6WV468rM</string>
+
+    <!--스마트 앨범-->
+    <string name="album_smart">스마트 앨범</string>
+    <string name="category_domestic">국내</string>
+    <string name="category_world">세계</string>
+    <string name="category_diary">기록</string>
+    <string name="other_region">기타 지역</string>
+    <string name="other_country">기타 국가</string>
 </resources>

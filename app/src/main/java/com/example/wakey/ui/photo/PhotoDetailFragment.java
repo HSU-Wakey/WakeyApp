@@ -23,14 +23,11 @@ import androidx.fragment.app.DialogFragment;
 import com.bumptech.glide.Glide;
 import com.example.wakey.R;
 import com.example.wakey.data.local.AppDatabase;
-import com.example.wakey.data.local.Photo;
 import com.example.wakey.data.model.TimelineItem;
-import com.example.wakey.data.repository.TimelineManager;
+import com.example.wakey.ui.timeline.TimelineManager;
 import com.example.wakey.data.util.DateUtil;
-import com.example.wakey.tflite.BeitClassifier;
-import com.example.wakey.util.ToastManager;
+import com.example.wakey.tflite.ImageClassifier;
 
-import java.io.File;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
@@ -289,10 +286,11 @@ public class PhotoDetailFragment extends DialogFragment {
 
         if (timelineItem == null) return;
 
+
         // 1. 사진 이미지 로드
         String photoPath = timelineItem.getPhotoPath();
         if (photoPath != null) {
-            Glide.with(this).load(photoPath).into(photoImageView);
+            Glide.with(this).load(photoPath).into(photoImageView); // 이건 Glide 그대로 사용해도 OK
 
             try {
                 Bitmap bitmap = BitmapFactory.decodeStream(
@@ -303,9 +301,11 @@ public class PhotoDetailFragment extends DialogFragment {
                     List<Pair<String, Float>> predictions;
 
                     if (timelineItem.getDetectedObjectPairs() != null && !timelineItem.getDetectedObjectPairs().isEmpty()) {
+                        Log.d("HASHTAG_CHECK", "🟢 기존 예측 사용: " + timelineItem.getDetectedObjectPairs().toString());
                         predictions = timelineItem.getDetectedObjectPairs();
                     } else {
-                        BeitClassifier classifier = new BeitClassifier(requireContext());
+                        Log.d("HASHTAG_CHECK", "🔴 예측 없음 → 모델 재분석 시작");
+                        ImageClassifier classifier = new ImageClassifier(requireContext());
                         predictions = classifier.classifyImage(bitmap);
                         classifier.close();
 
@@ -316,6 +316,7 @@ public class PhotoDetailFragment extends DialogFragment {
                         });
                     }
 
+                    Log.d("HASHTAG_CHECK", "🔖 최종 예측값: " + predictions);
                     createHashtags(predictions);
                 }
 
@@ -412,6 +413,7 @@ public class PhotoDetailFragment extends DialogFragment {
      * Creates individual hashtag views from classifier predictions
      */
     private void createHashtags(List<Pair<String, Float>> predictions) {
+        Log.d("HASHTAG_CHECK", "🏷️ 해시태그 생성 진입, 예측 개수: " + (predictions != null ? predictions.size() : 0));
         View currentView = getView();
         if (currentView == null) {
             return;
