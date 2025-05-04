@@ -4,6 +4,7 @@ import com.google.android.gms.maps.model.LatLng;
 
 import java.util.Date;
 import java.util.List;
+import android.util.Pair;
 
 public class PhotoInfo {
     private String filePath;
@@ -18,6 +19,8 @@ public class PhotoInfo {
     private String locationDo;
     private String locationGu;
     private String locationStreet;
+
+    private List<Pair<String, Float>> detectedObjectPairs;
 
     // ✅ 전체 필드 포함 생성자
     public PhotoInfo(String filePath, Date dateTaken, LatLng latLng,
@@ -104,15 +107,6 @@ public class PhotoInfo {
         return objects;
     }
 
-    // ✅ Setter
-    public void setPlaceId(String placeId) {
-        this.placeId = placeId;
-    }
-
-    public void setPlaceName(String placeName) {
-        this.placeName = placeName;
-    }
-
     public void setAddress(String address) {
         this.address = address;
     }
@@ -135,5 +129,13 @@ public class PhotoInfo {
 
     public void setObjects(List<String> objects) {
         this.objects = objects;
+    }
+
+    public void setDetectedObjectPairs(List<Pair<String, Float>> detectedObjectPairs) {
+        this.detectedObjectPairs = detectedObjectPairs;
+    }
+
+    public List<Pair<String, Float>> getDetectedObjectPairs() {
+        return detectedObjectPairs;
     }
 }
