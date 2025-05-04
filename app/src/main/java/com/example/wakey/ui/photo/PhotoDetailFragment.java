@@ -1,11 +1,14 @@
 // ui/photo/PhotoDetailFragment.java
 package com.example.wakey.ui.photo;
 
+import static android.content.ContentValues.TAG;
+
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.location.Address;
 import android.location.Geocoder;
+import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
 import android.util.Pair;
@@ -29,8 +32,13 @@ import com.example.wakey.data.repository.TimelineManager;
 import com.example.wakey.data.util.DateUtil;
 import com.example.wakey.tflite.BeitClassifier;
 import com.example.wakey.util.ToastManager;
+import com.example.wakey.util.Upscaler;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
@@ -168,32 +176,76 @@ public class PhotoDetailFragment extends DialogFragment {
         ImageButton closeButton = view.findViewById(R.id.closeButton);
         ImageButton btnPrevious = view.findViewById(R.id.btnPrevious);
         ImageButton btnNext = view.findViewById(R.id.btnNext);
+        ImageButton upscaleButton = view.findViewById(R.id.upscaleButton);
+        upscaleButton.setOnClickListener(v -> {
+            executor.execute(() -> {
+                Log.d(TAG, "🔍 업스케일링 시작");
+                long startTime = System.currentTimeMillis();
 
-        // 내비게이션 버튼 활성화 상태 설정
+                try {
+                    Uri photoUri = Uri.parse(timelineItem.getPhotoPath());
+                    Log.d(TAG, "📂 원본 이미지 URI: " + photoUri);
+
+                    // ▶ 여기서 ContentResolver로 InputStream 열기
+                    InputStream inputStream = requireContext()
+                            .getContentResolver()
+                            .openInputStream(photoUri);
+
+                    Bitmap original = BitmapFactory.decodeStream(inputStream);
+
+                    if (inputStream != null) {
+                        inputStream.close();
+                    }
+
+                    if (original == null) {
+                        Log.e(TAG, "❌ 원본 이미지를 불러오지 못했습니다.");
+                        return;
+                    }
+                    Log.d(TAG, "🖼️ 원본 이미지 로딩 완료");
+
+                    Upscaler upscaler = new Upscaler(requireContext());
+                    Log.d(TAG, "⚙️ 업스케일러 초기화 완료");
+
+                    Bitmap enhanced = upscaler.upscale(original);
+                    Log.d(TAG, "✨ 업스케일링 완료");
+
+                    upscaler.close();
+                    Log.d(TAG, "🛑 업스케일러 종료");
+
+                    String newPath = saveEnhancedImageToFile(enhanced, timelineItem.getPhotoPath());
+                    Log.d(TAG, "💾 업스케일된 이미지 저장 완료: " + newPath);
+
+                    timelineItem.setPhotoPath(newPath);
+
+                    long endTime = System.currentTimeMillis();
+                    Log.d(TAG, "⏱️ 업스케일링 소요 시간: " + (endTime - startTime) + "ms");
+
+                    requireActivity().runOnUiThread(() -> {
+                        Glide.with(requireContext())
+                                .load(newPath)
+                                .into(photoImageView);
+                        ToastManager.getInstance().setContext(requireContext());
+                        ToastManager.getInstance().showToast("✅ 업스케일 완료!");
+                    });
+
+                } catch (Exception e) {
+                    Log.e(TAG, "❌ 업스케일링 중 오류 발생: " + e.getMessage(), e);
+                    requireActivity().runOnUiThread(() -> {
+                        ToastManager.getInstance().setContext(requireContext());
+                        ToastManager.getInstance().showToast("⚠️ 이미지 업스케일 실패");
+                    });
+                }
+            });
+        });
+
+
+
+        // 나머지 UI 설정 및 리스너들...
         updateNavigationButtons(btnPrevious, btnNext);
-
-        // 내비게이션 버튼 리스너 설정
-        btnPrevious.setOnClickListener(v -> {
-            navigateToPrevious();
-        });
-
-        btnNext.setOnClickListener(v -> {
-            navigateToNext();
-        });
-
-        // 현재 타임라인 아이템이 있으면 UI 업데이트
-        updateUI(
-                photoImageView,
-                locationTextView,
-                timeTextView,
-                addressTextView,
-                activityChip
-        );
-
-        // 닫기 버튼
-        closeButton.setOnClickListener(v -> dismiss());
+        updateUI(photoImageView, locationTextView, timeTextView, addressTextView, activityChip);
 
         return view;
+
     }
 
     private void updateNavigationButtons(ImageButton btnPrevious, ImageButton btnNext) {
@@ -466,4 +518,22 @@ public class PhotoDetailFragment extends DialogFragment {
             hashtagContainer.addView(tagView);
         }
     }
+
+    private String saveEnhancedImageToFile(Bitmap bitmap, String originalPath) throws IOException, IOException {
+        File dir = new File(requireContext().getFilesDir(), "enhanced");
+        if (!dir.exists()) {
+            dir.mkdirs();
+        }
+
+        String fileName = "enhanced_" + System.currentTimeMillis() + ".jpg";
+        File file = new File(dir, fileName);
+
+        FileOutputStream out = new FileOutputStream(file);
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 95, out);
+        out.flush();
+        out.close();
+
+        return file.getAbsolutePath();
+    }
+
 }
