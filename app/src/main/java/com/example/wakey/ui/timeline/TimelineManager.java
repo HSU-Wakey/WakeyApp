@@ -117,15 +117,17 @@ public class TimelineManager {
                 description = "📌 " + String.join(", ", objects);
             }
 
-            TimelineItem item = new TimelineItem(
-                    photo.getDateTaken(),
-                    location,
-                    photo.getFilePath(),
-                    latLng,
-                    description
-            );
+            TimelineItem item = new TimelineItem.Builder()
+                    .setTime(photo.getDateTaken())
+                    .setLocation(location)
+                    .setPhotoPath(photo.getFilePath())
+                    .setLatLng(latLng)
+                    .setDescription(description)
+                    .setActivityType("예측 미지정") // 또는 적절한 기본값
+                    .setDetectedObjectPairs(photo.getDetectedObjectPairs())
+                    .build();
 
-            item.setDetectedObjects(objects);
+
             item.setLatLng(latLng); // 🔥 LatLng 재설정 (getLatLng() 내부에서 latitude/longitude도 업데이트됨)
 
             item.setDetectedObjectPairs(photo.getDetectedObjectPairs());

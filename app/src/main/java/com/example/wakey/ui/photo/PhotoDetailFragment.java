@@ -299,25 +299,11 @@ public class PhotoDetailFragment extends DialogFragment {
 
                 if (bitmap != null) {
                     List<Pair<String, Float>> predictions;
-
-                    if (timelineItem.getDetectedObjectPairs() != null && !timelineItem.getDetectedObjectPairs().isEmpty()) {
-                        Log.d("HASHTAG_CHECK", "🟢 기존 예측 사용: " + timelineItem.getDetectedObjectPairs().toString());
-                        predictions = timelineItem.getDetectedObjectPairs();
-                    } else {
-                        Log.d("HASHTAG_CHECK", "🔴 예측 없음 → 모델 재분석 시작");
-                        ImageClassifier classifier = new ImageClassifier(requireContext());
-                        predictions = classifier.classifyImage(bitmap);
-                        classifier.close();
-
-                        timelineItem.setDetectedObjectPairs(predictions);
-                        executor.execute(() -> {
-                            AppDatabase db = AppDatabase.getInstance(requireContext());
-                            db.photoDao().updateDetectedObjectPairs(timelineItem.getPhotoPath(), predictions);
-                        });
-                    }
-
-                    Log.d("HASHTAG_CHECK", "🔖 최종 예측값: " + predictions);
+                    predictions = timelineItem.getDetectedObjectPairs();
+                    Log.d("HASHTAG_CHECK", "!!!!!!!!!!!!!!!!!!!!!!!!!" + timelineItem.getDetectedObjectPairs());
                     createHashtags(predictions);
+                    Log.d("HASHTAG_CHECK", "🔖 최종 예측값: " + predictions);
+
                 }
 
             } catch (Exception e) {

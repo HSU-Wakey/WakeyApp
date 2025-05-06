@@ -236,8 +236,6 @@ public class ApiManager {
                 .setLatLng(photo.getLatLng())
                 .setDescription(caption)
                 .setActivityType(activityType)
-                .setPlaceProbability(1.0f)
-                .setNearbyPOIs(poiNames)
                 .build();
     }
 

@@ -81,6 +81,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         requestLocationPermission();
 
         imageRepository = new ImageRepository(this);
+        imageRepository.deleteAllPhotos();
     }
 
     private void initUI() {
@@ -259,13 +260,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             @Override
             public void onTimelineLoaded(List<TimelineItem> timelineItems) {
                 List<TimelineItem> enhancedTimeline = new ArrayList<>();
-                for (TimelineItem item : timelineItems) {
-                    if (item.getDetectedObjects() != null && !item.getDetectedObjects().isEmpty()) {
-                        String desc = "\uD83D\uDCCC " + String.join(", ", item.getDetectedObjects());
-                        item.setDescription(desc);
-                    }
-                    enhancedTimeline.add(item);
-                }
                 uiManager.updateTimelineData(enhancedTimeline);
             }
 
