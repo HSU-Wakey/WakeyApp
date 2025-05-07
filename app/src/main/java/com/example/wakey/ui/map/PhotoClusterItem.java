@@ -25,6 +25,7 @@ public class PhotoClusterItem implements ClusterItem {
         this.snippet = snippet;
         this.tag = tag;
         this.thumbnail = thumbnail;
+        // ❌ this.detectedObjects = detectedObjects; → 제거
     }
 
     @Override
