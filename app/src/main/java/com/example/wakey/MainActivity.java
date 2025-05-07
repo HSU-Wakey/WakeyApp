@@ -81,7 +81,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         requestLocationPermission();
 
         imageRepository = new ImageRepository(this);
-        imageRepository.deleteAllPhotos();
     }
 
     private void initUI() {
