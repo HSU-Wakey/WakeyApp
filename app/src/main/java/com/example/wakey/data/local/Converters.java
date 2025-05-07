@@ -17,13 +17,26 @@ public class Converters {
 
     @TypeConverter
     public static String fromPairList(List<Pair<String, Float>> list) {
-        return gson.toJson(list);
+        if (list == null) return null;
+
+        List<CustomPair> customList = new ArrayList<>();
+        for (Pair<String, Float> pair : list) {
+            customList.add(new CustomPair(pair.first, pair.second));
+        }
+        return gson.toJson(customList);
     }
 
     @TypeConverter
     public static List<Pair<String, Float>> toPairList(String json) {
         if (json == null || json.isEmpty()) return new ArrayList<>();
-        Type type = new TypeToken<List<Pair<String, Float>>>() {}.getType();
-        return gson.fromJson(json, type);
+
+        Type listType = new TypeToken<List<CustomPair>>() {}.getType();
+        List<CustomPair> customList = gson.fromJson(json, listType);
+
+        List<Pair<String, Float>> result = new ArrayList<>();
+        for (CustomPair custom : customList) {
+            result.add(new Pair<>(custom.first, custom.second));
+        }
+        return result;
     }
 }

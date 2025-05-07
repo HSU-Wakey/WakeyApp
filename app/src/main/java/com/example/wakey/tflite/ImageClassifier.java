@@ -64,16 +64,10 @@ public class ImageClassifier {
             logits[i] = (quantizedOutput[i] - outputZeroPoint) * outputScale;
         }
 
-        // 추가 로그: 처음 5개 로직
-        for (int i = 0; i < 5; i++) {
-            Log.d("ImageClassifier", "🔢 Raw Output[" + i + "]: " + quantizedOutput[i] + " -> Logit: " + logits[i]);
-        }
-
         float maxLogit = Float.NEGATIVE_INFINITY;
         for (float logit : logits) {
             if (logit > maxLogit) maxLogit = logit;
         }
-        Log.d("ImageClassifier", "📈 Max Logit Before Softmax: " + maxLogit);
 
         float sumExp = 0;
         float[] probabilities = new float[NUM_CLASSES];

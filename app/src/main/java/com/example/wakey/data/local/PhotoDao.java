@@ -35,9 +35,8 @@ public interface PhotoDao {
     void deleteDuplicatePhotos();
 
     // 객체 인식 결과 있는 사진만
-    @Query("SELECT * FROM Photo WHERE detectedObjects IS NOT NULL")
+    @Query("SELECT * FROM Photo WHERE detectedObjectPairs IS NOT NULL")
     List<Photo> getPhotosWithObjects();
-
     // 날짜만 추출 (yyyy-MM-dd)
     @Query("SELECT DISTINCT SUBSTR(dateTaken, 1, 10) as date FROM Photo")
     List<String> getAvailableDates();
@@ -47,7 +46,7 @@ public interface PhotoDao {
     List<Photo> getPhotosForDate(String date);
 
     // 위치 + 객체가 있는 사진만
-    @Query("SELECT * FROM Photo WHERE latitude IS NOT NULL AND longitude IS NOT NULL AND detectedObjects IS NOT NULL")
+    @Query("SELECT * FROM Photo WHERE latitude IS NOT NULL AND longitude IS NOT NULL AND detectedObjectPairs IS NOT NULL")
     List<Photo> getPhotosWithLocationAndObjects();
 
     // 중복 검사용: 파일 경로로 사진조회
@@ -55,8 +54,9 @@ public interface PhotoDao {
     Photo getPhotoByFilePath(String filePath);
 
     // 모델 예측 결과 업데이트
-    @Query("UPDATE Photo SET detectedObjectPairs = :pairs WHERE filePath = :filePath")
-    void updateDetectedObjectPairs(String filePath, List<Pair<String, Float>> pairs);
+
+    @Query("UPDATE Photo SET detectedObjectPairs = :detectedPairs WHERE filePath = :filePath")
+    void updateDetectedObjectPairs(String filePath, List<Pair<String, Float>> detectedPairs);
 
     // 전체 주소 업데이트
     @Query("UPDATE Photo SET fullAddress = :address WHERE filePath = :filePath")

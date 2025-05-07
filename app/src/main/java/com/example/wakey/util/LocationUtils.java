@@ -139,8 +139,6 @@ public class LocationUtils {
             if (addresses != null && !addresses.isEmpty()) {
                 Address addr = addresses.get(0);
 
-                logAddressDetails(addr, location);
-
                 StringBuilder regionBuilder = new StringBuilder();
 
                 // 도/광역시
@@ -208,7 +206,6 @@ public class LocationUtils {
                 Location location = new Location("");
                 location.setLatitude(latitude);
                 location.setLongitude(longitude);
-                logAddressDetails(address, location);
 
                 future.complete(address);
             } else {

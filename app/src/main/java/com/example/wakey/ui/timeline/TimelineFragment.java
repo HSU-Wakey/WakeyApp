@@ -2,6 +2,7 @@ package com.example.wakey.ui.timeline;
 
 import android.os.Bundle;
 import android.util.Log;
+import android.util.Pair;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -66,8 +67,13 @@ public class TimelineFragment extends Fragment {
                 }
 
                 List<String> objects = new ArrayList<>();
-                if (photo.detectedObjects != null && !photo.detectedObjects.isEmpty()) {
-                    objects = Arrays.asList(photo.detectedObjects.split(","));
+                if (photo.getDetectedObjectPairs() != null) {
+                    for (Pair<String, Float> pair : photo.getDetectedObjectPairs()) {
+                        String label = pair.first;
+                        if (label != null) {
+                            objects.add(label);
+                        }
+                    }
                 }
 
                 String address = photo.locationDo + " " + photo.locationGu + " " + photo.locationStreet;
@@ -80,7 +86,8 @@ public class TimelineFragment extends Fragment {
                         null,
                         address,
                         photo.caption,
-                        objects
+                        objects,
+                        photo.detectedObjectPairs
                 );
 
                 info.setLocationDo(photo.locationDo);

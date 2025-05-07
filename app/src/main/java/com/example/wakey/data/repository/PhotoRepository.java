@@ -230,9 +230,11 @@ public class PhotoRepository {
         }
 
         // 객체 목록 처리
-        List<String> objects = null;
-        if (photo.detectedObjects != null && !photo.detectedObjects.isEmpty()) {
-            objects = Arrays.asList(photo.detectedObjects.split(","));
+        List<String> objects = new ArrayList<>();
+        if (photo.getDetectedObjectPairs() != null) {
+            for (Pair<String, Float> pair : photo.getDetectedObjectPairs()) {
+                objects.add(pair.first);
+            }
         }
 
         // PhotoInfo 객체 생성
@@ -244,14 +246,14 @@ public class PhotoRepository {
                 null, // placeName은 Photo 객체에 없음
                 photo.fullAddress,
                 photo.caption,
-                objects
+                objects,
+                photo.detectedObjectPairs
         );
 
         // 추가 정보 설정
         photoInfo.setLocationDo(photo.locationDo);
         photoInfo.setLocationGu(photo.locationGu);
         photoInfo.setLocationStreet(photo.locationStreet);
-        photoInfo.setDetectedObjectPairs(photo.detectedObjectPairs);
 
         return photoInfo;
     }
@@ -314,15 +316,15 @@ public class PhotoRepository {
         return savedPhoto != null ? savedPhoto.id : -1;
     }
 
-    /**
-     * 사진 정보 갱신
-     */
-    public void updatePhoto(Photo photo) {
-        database.photoDao().updateFullAddress(photo.filePath, photo.fullAddress);
-        if (photo.detectedObjectPairs != null) {
-            database.photoDao().updateDetectedObjectPairs(photo.filePath, photo.detectedObjectPairs);
-        }
-    }
+//    /**
+//     * 사진 정보 갱신
+//     */
+//    public void updatePhoto(Photo photo) {
+//        database.photoDao().updateFullAddress(photo.filePath, photo.fullAddress);
+//        if (photo.detectedObjects != null) {
+//            database.photoDao().updateDetectedObjectPairs(photo.filePath, photo.detectedObjects);
+//        }
+//    }
 
     /**
      * 사진 정보 삭제
@@ -365,8 +367,8 @@ public class PhotoRepository {
         photo.caption = photoInfo.getDescription();
 
         // 객체 목록 변환
-        if (photoInfo.getObjects() != null && !photoInfo.getObjects().isEmpty()) {
-            photo.detectedObjects = String.join(",", photoInfo.getObjects());
+        if (photoInfo.getDetectedObjectPairs() != null) {
+            photo.setDetectedObjectPairs(photoInfo.getDetectedObjectPairs());
         }
 
         return photo;
@@ -383,7 +385,7 @@ public class PhotoRepository {
                 if (photo.latitude != null && photo.longitude != null) {
                     try {
                         Photo enrichedPhoto = locationUtils.enrichPhotoWithLocationInfo(photo).get();
-                        updatePhoto(enrichedPhoto);
+//                        updatePhoto(enrichedPhoto);
                     } catch (Exception e) {
                         Log.e(TAG, "Error enriching photo with location info", e);
                     }

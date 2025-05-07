@@ -13,10 +13,6 @@ import java.util.List;
 @Entity
 public class Photo {
 
-    @TypeConverters(Converters.class)
-    @ColumnInfo(name = "detectedObjectPairs")
-    public List<Pair<String, Float>> detectedObjectPairs;
-
     @PrimaryKey(autoGenerate = true)
     public int id;
 
@@ -50,8 +46,10 @@ public class Photo {
     @ColumnInfo(name = "caption")
     public String caption;
 
-    @ColumnInfo(name = "detectedObjects")
-    public String detectedObjects;
+    // ✅ List<Pair<String, Float>>로 변경
+    @TypeConverters(Converters.class)
+    @ColumnInfo(name = "detectedObjectPairs")
+    public List<Pair<String, Float>> detectedObjectPairs;
 
     // ⭐ 벡터 문자열 저장용 필드
     @ColumnInfo(name = "embedding_vector_str")
@@ -61,7 +59,9 @@ public class Photo {
     @Ignore
     public float[] embeddingVector;
 
-    // ✅ 생성자 추가 (Room이 무시하도록 @Ignore 붙이기)
+    public Photo() {}
+
+    // 생성자 (detectedObjectPairs는 생략)
     @Ignore
     public Photo(String filePath,
                  String dateTaken,
@@ -71,8 +71,7 @@ public class Photo {
                  String locationStreet,
                  String caption,
                  Double latitude,
-                 Double longitude,
-                 String detectedObjects) {
+                 Double longitude) {
         this.filePath = filePath;
         this.dateTaken = dateTaken;
         this.locationDo = locationDo;
@@ -82,11 +81,18 @@ public class Photo {
         this.caption = caption;
         this.latitude = latitude;
         this.longitude = longitude;
-        this.detectedObjects = detectedObjects;
     }
 
     public String getFilePath() {
         return filePath;
+    }
+
+    public List<Pair<String, Float>> getDetectedObjectPairs() {
+        return detectedObjectPairs;
+    }
+
+    public void setDetectedObjectPairs(List<Pair<String, Float>> detectedObjectPairs) {
+        this.detectedObjectPairs = detectedObjectPairs;
     }
 
     public void setEmbeddingVector(float[] vector) {
@@ -121,8 +127,4 @@ public class Photo {
         }
         return vec;
     }
-
-
-    // Room을 위한 기본 생성자
-    public Photo() {}
 }
