@@ -4,6 +4,7 @@ package com.example.wakey.ui.photo;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.graphics.drawable.Drawable;
 import android.location.Address;
 import android.location.Geocoder;
 import android.os.Bundle;
@@ -15,6 +16,7 @@ import android.view.ViewGroup;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import androidx.core.content.ContextCompat;
@@ -33,6 +35,14 @@ import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import android.graphics.Bitmap;
+import android.graphics.drawable.BitmapDrawable;
+import android.widget.ImageButton;
+import android.widget.ImageView;
+import android.widget.Toast;
+
+import com.example.wakey.tflite.ESRGANUpscaler;
+
 public class PhotoDetailFragment extends DialogFragment {
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -45,6 +55,11 @@ public class PhotoDetailFragment extends DialogFragment {
     private String currentDate;
     private int currentPosition = 0;
     private List<TimelineItem> timelineItems;
+
+    private boolean isUpscaled = false;
+    private Bitmap originalBitmap;
+    private Bitmap upscaledBitmap;
+
 
     public static PhotoDetailFragment newInstance(TimelineItem item) {
         PhotoDetailFragment fragment = new PhotoDetailFragment();
@@ -165,7 +180,54 @@ public class PhotoDetailFragment extends DialogFragment {
         ImageButton closeButton = view.findViewById(R.id.closeButton);
         ImageButton btnPrevious = view.findViewById(R.id.btnPrevious);
         ImageButton btnNext = view.findViewById(R.id.btnNext);
+        ProgressBar progressBar = view.findViewById(R.id.progressBarUpscale);
 
+        // 🆕 업스케일 버튼 참조 및 리스너 추가
+        ImageButton upscaleButton = view.findViewById(R.id.upscaleButton);
+        upscaleButton.setOnClickListener(v -> {
+            if (originalBitmap == null) {
+                Drawable drawable = photoImageView.getDrawable();
+                if (drawable instanceof BitmapDrawable) {
+                    originalBitmap = ((BitmapDrawable) drawable).getBitmap();
+                } else {
+                    Toast.makeText(getContext(), "이미지를 불러올 수 없습니다.", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+            }
+
+            if (isUpscaled) {
+                photoImageView.setImageBitmap(originalBitmap);
+                isUpscaled = false;
+                Toast.makeText(getContext(), "원본 이미지 보기", Toast.LENGTH_SHORT).show();
+            } else if (upscaledBitmap != null) {
+                photoImageView.setImageBitmap(upscaledBitmap);
+                isUpscaled = true;
+                Toast.makeText(getContext(), "업스케일된 이미지 보기", Toast.LENGTH_SHORT).show();
+            } else {
+                progressBar.setVisibility(View.VISIBLE);
+
+                new Thread(() -> {
+                    try {
+                        ESRGANUpscaler upscaler = new ESRGANUpscaler(requireContext());
+                        upscaledBitmap = upscaler.upscale(originalBitmap);
+
+                        requireActivity().runOnUiThread(() -> {
+                            photoImageView.setImageBitmap(upscaledBitmap);
+                            isUpscaled = true;
+                            progressBar.setVisibility(View.GONE);
+                            Toast.makeText(getContext(), "이미지가 선명하게 업스케일 되었습니다!", Toast.LENGTH_SHORT).show();
+                        });
+
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        requireActivity().runOnUiThread(() -> {
+                            progressBar.setVisibility(View.GONE);
+                            Toast.makeText(getContext(), "업스케일 실패: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                        });
+                    }
+                }).start();
+            }
+        });
         // 내비게이션 버튼 활성화 상태 설정
         updateNavigationButtons(btnPrevious, btnNext);
 
