@@ -50,6 +50,7 @@ dependencies {
     implementation("com.google.android.gms:play-services-maps:19.1.0")
     implementation("com.google.android.libraries.places:places:4.1.0")
     implementation("androidx.exifinterface:exifinterface:1.4.0")
+    implementation("com.github.chrisbanes:PhotoView:2.3.0")
 
     // TensorFlow Lite + Flex Delegate
     implementation("org.tensorflow:tensorflow-lite:2.12.0")
