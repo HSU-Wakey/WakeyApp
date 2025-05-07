@@ -23,10 +23,10 @@ import androidx.fragment.app.DialogFragment;
 import com.bumptech.glide.Glide;
 import com.example.wakey.R;
 import com.example.wakey.data.local.AppDatabase;
+import com.example.wakey.data.local.Photo;
 import com.example.wakey.data.model.TimelineItem;
 import com.example.wakey.ui.timeline.TimelineManager;
 import com.example.wakey.data.util.DateUtil;
-import com.example.wakey.tflite.ImageClassifier;
 
 import java.util.List;
 import java.util.Locale;
@@ -286,11 +286,10 @@ public class PhotoDetailFragment extends DialogFragment {
 
         if (timelineItem == null) return;
 
-
         // 1. 사진 이미지 로드
         String photoPath = timelineItem.getPhotoPath();
         if (photoPath != null) {
-            Glide.with(this).load(photoPath).into(photoImageView); // 이건 Glide 그대로 사용해도 OK
+            Glide.with(this).load(photoPath).into(photoImageView);
 
             try {
                 Bitmap bitmap = BitmapFactory.decodeStream(
@@ -298,12 +297,23 @@ public class PhotoDetailFragment extends DialogFragment {
                 );
 
                 if (bitmap != null) {
-                    List<Pair<String, Float>> predictions;
-                    predictions = timelineItem.getDetectedObjectPairs();
-                    Log.d("HASHTAG_CHECK", "!!!!!!!!!!!!!!!!!!!!!!!!!" + timelineItem.getDetectedObjectPairs());
-                    createHashtags(predictions);
-                    Log.d("HASHTAG_CHECK", "🔖 최종 예측값: " + predictions);
+                    // 🔥 최신 DB에서 해당 Photo 객체를 재조회하여 예측값 가져오기
+                    executor.execute(() -> {
+                        AppDatabase db = AppDatabase.getInstance(requireContext());
+                        Photo latestPhoto = db.photoDao().getPhotoByFilePath(photoPath);
 
+                        if (latestPhoto != null && latestPhoto.getDetectedObjectPairs() != null) {
+                            timelineItem.setDetectedObjectPairs(latestPhoto.getDetectedObjectPairs()); // 갱신
+
+                            requireActivity().runOnUiThread(() -> {
+                                List<Pair<String, Float>> updatedPredictions = timelineItem.getDetectedObjectPairs();
+                                createHashtags(updatedPredictions);
+                                Log.d("HASHTAG_CHECK", "✅ 재조회된 예측값: " + updatedPredictions);
+                            });
+                        } else {
+                            Log.w("HASHTAG_CHECK", "❌ DB에서 예측값을 불러오지 못함");
+                        }
+                    });
                 }
 
             } catch (Exception e) {

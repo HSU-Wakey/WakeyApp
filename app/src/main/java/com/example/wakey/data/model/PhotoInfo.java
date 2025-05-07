@@ -40,31 +40,6 @@ public class PhotoInfo {
         this.detectedObjectPairs = detectedObjectPairs;
     }
 
-    // 기존 생성자들 유지
-    public PhotoInfo(String filePath, Date dateTaken, LatLng latLng) {
-        this.filePath = filePath;
-        this.dateTaken = dateTaken;
-        this.latLng = latLng;
-    }
-
-    public PhotoInfo(String filePath, Date dateTaken, LatLng latLng, String placeId, String placeName) {
-        this.filePath = filePath;
-        this.dateTaken = dateTaken;
-        this.latLng = latLng;
-        this.placeId = placeId;
-        this.placeName = placeName;
-    }
-
-    public PhotoInfo(String filePath, Date dateTaken, LatLng latLng, String placeId,
-                     String description, List<String> objects) {
-        this.filePath = filePath;
-        this.dateTaken = dateTaken;
-        this.latLng = latLng;
-        this.placeId = placeId;
-        this.description = description;
-        this.objects = objects;
-    }
-
     // ✅ Getters
     public String getFilePath() {
         return filePath;
