@@ -1,14 +1,12 @@
 // ui/photo/PhotoDetailFragment.java
 package com.example.wakey.ui.photo;
 
-import static android.content.ContentValues.TAG;
-
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.graphics.drawable.Drawable;
 import android.location.Address;
 import android.location.Geocoder;
-import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
 import android.util.Pair;
@@ -18,6 +16,7 @@ import android.view.ViewGroup;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import androidx.core.content.ContextCompat;
@@ -26,23 +25,23 @@ import androidx.fragment.app.DialogFragment;
 import com.bumptech.glide.Glide;
 import com.example.wakey.R;
 import com.example.wakey.data.local.AppDatabase;
-import com.example.wakey.data.local.Photo;
 import com.example.wakey.data.model.TimelineItem;
-import com.example.wakey.data.repository.TimelineManager;
+import com.example.wakey.ui.timeline.TimelineManager;
 import com.example.wakey.data.util.DateUtil;
-import com.example.wakey.tflite.BeitClassifier;
-import com.example.wakey.util.ToastManager;
-import com.example.wakey.util.Upscaler;
+import com.example.wakey.tflite.ImageClassifier;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+import android.graphics.Bitmap;
+import android.graphics.drawable.BitmapDrawable;
+import android.widget.ImageButton;
+import android.widget.ImageView;
+import android.widget.Toast;
+
+import com.example.wakey.tflite.ESRGANUpscaler;
 
 public class PhotoDetailFragment extends DialogFragment {
 
@@ -56,6 +55,11 @@ public class PhotoDetailFragment extends DialogFragment {
     private String currentDate;
     private int currentPosition = 0;
     private List<TimelineItem> timelineItems;
+
+    private boolean isUpscaled = false;
+    private Bitmap originalBitmap;
+    private Bitmap upscaledBitmap;
+
 
     public static PhotoDetailFragment newInstance(TimelineItem item) {
         PhotoDetailFragment fragment = new PhotoDetailFragment();
@@ -176,76 +180,79 @@ public class PhotoDetailFragment extends DialogFragment {
         ImageButton closeButton = view.findViewById(R.id.closeButton);
         ImageButton btnPrevious = view.findViewById(R.id.btnPrevious);
         ImageButton btnNext = view.findViewById(R.id.btnNext);
+        ProgressBar progressBar = view.findViewById(R.id.progressBarUpscale);
+
+        // 🆕 업스케일 버튼 참조 및 리스너 추가
         ImageButton upscaleButton = view.findViewById(R.id.upscaleButton);
         upscaleButton.setOnClickListener(v -> {
-            executor.execute(() -> {
-                Log.d(TAG, "🔍 업스케일링 시작");
-                long startTime = System.currentTimeMillis();
-
-                try {
-                    Uri photoUri = Uri.parse(timelineItem.getPhotoPath());
-                    Log.d(TAG, "📂 원본 이미지 URI: " + photoUri);
-
-                    // ▶ 여기서 ContentResolver로 InputStream 열기
-                    InputStream inputStream = requireContext()
-                            .getContentResolver()
-                            .openInputStream(photoUri);
-
-                    Bitmap original = BitmapFactory.decodeStream(inputStream);
-
-                    if (inputStream != null) {
-                        inputStream.close();
-                    }
-
-                    if (original == null) {
-                        Log.e(TAG, "❌ 원본 이미지를 불러오지 못했습니다.");
-                        return;
-                    }
-                    Log.d(TAG, "🖼️ 원본 이미지 로딩 완료");
-
-                    Upscaler upscaler = new Upscaler(requireContext());
-                    Log.d(TAG, "⚙️ 업스케일러 초기화 완료");
-
-                    Bitmap enhanced = upscaler.upscale(original);
-                    Log.d(TAG, "✨ 업스케일링 완료");
-
-                    upscaler.close();
-                    Log.d(TAG, "🛑 업스케일러 종료");
-
-                    String newPath = saveEnhancedImageToFile(enhanced, timelineItem.getPhotoPath());
-                    Log.d(TAG, "💾 업스케일된 이미지 저장 완료: " + newPath);
-
-                    timelineItem.setPhotoPath(newPath);
-
-                    long endTime = System.currentTimeMillis();
-                    Log.d(TAG, "⏱️ 업스케일링 소요 시간: " + (endTime - startTime) + "ms");
-
-                    requireActivity().runOnUiThread(() -> {
-                        Glide.with(requireContext())
-                                .load(newPath)
-                                .into(photoImageView);
-                        ToastManager.getInstance().setContext(requireContext());
-                        ToastManager.getInstance().showToast("✅ 업스케일 완료!");
-                    });
-
-                } catch (Exception e) {
-                    Log.e(TAG, "❌ 업스케일링 중 오류 발생: " + e.getMessage(), e);
-                    requireActivity().runOnUiThread(() -> {
-                        ToastManager.getInstance().setContext(requireContext());
-                        ToastManager.getInstance().showToast("⚠️ 이미지 업스케일 실패");
-                    });
+            if (originalBitmap == null) {
+                Drawable drawable = photoImageView.getDrawable();
+                if (drawable instanceof BitmapDrawable) {
+                    originalBitmap = ((BitmapDrawable) drawable).getBitmap();
+                } else {
+                    Toast.makeText(getContext(), "이미지를 불러올 수 없습니다.", Toast.LENGTH_SHORT).show();
+                    return;
                 }
-            });
+            }
+
+            if (isUpscaled) {
+                photoImageView.setImageBitmap(originalBitmap);
+                isUpscaled = false;
+                Toast.makeText(getContext(), "원본 이미지 보기", Toast.LENGTH_SHORT).show();
+            } else if (upscaledBitmap != null) {
+                photoImageView.setImageBitmap(upscaledBitmap);
+                isUpscaled = true;
+                Toast.makeText(getContext(), "업스케일된 이미지 보기", Toast.LENGTH_SHORT).show();
+            } else {
+                progressBar.setVisibility(View.VISIBLE);
+
+                new Thread(() -> {
+                    try {
+                        ESRGANUpscaler upscaler = new ESRGANUpscaler(requireContext());
+                        upscaledBitmap = upscaler.upscale(originalBitmap);
+
+                        requireActivity().runOnUiThread(() -> {
+                            photoImageView.setImageBitmap(upscaledBitmap);
+                            isUpscaled = true;
+                            progressBar.setVisibility(View.GONE);
+                            Toast.makeText(getContext(), "이미지가 선명하게 업스케일 되었습니다!", Toast.LENGTH_SHORT).show();
+                        });
+
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        requireActivity().runOnUiThread(() -> {
+                            progressBar.setVisibility(View.GONE);
+                            Toast.makeText(getContext(), "업스케일 실패: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                        });
+                    }
+                }).start();
+            }
+        });
+        // 내비게이션 버튼 활성화 상태 설정
+        updateNavigationButtons(btnPrevious, btnNext);
+
+        // 내비게이션 버튼 리스너 설정
+        btnPrevious.setOnClickListener(v -> {
+            navigateToPrevious();
         });
 
+        btnNext.setOnClickListener(v -> {
+            navigateToNext();
+        });
 
+        // 현재 타임라인 아이템이 있으면 UI 업데이트
+        updateUI(
+                photoImageView,
+                locationTextView,
+                timeTextView,
+                addressTextView,
+                activityChip
+        );
 
-        // 나머지 UI 설정 및 리스너들...
-        updateNavigationButtons(btnPrevious, btnNext);
-        updateUI(photoImageView, locationTextView, timeTextView, addressTextView, activityChip);
+        // 닫기 버튼
+        closeButton.setOnClickListener(v -> dismiss());
 
         return view;
-
     }
 
     private void updateNavigationButtons(ImageButton btnPrevious, ImageButton btnNext) {
@@ -341,10 +348,11 @@ public class PhotoDetailFragment extends DialogFragment {
 
         if (timelineItem == null) return;
 
+
         // 1. 사진 이미지 로드
         String photoPath = timelineItem.getPhotoPath();
         if (photoPath != null) {
-            Glide.with(this).load(photoPath).into(photoImageView);
+            Glide.with(this).load(photoPath).into(photoImageView); // 이건 Glide 그대로 사용해도 OK
 
             try {
                 Bitmap bitmap = BitmapFactory.decodeStream(
@@ -355,9 +363,11 @@ public class PhotoDetailFragment extends DialogFragment {
                     List<Pair<String, Float>> predictions;
 
                     if (timelineItem.getDetectedObjectPairs() != null && !timelineItem.getDetectedObjectPairs().isEmpty()) {
+                        Log.d("HASHTAG_CHECK", "🟢 기존 예측 사용: " + timelineItem.getDetectedObjectPairs().toString());
                         predictions = timelineItem.getDetectedObjectPairs();
                     } else {
-                        BeitClassifier classifier = new BeitClassifier(requireContext());
+                        Log.d("HASHTAG_CHECK", "🔴 예측 없음 → 모델 재분석 시작");
+                        ImageClassifier classifier = new ImageClassifier(requireContext());
                         predictions = classifier.classifyImage(bitmap);
                         classifier.close();
 
@@ -368,6 +378,7 @@ public class PhotoDetailFragment extends DialogFragment {
                         });
                     }
 
+                    Log.d("HASHTAG_CHECK", "🔖 최종 예측값: " + predictions);
                     createHashtags(predictions);
                 }
 
@@ -464,6 +475,7 @@ public class PhotoDetailFragment extends DialogFragment {
      * Creates individual hashtag views from classifier predictions
      */
     private void createHashtags(List<Pair<String, Float>> predictions) {
+        Log.d("HASHTAG_CHECK", "🏷️ 해시태그 생성 진입, 예측 개수: " + (predictions != null ? predictions.size() : 0));
         View currentView = getView();
         if (currentView == null) {
             return;
@@ -518,22 +530,4 @@ public class PhotoDetailFragment extends DialogFragment {
             hashtagContainer.addView(tagView);
         }
     }
-
-    private String saveEnhancedImageToFile(Bitmap bitmap, String originalPath) throws IOException, IOException {
-        File dir = new File(requireContext().getFilesDir(), "enhanced");
-        if (!dir.exists()) {
-            dir.mkdirs();
-        }
-
-        String fileName = "enhanced_" + System.currentTimeMillis() + ".jpg";
-        File file = new File(dir, fileName);
-
-        FileOutputStream out = new FileOutputStream(file);
-        bitmap.compress(Bitmap.CompressFormat.JPEG, 95, out);
-        out.flush();
-        out.close();
-
-        return file.getAbsolutePath();
-    }
-
 }

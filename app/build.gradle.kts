@@ -73,4 +73,11 @@ dependencies {
     implementation("com.github.bumptech.glide:glide:4.15.1")
     annotationProcessor("com.github.bumptech.glide:compiler:4.15.1")
     implementation("com.google.code.gson:gson:2.9.0")
+
+    //upscaler
+    implementation("org.tensorflow:tensorflow-lite:2.13.0")
+    implementation("org.tensorflow:tensorflow-lite-support:0.4.3")
+
+    implementation ("com.github.chrisbanes:PhotoView:2.3.0")
+
 }

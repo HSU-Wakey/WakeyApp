@@ -47,6 +47,18 @@
                         android:scaleType="centerCrop"
                         android:contentDescription="Photo" />
 
+                    <!-- 가운데 로딩 스피너 추가 -->
+                    <ProgressBar
+                        android:id="@+id/progressBarUpscale"
+                        style="?android:attr/progressBarStyleLarge"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:layout_centerInParent="true"
+                        android:visibility="gone"
+                        android:indeterminate="true"
+                        android:elevation="5dp"/>
+
+
                     <!-- Close button -->
                     <ImageButton
                         android:id="@+id/closeButton"
