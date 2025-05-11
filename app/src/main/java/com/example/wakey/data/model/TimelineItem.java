@@ -19,12 +19,9 @@ public class TimelineItem implements Serializable {
     private double longitude;
 
     private String activityType;      // 활동 유형 (식사, 관광 등)
-    private float placeProbability;   // 장소 확률 점수
-    private List<String> nearbyPOIs;  // 주변 관심 장소
 
-    private List<String> detectedObjects;
 
-    private List<Pair<String, Float>> detectedObjectPairs = new ArrayList<>();
+    private List<Pair<String, Float>> detectedObjectPairs;
 
     public List<Pair<String, Float>> getDetectedObjectPairs() {
         return detectedObjectPairs;
@@ -37,28 +34,25 @@ public class TimelineItem implements Serializable {
 
     // 생성자
     public TimelineItem(Date time, String location, String photoPath, LatLng latLng,
-                        String description) {
+                        String description, List<Pair<String, Float>> detectedObjectPairs) {
         this.time = time;
         this.location = location;
         this.photoPath = photoPath;
         this.latLng = latLng;
         this.description = description;
-        this.nearbyPOIs = new ArrayList<>();
-        this.detectedObjects = new ArrayList<>();
+        this.detectedObjectPairs = detectedObjectPairs;
     }
 
     // 확장된 생성자
     public TimelineItem(Date time, String location, String photoPath, LatLng latLng,
-                        String description, String activityType, float placeProbability,
-                        List<String> nearbyPOIs) {
+                        String description, String activityType, List<Pair<String, Float>> detectedObjectPairs) {
         this.time = time;
         this.location = location;
         this.photoPath = photoPath;
         this.latLng = latLng;
         this.description = description;
         this.activityType = activityType;
-        this.placeProbability = placeProbability;
-        this.nearbyPOIs = nearbyPOIs != null ? nearbyPOIs : new ArrayList<>();
+        this.detectedObjectPairs = detectedObjectPairs;
     }
 
 
@@ -89,18 +83,6 @@ public class TimelineItem implements Serializable {
         return activityType;
     }
 
-    public float getPlaceProbability() {
-        return placeProbability;
-    }
-
-    public List<String> getNearbyPOIs() {
-        return nearbyPOIs;
-    }
-
-    public List<String> getDetectedObjects() {
-        return detectedObjects;
-    }
-
     // Setters
     public void setTime(Date time) {
         this.time = time;
@@ -126,29 +108,6 @@ public class TimelineItem implements Serializable {
         this.description = description;
     }
 
-    public void setActivityType(String activityType) {
-        this.activityType = activityType;
-    }
-
-    public void setPlaceProbability(float placeProbability) {
-        this.placeProbability = placeProbability;
-    }
-
-    public void setDetectedObjects(List<String> detectedObjects) {
-        this.detectedObjects = detectedObjects;
-    }
-
-
-    public void setNearbyPOIs(List<String> nearbyPOIs) {
-        this.nearbyPOIs = nearbyPOIs;
-    }
-
-    public void addNearbyPOI(String poi) {
-        if (this.nearbyPOIs == null) {
-            this.nearbyPOIs = new ArrayList<>();
-        }
-        this.nearbyPOIs.add(poi);
-    }
 
     // 활동 유형을 결정하는 편의 메소드
     public static class Builder {
@@ -158,8 +117,7 @@ public class TimelineItem implements Serializable {
         private LatLng latLng;
         private String description;
         private String activityType;
-        private float placeProbability = 0.0f;
-        private List<String> nearbyPOIs;
+        private List<Pair<String, Float>> detectedObjectPairs;
 
         public Builder setTime(Date time) {
             this.time = time;
@@ -191,19 +149,15 @@ public class TimelineItem implements Serializable {
             return this;
         }
 
-        public Builder setPlaceProbability(float placeProbability) {
-            this.placeProbability = placeProbability;
-            return this;
-        }
-
-        public Builder setNearbyPOIs(List<String> nearbyPOIs) {
-            this.nearbyPOIs = nearbyPOIs;
-            return this;
-        }
-
         public TimelineItem build() {
-            return new TimelineItem(time, location, photoPath, latLng, description,
-                    activityType, placeProbability, nearbyPOIs);
+            TimelineItem item = new TimelineItem(time, location, photoPath, latLng, description, activityType, detectedObjectPairs);
+            item.setDetectedObjectPairs(detectedObjectPairs);  // 🔥 이 줄이 반드시 필요!
+            return item;
+        }
+
+        public Builder setDetectedObjectPairs(List<Pair<String, Float>> detectedObjectPairs) {
+            this.detectedObjectPairs = detectedObjectPairs;
+            return this;
         }
     }
 }
