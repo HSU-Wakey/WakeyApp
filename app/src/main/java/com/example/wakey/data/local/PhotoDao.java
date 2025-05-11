@@ -69,4 +69,11 @@ public interface PhotoDao {
     // 예측된 객체 결과와 함께 저장된 사진 조회
     @Query("SELECT * FROM Photo WHERE filePath = :filePath LIMIT 1")
     Photo getPhotoWithDetectedPairs(String filePath);
+
+    @Query("SELECT DISTINCT country FROM Photo WHERE country IS NOT NULL")
+    List<String> getAllCountries();
+
+    @Query("SELECT * FROM Photo WHERE country = :country")
+    List<Photo> getPhotosByCountry(String country);
+
 }

@@ -77,6 +77,28 @@ public class OverseasRegionActivity extends AppCompatActivity {
         findViewById(R.id.backButton).setOnClickListener(v -> onBackPressed());
     }
 
+    private void loadAllPhotosForCountry() {
+        photoRepository.getPhotosByCountry(regionOriginalName).thenAccept(photos -> {
+            runOnUiThread(() -> {
+                Intent intent = new Intent(OverseasRegionActivity.this, AlbumDetailActivity.class);
+                intent.putExtra("REGION_NAME", regionName);
+                intent.putExtra("REGION_CODE", regionOriginalName);
+                intent.putExtra("PHOTO_LIST", new ArrayList<>(photos)); // Photo가 Parcelable이면 가능
+
+                if (!"전체".equals(currentYearFilter)) {
+                    intent.putExtra("YEAR_FILTER", currentYearFilter);
+                }
+
+                startActivity(intent);
+            });
+        }).exceptionally(e -> {
+            Log.e(TAG, "Failed to load photos for country", e);
+            return null;
+        });
+    }
+
+
+
     private void setupListeners() {
         // Listener for tabs will be dynamically added
     }
@@ -176,40 +198,49 @@ public class OverseasRegionActivity extends AppCompatActivity {
     }
 
     private void loadRegions() {
-        photoRepository.getPhotosForRegion(regionName, false).thenAccept(cityGroups -> {
-            // 도시별 사진 그룹에서 목록 생성
+        photoRepository.getPhotosByCountry(regionOriginalName).thenAccept(photos -> {
+            Map<String, List<Photo>> doGroups = new HashMap<>();
+
+            for (Photo photo : photos) {
+                if (photo.locationDo == null) continue;
+
+                // 연도 필터가 적용된 경우
+                if (!"전체".equals(currentYearFilter)) {
+                    if (photo.dateTaken == null || !photo.dateTaken.startsWith(currentYearFilter)) continue;
+                }
+
+                String doName = photo.locationDo;
+                doGroups.putIfAbsent(doName, new ArrayList<>());
+                doGroups.get(doName).add(photo);
+            }
+
             List<OverseasRegionItem> regionItems = new ArrayList<>();
+            for (Map.Entry<String, List<Photo>> entry : doGroups.entrySet()) {
+                String doName = entry.getKey();
+                List<Photo> groupedPhotos = entry.getValue();
 
-            for (Map.Entry<String, List<Photo>> entry : cityGroups.entrySet()) {
-                String cityName = entry.getKey();
-                List<Photo> photos = entry.getValue();
-
-                // 첫 번째 사진을 썸네일로 사용
-                String thumbnailPath = photos.isEmpty() ? null : photos.get(0).filePath;
-
-                // 최신 사진의 날짜 추출 (있는 경우)
+                String thumbnailPath = groupedPhotos.get(0).filePath;
                 String formattedDate = "";
-                for (Photo photo : photos) {
+                for (Photo photo : groupedPhotos) {
                     if (photo.dateTaken != null && photo.dateTaken.length() >= 7) {
                         String year = photo.dateTaken.substring(0, 4);
                         String month = photo.dateTaken.substring(5, 7);
                         formattedDate = year + "년 " + Integer.parseInt(month) + "월";
-                        break; // 첫 번째 유효한 날짜 사용
+                        break;
                     }
                 }
 
                 OverseasRegionItem item = new OverseasRegionItem(
-                        cityName,
-                        cityName.toLowerCase().replaceAll("\\s+", "_"),
+                        doName,
+                        doName.toLowerCase().replaceAll("\\s+", "_"),
                         formattedDate,
                         thumbnailPath,
-                        photos.size()
+                        groupedPhotos.size()
                 );
 
                 regionItems.add(item);
             }
 
-            // 도시명으로 정렬
             Collections.sort(regionItems, Comparator.comparing(OverseasRegionItem::getName));
 
             runOnUiThread(() -> {
@@ -219,7 +250,6 @@ public class OverseasRegionActivity extends AppCompatActivity {
                     intent.putExtra("REGION_CODE", item.getCode());
                     intent.putExtra("PARENT_REGION", regionName);
 
-                    // 년도 필터 전달
                     if (!"전체".equals(currentYearFilter)) {
                         intent.putExtra("YEAR_FILTER", currentYearFilter);
                     }
@@ -230,10 +260,11 @@ public class OverseasRegionActivity extends AppCompatActivity {
                 regionsRecyclerView.setAdapter(adapter);
             });
         }).exceptionally(e -> {
-            Log.e(TAG, "Error loading cities for " + regionName, e);
+            Log.e(TAG, "Error grouping by locationDo for " + regionName, e);
             return null;
         });
     }
+
 
     /**
      * 선택된 국가에 속하는 사진인지 확인

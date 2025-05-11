@@ -46,6 +46,9 @@ public class Photo {
     @ColumnInfo(name = "caption")
     public String caption;
 
+    @ColumnInfo(name = "country")
+    public String country; // 예: "일본", "미국"
+
     // ✅ List<Pair<String, Float>>로 변경
     @TypeConverters(Converters.class)
     @ColumnInfo(name = "detectedObjectPairs")
@@ -98,10 +101,6 @@ public class Photo {
     public void setEmbeddingVector(float[] vector) {
         this.embeddingVector = vector;
         this.embeddingVectorStr = vectorToString(vector);
-    }
-
-    public String getEmbeddingVectorStr() {
-        return embeddingVectorStr;
     }
 
     public float[] getEmbeddingVector() {
