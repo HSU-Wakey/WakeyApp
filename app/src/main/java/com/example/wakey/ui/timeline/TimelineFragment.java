@@ -17,7 +17,7 @@ import com.example.wakey.data.local.Photo;
 import com.example.wakey.data.model.PhotoInfo;
 import com.example.wakey.data.model.TimelineItem;
 import com.example.wakey.data.repository.PhotoRepository;
-import com.example.wakey.data.repository.TimelineManager;
+import com.example.wakey.service.ClusterService;
 import com.google.android.gms.maps.model.LatLng;
 
 import java.text.ParseException;
@@ -91,8 +91,8 @@ public class TimelineFragment extends Fragment {
                 photoInfoList.add(info);
             }
 
-            List<TimelineItem> timelineItems = TimelineManager.getInstance(requireContext())
-                    .buildTimelineWithObjects(photoInfoList);
+            ClusterService clusterService = ClusterService.getInstance(requireContext());
+            List<TimelineItem> timelineItems = clusterService.generateTimelineFromPhotoList(photoInfoList);
 
             requireActivity().runOnUiThread(() -> {
                 adapter = new TimelineAdapter(timelineItems);

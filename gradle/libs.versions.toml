@@ -27,6 +27,7 @@ maps-utils                 = "2.3.0"
 places-sdk                 = "3.3.0"
 glide                      = "4.15.1"
 gson                       = "2.9.0"
+vision-common = "17.3.0"
 
 [libraries]
 # AndroidX & Google
@@ -61,6 +62,7 @@ roomCompiler               = { group = "androidx.room", name = "room-compiler", 
 glide                      = { module = "com.github.bumptech.glide:glide", version.ref = "glide" }
 glideCompiler              = { module = "com.github.bumptech.glide:compiler", version.ref = "glide" }
 gson                       = { module = "com.google.code.gson:gson", version.ref = "gson" }
+visionCommon = { group = "com.google.mlkit", name = "vision-common", version.ref = "vision-common" }
 
 [plugins]
 android-application        = { id = "com.android.application", version.ref = "agp" }

@@ -6,7 +6,6 @@ import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.util.Base64;
 import android.util.Log;
-import android.util.Pair;
 import android.os.Handler;
 import android.os.Looper;
 
@@ -35,8 +34,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Random;
-import java.util.Map;
-import java.util.HashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -1242,132 +1239,5 @@ public class TimelineManager {
                 Log.e(TAG, "테스트 API 호출 실패: " + e.getMessage());
             }
         });
-    }
-
-    /**
-     * 새로운 타임라인 항목 추가 (마스터 브랜치에서 가져옴)
-     */
-    public void addTimelineItem(TimelineItem item) {
-        if (item != null) {
-            currentTimelineItems.add(item);
-            // DB에 저장하는 코드 추가
-            updateItemInDatabase(item);
-        }
-    }
-
-    /**
-     * 타임라인 항목 업데이트 (마스터 브랜치에서 가져옴)
-     */
-    public void updateTimelineItem(TimelineItem item) {
-        if (item != null) {
-            // 기존 항목 찾기
-            for (int i = 0; i < currentTimelineItems.size(); i++) {
-                if (currentTimelineItems.get(i).getTime().equals(item.getTime()) &&
-                        currentTimelineItems.get(i).getPhotoPath() != null &&
-                        currentTimelineItems.get(i).getPhotoPath().equals(item.getPhotoPath())) {
-                    // 기존 항목 업데이트
-                    currentTimelineItems.set(i, item);
-                    // DB에 업데이트
-                    updateItemInDatabase(item);
-                    break;
-                }
-            }
-        }
-    }
-
-    /**
-     * 타임라인 생성 - 객체 인식 결과 포함 (마스터 브랜치에서 가져옴)
-     */
-    public List<TimelineItem> buildTimelineWithObjects(List<PhotoInfo> photos) {
-        List<TimelineItem> items = new ArrayList<>();
-
-        for (PhotoInfo photo : photos) {
-            LatLng latLng = null;
-
-            // 로그 추가
-            if (photo.getLatLng() != null) {
-                latLng = photo.getLatLng();
-                Log.d("LATLNG_CHECK", "📍 위도: " + latLng.latitude + ", 경도: " + latLng.longitude);
-                Log.d("LATLNG_CHECK", "✅ 유효한 LatLng 생성됨: " + latLng.toString());
-            } else {
-                Log.w("LATLNG_CHECK", "⚠️ 유효하지 않은 위치 → null 처리됨");
-            }
-
-            // 위치 정보 우선순위: address → "위치 정보 없음"
-            String location = (photo.getAddress() != null && !photo.getAddress().isEmpty())
-                    ? photo.getAddress()
-                    : "위치 정보 없음";
-            String description = "";
-
-            List<String> objects = new ArrayList<>();
-            if (photo.getObjects() != null && !photo.getObjects().isEmpty()) {
-                objects = photo.getObjects();
-                description = "📌 " + String.join(", ", objects);
-            }
-
-            // 중요: 수정된 부분 - getDetectedObjectPairs()가 Map이 아닌 List<Pair>를 반환하므로
-            // Map을 직접 생성하고 값을 채우기
-            Map<String, Float> detectedObjectMap = new HashMap<>();
-            List<Pair<String, Float>> pairs = (List<Pair<String, Float>>) photo.getDetectedObjectPairs();
-            if (pairs != null && !pairs.isEmpty()) {
-                for (Pair<String, Float> pair : pairs) {
-                    detectedObjectMap.put(pair.first, pair.second);
-                }
-            }
-
-            // TimelineItem 빌드
-            TimelineItem.Builder builder = new TimelineItem.Builder()
-                    .setTime(photo.getDateTaken())
-                    .setLocation(location)
-                    .setPhotoPath(photo.getFilePath())
-                    .setLatLng(latLng)
-                    .setDescription(description)
-                    .setActivityType("예측 미지정") // 또는 적절한 기본값
-                    .setDetectedObjectPairs(detectedObjectMap);
-
-            // 추가 필드 설정
-            TimelineItem item = builder.build();
-
-            // 객체 인식 결과 (String 목록)
-            if (objects != null && !objects.isEmpty()) {
-                item.setDetectedObjects(String.join(",", objects));
-            }
-
-            // LatLng 재설정 (안전하게)
-            if (latLng != null) {
-                item.setLatLng(latLng);
-            }
-
-            // List<Pair<String, Float>> 설정 (마스터 브랜치와의 호환성을 위해)
-            if (pairs != null) {
-                item.setDetectedObjectPairsList(pairs);
-            }
-
-            items.add(item);
-        }
-
-        return items;
-    }
-
-    // Pair 목록에서 Map으로 변환하는 헬퍼 메서드
-    private Map<String, Float> convertPairsToMap(List<Pair<String, Float>> pairs) {
-        Map<String, Float> map = new HashMap<>();
-        if (pairs != null) {
-            for (Pair<String, Float> pair : pairs) {
-                map.put(pair.first, pair.second);
-            }
-        }
-        return map;
-    }
-
-    // Map에서 Pair 목록으로 변환하는 헬퍼 메서드
-    private List<Pair<String, Float>> convertMapToPairs(Map<String, Float> map) {
-        List<Pair<String, Float>> pairs = new ArrayList<>();
-        if (map != null) {
-            for (Map.Entry<String, Float> entry : map.entrySet()) {
-                pairs.add(new Pair<>(entry.getKey(), entry.getValue()));
-            }
-        }
-        return pairs;
     }
 }

@@ -1,4 +1,3 @@
-// ui/photo/PhotoDetailFragment.java
 package com.example.wakey.ui.photo;
 
 import android.graphics.Bitmap;
@@ -25,20 +24,21 @@ import androidx.fragment.app.DialogFragment;
 import com.bumptech.glide.Glide;
 import com.example.wakey.R;
 import com.example.wakey.data.local.AppDatabase;
+import com.example.wakey.data.local.Photo;
 import com.example.wakey.data.model.TimelineItem;
 import com.example.wakey.ui.timeline.TimelineManager;
 import com.example.wakey.data.util.DateUtil;
 import com.example.wakey.tflite.ImageClassifier;
 
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
-import android.widget.ImageButton;
-import android.widget.ImageView;
 import android.widget.Toast;
 
 import com.example.wakey.tflite.ESRGANUpscaler;
@@ -59,7 +59,6 @@ public class PhotoDetailFragment extends DialogFragment {
     private boolean isUpscaled = false;
     private Bitmap originalBitmap;
     private Bitmap upscaledBitmap;
-
 
     public static PhotoDetailFragment newInstance(TimelineItem item) {
         PhotoDetailFragment fragment = new PhotoDetailFragment();
@@ -116,7 +115,6 @@ public class PhotoDetailFragment extends DialogFragment {
                 }
 
                 requireActivity().runOnUiThread(() -> {
-                    // 타임라인 로딩 후 UI 초기화 필요 시 여기에
                     View view = getView();
                     if (view != null) {
                         updateUI(
@@ -135,33 +133,7 @@ public class PhotoDetailFragment extends DialogFragment {
             }
         });
 
-
         setStyle(DialogFragment.STYLE_NORMAL, R.style.FullScreenDialogStyle);
-    }
-
-    private void loadTimelineItems() {
-        if (currentDate == null && timelineItem != null && timelineItem.getTime() != null) {
-            // 날짜 정보가 없으면 현재 아이템의 날짜로 설정
-            currentDate = DateUtil.getFormattedDateString(timelineItem.getTime());
-        }
-
-        if (currentDate != null) {
-            // 현재 날짜의 모든 타임라인 가져오기
-            timelineItems = TimelineManager.getInstance(requireContext())
-                    .loadTimelineForDate(currentDate);
-
-            // 현재 위치 찾기
-            if (currentPosition == 0 && timelineItem != null) {
-                for (int i = 0; i < timelineItems.size(); i++) {
-                    TimelineItem item = timelineItems.get(i);
-                    if (item.getPhotoPath() != null &&
-                            item.getPhotoPath().equals(timelineItem.getPhotoPath())) {
-                        currentPosition = i;
-                        break;
-                    }
-                }
-            }
-        }
     }
 
     @Override
@@ -182,7 +154,7 @@ public class PhotoDetailFragment extends DialogFragment {
         ImageButton btnNext = view.findViewById(R.id.btnNext);
         ProgressBar progressBar = view.findViewById(R.id.progressBarUpscale);
 
-        // 🆕 업스케일 버튼 참조 및 리스너 추가
+        // 업스케일 버튼 참조 및 리스너 추가
         ImageButton upscaleButton = view.findViewById(R.id.upscaleButton);
         upscaleButton.setOnClickListener(v -> {
             if (originalBitmap == null) {
@@ -228,17 +200,13 @@ public class PhotoDetailFragment extends DialogFragment {
                 }).start();
             }
         });
+
         // 내비게이션 버튼 활성화 상태 설정
         updateNavigationButtons(btnPrevious, btnNext);
 
         // 내비게이션 버튼 리스너 설정
-        btnPrevious.setOnClickListener(v -> {
-            navigateToPrevious();
-        });
-
-        btnNext.setOnClickListener(v -> {
-            navigateToNext();
-        });
+        btnPrevious.setOnClickListener(v -> navigateToPrevious());
+        btnNext.setOnClickListener(v -> navigateToNext());
 
         // 현재 타임라인 아이템이 있으면 UI 업데이트
         updateUI(
@@ -277,32 +245,13 @@ public class PhotoDetailFragment extends DialogFragment {
         currentPosition--;
         timelineItem = timelineItems.get(currentPosition);
 
+        // 업스케일 상태 리셋
+        isUpscaled = false;
+        originalBitmap = null;
+        upscaledBitmap = null;
+
         // UI 업데이트
-        View view = getView();
-        if (view != null) {
-            // 위치 정보 직접 설정 확인
-            TextView locationTextView = view.findViewById(R.id.photoDetailLocationTextView);
-            if (timelineItem.getLocation() != null && !timelineItem.getLocation().isEmpty()) {
-                locationTextView.setText(timelineItem.getLocation());
-            } else {
-                locationTextView.setText("장소"); // 기본값
-            }
-
-            // Updated call without predictionTextView parameter
-            updateUI(
-                    view.findViewById(R.id.photoDetailImageView),
-                    locationTextView,
-                    view.findViewById(R.id.photoDetailTimeTextView),
-                    view.findViewById(R.id.photoDetailAddressTextView),
-                    view.findViewById(R.id.activityChip)
-            );
-
-            // 네비게이션 버튼 상태 업데이트
-            updateNavigationButtons(
-                    view.findViewById(R.id.btnPrevious),
-                    view.findViewById(R.id.btnNext)
-            );
-        }
+        updateNavigationUI();
     }
 
     private void navigateToNext() {
@@ -313,27 +262,26 @@ public class PhotoDetailFragment extends DialogFragment {
         currentPosition++;
         timelineItem = timelineItems.get(currentPosition);
 
+        // 업스케일 상태 리셋
+        isUpscaled = false;
+        originalBitmap = null;
+        upscaledBitmap = null;
+
         // UI 업데이트
+        updateNavigationUI();
+    }
+
+    private void updateNavigationUI() {
         View view = getView();
         if (view != null) {
-            // 위치 정보 직접 설정 확인
-            TextView locationTextView = view.findViewById(R.id.photoDetailLocationTextView);
-            if (timelineItem.getLocation() != null && !timelineItem.getLocation().isEmpty()) {
-                locationTextView.setText(timelineItem.getLocation());
-            } else {
-                locationTextView.setText("장소"); // 기본값
-            }
-
-            // Updated call without predictionTextView parameter
             updateUI(
                     view.findViewById(R.id.photoDetailImageView),
-                    locationTextView,
+                    view.findViewById(R.id.photoDetailLocationTextView),
                     view.findViewById(R.id.photoDetailTimeTextView),
                     view.findViewById(R.id.photoDetailAddressTextView),
                     view.findViewById(R.id.activityChip)
             );
 
-            // 네비게이션 버튼 상태 업데이트
             updateNavigationButtons(
                     view.findViewById(R.id.btnPrevious),
                     view.findViewById(R.id.btnNext)
@@ -348,11 +296,10 @@ public class PhotoDetailFragment extends DialogFragment {
 
         if (timelineItem == null) return;
 
-
         // 1. 사진 이미지 로드
         String photoPath = timelineItem.getPhotoPath();
         if (photoPath != null) {
-            Glide.with(this).load(photoPath).into(photoImageView); // 이건 Glide 그대로 사용해도 OK
+            Glide.with(this).load(photoPath).into(photoImageView);
 
             try {
                 Bitmap bitmap = BitmapFactory.decodeStream(
@@ -360,22 +307,66 @@ public class PhotoDetailFragment extends DialogFragment {
                 );
 
                 if (bitmap != null) {
-                    List<Pair<String, Float>> predictions;
+                    // ✅ 모바일넷 해시태그 생성 로직 복원
+                    List<Pair<String, Float>> predictions = null;
 
-                    if (timelineItem.getDetectedObjectPairs() != null && !timelineItem.getDetectedObjectPairs().isEmpty()) {
-                        Log.d("HASHTAG_CHECK", "🟢 기존 예측 사용: " + timelineItem.getDetectedObjectPairs().toString());
-                        predictions = timelineItem.getDetectedObjectPairs();
+                    // 기존 예측 결과가 있는지 확인
+                    Map<String, Float> existingPredictions = timelineItem.getDetectedObjectPairs();
+                    if (existingPredictions != null && !existingPredictions.isEmpty()) {
+                        Log.d("HASHTAG_CHECK", "🟢 기존 예측 사용: " + existingPredictions);
+                        predictions = new ArrayList<>();
+                        for (Map.Entry<String, Float> entry : existingPredictions.entrySet()) {
+                            predictions.add(new Pair<>(entry.getKey(), entry.getValue()));
+                        }
                     } else {
-                        Log.d("HASHTAG_CHECK", "🔴 예측 없음 → 모델 재분석 시작");
-                        ImageClassifier classifier = new ImageClassifier(requireContext());
-                        predictions = classifier.classifyImage(bitmap);
-                        classifier.close();
-
-                        timelineItem.setDetectedObjectPairs(predictions);
+                        // 예측 결과가 없으면 DB에서 다시 조회
+                        Log.d("HASHTAG_CHECK", "🔄 DB에서 예측 결과 조회 시작");
                         executor.execute(() -> {
                             AppDatabase db = AppDatabase.getInstance(requireContext());
-                            db.photoDao().updateDetectedObjectPairs(timelineItem.getPhotoPath(), predictions);
+                            Photo latestPhoto = db.photoDao().getPhotoByFilePath(photoPath);
+
+                            List<Pair<String, Float>> dbPredictions = null;
+                            if (latestPhoto != null && latestPhoto.getDetectedObjectPairs() != null) {
+                                dbPredictions = new ArrayList<>(latestPhoto.getDetectedObjectPairs());
+
+                                // TimelineItem 업데이트 - Photo의 List<Pair>를 Map으로 변환
+                                Map<String, Float> predictionsMap = new java.util.HashMap<>();
+                                for (Pair<String, Float> pred : dbPredictions) {
+                                    predictionsMap.put(pred.first, pred.second);
+                                }
+                                timelineItem.setDetectedObjectPairs(predictionsMap);
+                                Log.d("HASHTAG_CHECK", "✅ DB에서 조회: " + dbPredictions);
+                            } else {
+                                // DB에도 없으면 모델로 새로 분석
+                                Log.d("HASHTAG_CHECK", "🔴 예측 없음 → 모델 재분석 시작");
+                                ImageClassifier classifier = null;
+                                try {
+                                    classifier = new ImageClassifier(requireContext());
+                                } catch (IOException e) {
+                                    throw new RuntimeException(e);
+                                }
+                                dbPredictions = classifier.classifyImage(bitmap);
+                                classifier.close();
+
+                                // TimelineItem 업데이트
+                                Map<String, Float> predictionsMap = new java.util.HashMap<>();
+                                for (Pair<String, Float> pred : dbPredictions) {
+                                    predictionsMap.put(pred.first, pred.second);
+                                }
+                                timelineItem.setDetectedObjectPairs(predictionsMap);
+
+                                // DB 업데이트
+                                db.photoDao().updateDetectedObjectPairs(photoPath, dbPredictions);
+                                Log.d("HASHTAG_CHECK", "💾 새로운 예측 DB 저장: " + dbPredictions);
+                            }
+
+                            // UI 업데이트
+                            final List<Pair<String, Float>> finalPredictions = dbPredictions;
+                            requireActivity().runOnUiThread(() -> {
+                                createHashtags(finalPredictions);
+                            });
                         });
+                        return; // 백그라운드 처리이므로 여기서 리턴
                     }
 
                     Log.d("HASHTAG_CHECK", "🔖 최종 예측값: " + predictions);
@@ -470,7 +461,6 @@ public class PhotoDetailFragment extends DialogFragment {
         }
     }
 
-
     /**
      * Creates individual hashtag views from classifier predictions
      */
@@ -478,20 +468,33 @@ public class PhotoDetailFragment extends DialogFragment {
         Log.d("HASHTAG_CHECK", "🏷️ 해시태그 생성 진입, 예측 개수: " + (predictions != null ? predictions.size() : 0));
         View currentView = getView();
         if (currentView == null) {
+            Log.e("HASHTAG_CHECK", "❌ 뷰가 null입니다");
             return;
         }
 
-        LinearLayout hashtagContainer = getView().findViewById(R.id.hashtagContainer);
+        LinearLayout hashtagContainer = currentView.findViewById(R.id.hashtagContainer);
         if (hashtagContainer == null) {
+            Log.e("HASHTAG_CHECK", "❌ hashtagContainer를 찾을 수 없습니다");
             return;
         }
 
         hashtagContainer.removeAllViews();
 
+        if (predictions == null || predictions.isEmpty()) {
+            Log.w("HASHTAG_CHECK", "❌ 예측 결과가 비어있음");
+            // 기본 태그 추가
+            addDefaultHashtag(hashtagContainer);
+            return;
+        }
+
         int count = 0;
         for (Pair<String, Float> pred : predictions) {
+            if (pred.first == null || pred.first.isEmpty()) {
+                continue;
+            }
+
             // 예측 항목에서 해시태그 추출
-            String term = pred.first != null ? pred.first.split(",")[0].trim() : "";
+            String term = pred.first.split(",")[0].trim();
             String hashtag = "#" + term.replace(" ", "");
 
             // TextView 생성
@@ -515,19 +518,31 @@ public class PhotoDetailFragment extends DialogFragment {
             tagView.setBackground(ContextCompat.getDrawable(requireContext(), R.drawable.hash_tag_background));
             hashtagContainer.addView(tagView);
             count++;
+
+            Log.d("HASHTAG_CHECK", "✅ 해시태그 추가: " + hashtag);
         }
 
-        // 예측 결과 없을 경우 기본 태그
+        // 예측 결과가 있었지만 유효한 해시태그가 하나도 만들어지지 않은 경우
         if (count == 0) {
-            TextView tagView = new TextView(requireContext());
-            tagView.setText("#Photo");
-            tagView.setTextSize(12);
-            tagView.setTextColor(Color.BLACK);
-            int paddingPixels = (int) (12 * getResources().getDisplayMetrics().density);
-            int topBottomPadding = (int) (6 * getResources().getDisplayMetrics().density);
-            tagView.setPadding(paddingPixels, topBottomPadding, paddingPixels, topBottomPadding);
-            tagView.setBackground(ContextCompat.getDrawable(requireContext(), R.drawable.hash_tag_background));
-            hashtagContainer.addView(tagView);
+            Log.w("HASHTAG_CHECK", "⚠️ 유효한 해시태그가 없음, 기본 태그 추가");
+            addDefaultHashtag(hashtagContainer);
         }
+
+        Log.d("HASHTAG_CHECK", "🏁 해시태그 생성 완료, 총 " + count + "개");
+    }
+
+    /**
+     * 기본 해시태그 추가
+     */
+    private void addDefaultHashtag(LinearLayout hashtagContainer) {
+        TextView tagView = new TextView(requireContext());
+        tagView.setText("#Photo");
+        tagView.setTextSize(12);
+        tagView.setTextColor(Color.BLACK);
+        int paddingPixels = (int) (12 * getResources().getDisplayMetrics().density);
+        int topBottomPadding = (int) (6 * getResources().getDisplayMetrics().density);
+        tagView.setPadding(paddingPixels, topBottomPadding, paddingPixels, topBottomPadding);
+        tagView.setBackground(ContextCompat.getDrawable(requireContext(), R.drawable.hash_tag_background));
+        hashtagContainer.addView(tagView);
     }
 }

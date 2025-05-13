@@ -5,6 +5,7 @@ import android.util.Pair;
 import androidx.room.Dao;
 import androidx.room.Insert;
 import androidx.room.Query;
+import androidx.room.Update;  // ⭐ 추가
 
 import java.util.List;
 
@@ -17,6 +18,10 @@ public interface PhotoDao {
 
     @Insert
     void insertPhotos(List<Photo> photos);
+
+    // ⭐ UPDATE 메서드 추가
+    @Update
+    void updatePhoto(Photo photo);
 
     // 기본 SELECT
     @Query("SELECT * FROM Photo")
@@ -69,4 +74,36 @@ public interface PhotoDao {
     // 예측된 객체 결과와 함께 저장된 사진 조회
     @Query("SELECT * FROM Photo WHERE filePath = :filePath LIMIT 1")
     Photo getPhotoWithDetectedPairs(String filePath);
+
+    // 캡션 업데이트
+    @Query("UPDATE Photo SET caption = :caption WHERE filePath = :filePath")
+    void updateCaption(String filePath, String caption);
+
+    // 캡션이 없는 사진 조회
+    @Query("SELECT * FROM Photo WHERE caption IS NULL OR caption = ''")
+    List<Photo> getPhotosWithoutCaptions();
+
+    // 특정 날짜의 사진 중 캡션이 없는 사진 조회
+    @Query("SELECT * FROM Photo WHERE dateTaken LIKE :date || '%' AND (caption IS NULL OR caption = '')")
+    List<Photo> getPhotosForDateWithoutCaptions(String date);
+
+    // 스토리 업데이트 (추가)
+    @Query("UPDATE Photo SET story = :story WHERE filePath = :filePath")
+    void updateStory(String filePath, String story);
+
+    // 스토리가 없는 사진 조회 (추가)
+    @Query("SELECT * FROM Photo WHERE story IS NULL OR story = ''")
+    List<Photo> getPhotosWithoutStories();
+
+    // 특정 날짜의 사진 중 스토리가 없는 사진 조회 (추가)
+    @Query("SELECT * FROM Photo WHERE dateTaken LIKE :date || '%' AND (story IS NULL OR story = '')")
+    List<Photo> getPhotosForDateWithoutStories(String date);
+
+    // ✅ 감지된 객체 문자열 업데이트 (누락된 메서드 추가)
+    @Query("UPDATE Photo SET detectedObjects = :objects WHERE filePath = :filePath")
+    void updateObjectLabels(String filePath, String objects);
+
+    // detectedObjects 조회
+    @Query("SELECT detectedObjects FROM Photo WHERE filePath = :filePath")
+    String getDetectedObjects(String filePath);
 }

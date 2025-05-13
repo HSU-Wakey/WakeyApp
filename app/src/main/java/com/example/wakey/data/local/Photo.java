@@ -8,11 +8,12 @@ import androidx.room.Ignore;
 import androidx.room.PrimaryKey;
 import androidx.room.TypeConverters;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Entity
 public class Photo {
-
     @TypeConverters(Converters.class)
     @ColumnInfo(name = "detectedObjectPairs")
     public List<Pair<String, Float>> detectedObjectPairs;
@@ -50,6 +51,10 @@ public class Photo {
     @ColumnInfo(name = "caption")
     public String caption;
 
+    // 새로 추가한 스토리 필드
+    @ColumnInfo(name = "story")
+    public String story;
+
     @ColumnInfo(name = "detectedObjects")
     public String detectedObjects;
 
@@ -83,6 +88,47 @@ public class Photo {
         this.latitude = latitude;
         this.longitude = longitude;
         this.detectedObjects = detectedObjects;
+    }
+
+    // Room을 위한 기본 생성자
+    public Photo() {}
+
+    // ⭐ getDetectedObjectPairs 메서드 추가
+    public List<Pair<String, Float>> getDetectedObjectPairs() {
+        return detectedObjectPairs;
+    }
+
+    // ⭐ setDetectedObjectPairs 메서드 추가
+    public void setDetectedObjectPairs(List<Pair<String, Float>> detectedObjectPairs) {
+        this.detectedObjectPairs = detectedObjectPairs;
+    }
+
+    // ⭐ Map 형태로 변환하는 헬퍼 메서드
+    public Map<String, Float> getDetectedObjectPairsAsMap() {
+        if (detectedObjectPairs == null) {
+            return null;
+        }
+
+        Map<String, Float> map = new HashMap<>();
+        for (Pair<String, Float> pair : detectedObjectPairs) {
+            if (pair.first != null && pair.second != null) {
+                map.put(pair.first, pair.second);
+            }
+        }
+        return map;
+    }
+
+    // ⭐ Map 형태에서 List로 변환하는 헬퍼 메서드
+    public void setDetectedObjectPairsFromMap(Map<String, Float> mapPairs) {
+        if (mapPairs == null) {
+            this.detectedObjectPairs = null;
+            return;
+        }
+
+        this.detectedObjectPairs = new java.util.ArrayList<>();
+        for (Map.Entry<String, Float> entry : mapPairs.entrySet()) {
+            this.detectedObjectPairs.add(new Pair<>(entry.getKey(), entry.getValue()));
+        }
     }
 
     public String getFilePath() {
@@ -121,8 +167,4 @@ public class Photo {
         }
         return vec;
     }
-
-
-    // Room을 위한 기본 생성자
-    public Photo() {}
 }
