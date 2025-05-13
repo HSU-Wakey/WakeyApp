@@ -104,28 +104,24 @@ public class PhotoRepository {
                 List<Photo> allPhotos = database.photoDao().getAllPhotos();
                 Map<String, List<Photo>> countryGroups = new HashMap<>();
 
-                // 사진 국가별로 필터링 및 그룹화
                 for (Photo photo : allPhotos) {
-                    // 위치 정보가 없는 사진은 건너뜀
-                    if (photo.latitude == null || photo.longitude == null) {
-                        continue;
-                    }
+                    if (photo.latitude == null || photo.longitude == null) continue;
 
-                    // 국내 위치인지 확인
                     boolean isDomestic = locationUtils.isDomesticLocation(photo);
-
                     if (!isDomestic) {
-                        // 국가 그룹 키 결정 (locationDo는 국가로 설정됨)
-                        String countryKey = photo.locationDo != null ? photo.locationDo : "기타 국가";
+                        // ✅ 핵심: country 필드를 우선 사용
+                        String rawCountry = (photo.country != null && !photo.country.isEmpty())
+                                ? photo.country
+                                : photo.locationDo; // fallback
 
-                        // 국가명 한글화 (필요한 경우)
-                        String translatedCountryKey = locationUtils.getTranslatedCountryName(countryKey);
-
-                        if (!countryGroups.containsKey(translatedCountryKey)) {
-                            countryGroups.put(translatedCountryKey, new ArrayList<>());
+                        if (rawCountry == null || rawCountry.isEmpty()) {
+                            rawCountry = "기타 국가";
                         }
 
-                        countryGroups.get(translatedCountryKey).add(photo);
+                        // ✅ 한글 번역 적용
+                        String translated = locationUtils.getTranslatedCountryName(rawCountry);
+
+                        countryGroups.computeIfAbsent(translated, k -> new ArrayList<>()).add(photo);
                     }
                 }
 
@@ -138,6 +134,7 @@ public class PhotoRepository {
 
         return result;
     }
+
 
     /**
      * 특정 국가/지역의 사진 목록 가져오기
@@ -393,4 +390,14 @@ public class PhotoRepository {
             }
         });
     }
+
+    /**
+     * 특정 국가(country)의 사진 목록을 반환
+     */
+    public CompletableFuture<List<Photo>> getPhotosByCountry(String country) {
+        return CompletableFuture.supplyAsync(() ->
+                database.photoDao().getPhotosByCountry(country)
+        );
+    }
+
 }

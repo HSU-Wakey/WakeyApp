@@ -146,6 +146,7 @@ public class ImageRepository {
 
                 String locationDo = null, locationSi = null, locationGu = null, locationStreet = null;
                 Double latitude = null, longitude = null;
+                String countryName = null;
 
                 double[] latLng = ExifUtil.getLatLngFromExif(FileUtils.getPath(context, uri));
                 if (latLng != null) {
@@ -163,6 +164,8 @@ public class ImageRepository {
                         String thoroughfare = addr.getThoroughfare() != null ? addr.getThoroughfare() : "";
                         String featureName = addr.getFeatureName() != null ? addr.getFeatureName() : "";
                         locationStreet = (thoroughfare + " " + featureName).trim();
+
+                        countryName = addr.getCountryName();
                     }
                 }
 
@@ -178,13 +181,13 @@ public class ImageRepository {
                 photo.latitude = latitude;
                 photo.longitude = longitude;
                 photo.setDetectedObjectPairs(detectedPairs);  // ✅ 핵심 변경점
+                photo.country = countryName;
 
                 float[] embeddingVector = meta.getEmbeddingVector();
                 if (embeddingVector != null) {
                     photo.setEmbeddingVector(embeddingVector);
                 }
 
-                Log.d("ImageRepository", "🧬 저장 전 벡터 길이: " + (embeddingVector != null ? embeddingVector.length : 0));
                 Log.d("ImageRepository", "📥 저장될 객체 정보: " + detectedPairs);
 
                 db.photoDao().insertPhoto(photo);
