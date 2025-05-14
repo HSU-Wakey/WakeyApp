@@ -23,8 +23,9 @@ public class TimelineItem implements Parcelable {
     private double longitude;
 
     private String activityType;      // 활동 유형 (식사, 관광 등)
-
-
+    private float placeProbability;   // 장소 확률
+    private List<String> nearbyPOIs = new ArrayList<>();  // 주변 POI
+    private List<String> detectedObjects = new ArrayList<>();  // 감지된 객체들
     private List<Pair<String, Float>> detectedObjectPairs;
 
     public List<Pair<String, Float>> getDetectedObjectPairs() {
@@ -44,7 +45,7 @@ public class TimelineItem implements Parcelable {
         this.photoPath = photoPath;
         this.latLng = latLng;
         this.description = description;
-        this.detectedObjectPairs = detectedObjectPairs;
+        this.detectedObjectPairs = detectedObjectPairs != null ? detectedObjectPairs : new ArrayList<>();
     }
 
     // 확장된 생성자
@@ -56,7 +57,7 @@ public class TimelineItem implements Parcelable {
         this.latLng = latLng;
         this.description = description;
         this.activityType = activityType;
-        this.detectedObjectPairs = detectedObjectPairs;
+        this.detectedObjectPairs = detectedObjectPairs != null ? detectedObjectPairs : new ArrayList<>();
     }
 
     // Parcelable 구현
@@ -120,14 +121,18 @@ public class TimelineItem implements Parcelable {
         }
 
         // List 쓰기
-        dest.writeStringList(nearbyPOIs);
-        dest.writeStringList(detectedObjects);
+        dest.writeStringList(nearbyPOIs != null ? nearbyPOIs : new ArrayList<>());
+        dest.writeStringList(detectedObjects != null ? detectedObjects : new ArrayList<>());
 
         // detectedObjectPairs 쓰기
-        dest.writeInt(detectedObjectPairs.size());
-        for (Pair<String, Float> pair : detectedObjectPairs) {
-            dest.writeString(pair.first);
-            dest.writeFloat(pair.second);
+        if (detectedObjectPairs != null) {
+            dest.writeInt(detectedObjectPairs.size());
+            for (Pair<String, Float> pair : detectedObjectPairs) {
+                dest.writeString(pair.first);
+                dest.writeFloat(pair.second);
+            }
+        } else {
+            dest.writeInt(0); // null인 경우 크기 0으로 처리
         }
     }
 

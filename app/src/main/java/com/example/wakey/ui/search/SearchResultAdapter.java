@@ -109,27 +109,44 @@ public class SearchResultAdapter extends RecyclerView.Adapter<SearchResultAdapte
         if (photo.locationGu != null) location += photo.locationGu;
         location = location.trim();
 
+        // hashtags를 detectedObjectPairs로 변환
+        java.util.List<android.util.Pair<String, Float>> pairs = new java.util.ArrayList<>();
+        if (photo.hashtags != null && !photo.hashtags.isEmpty()) {
+            String[] tags = photo.hashtags.split("#");
+            for (String tag : tags) {
+                if (!tag.trim().isEmpty()) {
+                    pairs.add(new android.util.Pair<>(tag.trim(), 1.0f));
+                }
+            }
+        }
+
+        // 기존 detectedObjectPairs 추가 (photo 객체에 있다면)
+        if (photo.getDetectedObjectPairs() != null && !photo.getDetectedObjectPairs().isEmpty()) {
+            pairs.addAll(photo.getDetectedObjectPairs());
+        }
+
         // TimelineItem 생성 (매개변수가 필요한 생성자 사용)
         com.example.wakey.data.model.TimelineItem item = new com.example.wakey.data.model.TimelineItem(
                 date,
                 location,
                 photo.filePath,
                 latLng,
-                "" // description (필요에 따라 수정)
+                "", // description (필요에 따라 수정)
+                pairs
         );
 
-        // 해시태그 정보 설정 (Photo 객체에서 가져오기)
-        if (photo.hashtags != null && !photo.hashtags.isEmpty()) {
-            // hashtags를 detectedObjectPairs로 변환
-            String[] tags = photo.hashtags.split("#");
-            java.util.List<android.util.Pair<String, Float>> pairs = new java.util.ArrayList<>();
-            for (String tag : tags) {
-                if (!tag.trim().isEmpty()) {
-                    pairs.add(new android.util.Pair<>(tag.trim(), 1.0f));
-                }
-            }
-            item.setDetectedObjectPairs(pairs);
-        }
+//        // 해시태그 정보 설정 (Photo 객체에서 가져오기)
+//        if (photo.hashtags != null && !photo.hashtags.isEmpty()) {
+//            // hashtags를 detectedObjectPairs로 변환
+//            String[] tags = photo.hashtags.split("#");
+//            java.util.List<android.util.Pair<String, Float>> pairs = new java.util.ArrayList<>();
+//            for (String tag : tags) {
+//                if (!tag.trim().isEmpty()) {
+//                    pairs.add(new android.util.Pair<>(tag.trim(), 1.0f));
+//                }
+//            }
+//            item.setDetectedObjectPairs(pairs);
+//        }
 
         return item;
     }
