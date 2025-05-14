@@ -67,4 +67,5 @@ visionCommon = { group = "com.google.mlkit", name = "vision-common", version.ref
 compiler = { group = "androidx.databinding", name = "compiler", version.ref = "compiler" }
 
 [plugins]
-android-application        = { id = "com.android.application", version.ref = "agp" }
+android-application = { id = "com.android.application", version.ref = "agp" }
+
