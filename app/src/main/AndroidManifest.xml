@@ -44,8 +44,16 @@
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
 
+        <!-- 여기에 SmartAlbumActivity 추가 -->
+        <activity
+            android:name=".ui.album.SmartAlbumActivity"
+            android:exported="false" />
+
+        <!-- 해외 지역 액티비티 -->
+        <activity
+            android:name=".ui.album.overseas.OverseasRegionActivity"
+            android:exported="false" />
+
     </application>
-
-
 
 </manifest>

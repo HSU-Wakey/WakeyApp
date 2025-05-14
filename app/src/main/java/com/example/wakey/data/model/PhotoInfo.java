@@ -1,5 +1,6 @@
 package com.example.wakey.data.model;
 
+import android.util.Pair;
 import com.google.android.gms.maps.model.LatLng;
 
 import java.util.Date;
@@ -18,6 +19,8 @@ public class PhotoInfo {
     private String locationDo;
     private String locationGu;
     private String locationStreet;
+    // ✅ 추가: detectedObjectPairs 필드
+    private List<Pair<String, Float>> detectedObjectPairs;
 
     // ✅ 전체 필드 포함 생성자
     public PhotoInfo(String filePath, Date dateTaken, LatLng latLng,
@@ -32,6 +35,23 @@ public class PhotoInfo {
         this.address = address;
         this.description = description;
         this.objects = objects;
+    }
+
+    // ✅ detectedObjectPairs 매개변수를 포함하는 새 생성자
+    public PhotoInfo(String filePath, Date dateTaken, LatLng latLng,
+                     String placeId, String placeName,
+                     String address, String description,
+                     List<String> objects,
+                     List<Pair<String, Float>> detectedObjectPairs) {
+        this.filePath = filePath;
+        this.dateTaken = dateTaken;
+        this.latLng = latLng;
+        this.placeId = placeId;
+        this.placeName = placeName;
+        this.address = address;
+        this.description = description;
+        this.objects = objects;
+        this.detectedObjectPairs = detectedObjectPairs;
     }
 
     // 필요한 경우만 사용하는 생성자들
@@ -104,6 +124,11 @@ public class PhotoInfo {
         return objects;
     }
 
+    // ✅ 추가된 getter
+    public List<Pair<String, Float>> getDetectedObjectPairs() {
+        return detectedObjectPairs;
+    }
+
     // ✅ Setter
     public void setPlaceId(String placeId) {
         this.placeId = placeId;
@@ -135,5 +160,10 @@ public class PhotoInfo {
 
     public void setObjects(List<String> objects) {
         this.objects = objects;
+    }
+
+    // ✅ 추가된 setter
+    public void setDetectedObjectPairs(List<Pair<String, Float>> detectedObjectPairs) {
+        this.detectedObjectPairs = detectedObjectPairs;
     }
 }

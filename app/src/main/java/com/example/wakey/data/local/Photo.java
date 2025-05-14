@@ -58,6 +58,10 @@ public class Photo {
     @ColumnInfo(name = "detectedObjects")
     public String detectedObjects;
 
+    // ⭐ 국가명 저장 필드 (추가됨)
+    @ColumnInfo(name = "country")
+    public String country;
+
     // ⭐ 벡터 문자열 저장용 필드
     @ColumnInfo(name = "embedding_vector_str")
     public String embeddingVectorStr;
@@ -88,6 +92,32 @@ public class Photo {
         this.latitude = latitude;
         this.longitude = longitude;
         this.detectedObjects = detectedObjects;
+    }
+
+    // ✅ country 필드를 포함한 생성자 추가
+    @Ignore
+    public Photo(String filePath,
+                 String dateTaken,
+                 String locationDo,
+                 String locationSi,
+                 String locationGu,
+                 String locationStreet,
+                 String caption,
+                 Double latitude,
+                 Double longitude,
+                 String detectedObjects,
+                 String country) {
+        this.filePath = filePath;
+        this.dateTaken = dateTaken;
+        this.locationDo = locationDo;
+        this.locationSi = locationSi;
+        this.locationGu = locationGu;
+        this.locationStreet = locationStreet;
+        this.caption = caption;
+        this.latitude = latitude;
+        this.longitude = longitude;
+        this.detectedObjects = detectedObjects;
+        this.country = country;
     }
 
     // Room을 위한 기본 생성자
@@ -133,6 +163,14 @@ public class Photo {
 
     public String getFilePath() {
         return filePath;
+    }
+
+    public String getCountry() {
+        return country;
+    }
+
+    public void setCountry(String country) {
+        this.country = country;
     }
 
     public void setEmbeddingVector(float[] vector) {

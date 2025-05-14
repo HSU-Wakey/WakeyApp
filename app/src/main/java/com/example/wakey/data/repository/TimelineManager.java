@@ -127,7 +127,7 @@ public class TimelineManager {
                     description
             );
 
-            item.setDetectedObjects(objects);
+            item.setDetectedObjects(String.valueOf(objects));
             item.setLatLng(latLng); // 🔥 LatLng 재설정 (getLatLng() 내부에서 latitude/longitude도 업데이트됨)
             items.add(item);
         }
