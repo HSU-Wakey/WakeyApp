@@ -62,6 +62,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private UIManager uiManager;
     private DataManager dataManager;
     private ApiManager apiManager;
+
     private TextView dateTextView;
     private ImageButton mapButton, albumButton, searchButton, prevDateBtn, nextDateBtn;
     private TextView bottomSheetDateTextView;
@@ -335,7 +336,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             }
         });
 
-        // 추가: StoryGenerator 초기화 및 설정
+        // StoryGenerator 초기화
         StoryGenerator.getInstance(this);
     }
 
@@ -435,19 +436,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         });
     }
 
-    private void loadPhotoData() {
-        new Thread(() -> {
-            List<Uri> imageUris = ImageUtils.getAllImageUris(this);
-            for (Uri uri : imageUris) {
-                Bitmap bitmap = ImageUtils.loadBitmapFromUri(this, uri);
-                if (bitmap != null) {
-                    ImageMeta meta = imageRepository.classifyImage(uri, bitmap);
-                    imageRepository.savePhotoToDB(uri, meta);
-                }
-            }
-        }).start();
-    }
-
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
@@ -513,9 +501,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                         Log.d(TAG, "스토리 생성 완료: " + itemsWithStories.size() + "개 항목");
                         // 타임라인 데이터 업데이트 (스토리가 포함된)
                         uiManager.updateTimelineData(itemsWithStories);
-
-                        // 자동 전환 제거 - 사용자가 명시적으로 스토리 탭을 클릭할 때만 전환됨
-                        // uiManager.switchToStoryTab(); <- 이 줄 제거
 
                         // 대신 스토리 준비 완료 알림 표시 (선택 사항)
                         Toast.makeText(MainActivity.this, "스토리가 준비되었습니다!", Toast.LENGTH_SHORT).show();
@@ -594,11 +579,9 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     protected void onResume() {
         super.onResume();
-        // 더 이상 StoryFragment를 사용하지 않으므로 이 코드는 필요 없습니다.
-        // UIManager가 직접 스토리 관련 기능을 처리합니다.
     }
 
-    // MainActivity.java에서 setupStoryFragment() 메서드 제거하고 대신:
+    // MainActivity.java에서 스토리 구성 요소 초기화
     private void initStoryComponents() {
         // UIManager를 통해 스토리 컴포넌트 초기화
         uiManager = UIManager.getInstance(this);
@@ -606,7 +589,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         // StoryGenerator 초기화
         StoryGenerator.getInstance(this);
 
-        // UIManager가 바텀 시트 설정 시 storyRecyclerView까지 함께 설정하도록 함
+        // UIManager가 바텀 시트 설정 시 스토리 관련 컴포넌트 설정
         View bottomSheetView = findViewById(R.id.bottom_sheet);
         if (bottomSheetView != null) {
             uiManager.setupBottomSheet(bottomSheetView, new UIManager.OnTimelineItemClickListener() {
@@ -626,12 +609,4 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             Log.e(TAG, "⭐⭐⭐ 바텀 시트 뷰를 찾을 수 없음");
         }
     }
-
-//    @Override
-//    protected void onDestroy() {
-//        super.onDestroy();
-//
-//        // StoryGenerator 자원 해제
-//        StoryGenerator.getInstance(this).release();
-//    }
 }

@@ -871,10 +871,6 @@ public class UIManager {
 
         void onOptionsApplied();
     }
-    // UIManager.java에 추가
-    // In UIManager.java, enhance the switchToStoryTab method:
-
-    // UIManager.java의 switchToStoryTab 메서드 수정
 
     public void switchToStoryTab() {
         Log.d(TAG, "⭐⭐⭐ 스토리 탭으로 전환 시도");

@@ -36,8 +36,8 @@ import com.example.wakey.data.model.TimelineItem;
 import com.example.wakey.ui.search.HashtagPhotosActivity;
 import com.example.wakey.ui.timeline.TimelineManager;
 import com.example.wakey.data.util.DateUtil;
-import com.example.wakey.tflite.ESRGANUpscaler;
 import com.example.wakey.tflite.ImageClassifier;
+import com.example.wakey.tflite.ESRGANUpscaler;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -371,6 +371,7 @@ public class PhotoDetailFragment extends DialogFragment {
                     // Use detected objects from DB
                     timelineItem.setDetectedObjectPairs(latestPhoto.getDetectedObjectPairs());
                     List<Pair<String, Float>> predictions = timelineItem.getDetectedObjectPairs();
+                    Log.d("HASHTAG_CHECK", "✅ DB에서 조회된 예측값: " + predictions);
 
                     requireActivity().runOnUiThread(() -> {
                         createHashtags(predictions);
@@ -386,8 +387,10 @@ public class PhotoDetailFragment extends DialogFragment {
                             List<Pair<String, Float>> predictions;
 
                             if (timelineItem.getDetectedObjectPairs() != null && !timelineItem.getDetectedObjectPairs().isEmpty()) {
+                                Log.d("HASHTAG_CHECK", "🟢 기존 예측 사용: " + timelineItem.getDetectedObjectPairs().toString());
                                 predictions = timelineItem.getDetectedObjectPairs();
                             } else {
+                                Log.d("HASHTAG_CHECK", "🔴 예측 없음 → 모델 재분석 시작");
                                 // Run image classification
                                 ImageClassifier classifier = new ImageClassifier(requireContext());
                                 predictions = classifier.classifyImage(bitmap);
@@ -400,6 +403,7 @@ public class PhotoDetailFragment extends DialogFragment {
                                 });
                             }
 
+                            Log.d("HASHTAG_CHECK", "🔖 최종 예측값: " + predictions);
                             List<Pair<String, Float>> finalPredictions = predictions;
                             requireActivity().runOnUiThread(() -> {
                                 createHashtags(finalPredictions);
@@ -417,6 +421,7 @@ public class PhotoDetailFragment extends DialogFragment {
      * Creates hashtag views from predictions
      */
     private void createHashtags(List<Pair<String, Float>> predictions) {
+        Log.d("HASHTAG_CHECK", "🏷️ 해시태그 생성 진입, 예측 개수: " + (predictions != null ? predictions.size() : 0));
         View view = getView();
         if (view == null) return;
 
@@ -464,6 +469,9 @@ public class PhotoDetailFragment extends DialogFragment {
                         clickedHashtag = clickedHashtag.substring(1);
                     }
 
+                    Log.d("HashtagClick", "클릭한 해시태그(전): " + hashtag);
+                    Log.d("HashtagClick", "클릭한 해시태그(후): " + clickedHashtag);
+
                     Intent intent = new Intent(getActivity(), HashtagPhotosActivity.class);
                     intent.putExtra("hashtag", clickedHashtag);
                     startActivity(intent);
@@ -501,13 +509,20 @@ public class PhotoDetailFragment extends DialogFragment {
         // Save hashtags to DB
         if (timelineItem != null && timelineItem.getPhotoPath() != null) {
             String finalHashtags = hashtagBuilder.toString().trim();
+            Log.d("HASHTAG_SAVE", "저장할 해시태그: " + finalHashtags);
 
             executor.execute(() -> {
                 AppDatabase db = AppDatabase.getInstance(requireContext());
                 db.photoDao().updateHashtags(timelineItem.getPhotoPath(), finalHashtags);
+
+                // 저장 후 확인
+                String savedHashtags = db.photoDao().getHashtagsByPath(timelineItem.getPhotoPath());
+                Log.d("HASHTAG_SAVE", "저장된 해시태그: " + savedHashtags);
             });
         }
     }
+
+    // 기존의 updateUI 메서드는 ViewPager 구현으로 대체되었으므로 제거
 
     /**
      * ViewPager adapter for photos

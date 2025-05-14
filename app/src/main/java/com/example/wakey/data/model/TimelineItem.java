@@ -109,7 +109,7 @@ public class TimelineItem implements Parcelable, Serializable {
         this.detectedObjectPairs = builder.detectedObjectPairs;
         this.activityType = builder.activityType;
         this.placeProbability = builder.placeProbability;
-        this.nearbyPOIs = builder.nearbyPOIs;
+        this.nearbyPOIs = builder.nearbyPOIs != null ? builder.nearbyPOIs : new ArrayList<>();
 
         // LatLng가 있으면 위도/경도 별도 저장
         if (builder.latLng != null) {
@@ -443,7 +443,12 @@ public class TimelineItem implements Parcelable, Serializable {
         }
 
         public TimelineItem build() {
-            return new TimelineItem(this);
+            TimelineItem item = new TimelineItem(this);
+            // detectedObjectPairs가 설정된 경우 별도 처리 - WA-74 브랜치 로직 통합
+            if (detectedObjectPairs != null) {
+                item.setDetectedObjectPairs(detectedObjectPairs);
+            }
+            return item;
         }
     }
 }
