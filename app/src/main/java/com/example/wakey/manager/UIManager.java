@@ -22,8 +22,10 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.FragmentManager;
+import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.viewpager2.widget.ViewPager2;
 
 import com.bumptech.glide.Glide;
 import com.example.wakey.R;
@@ -40,6 +42,7 @@ import com.example.wakey.ui.map.PlaceDetailsBottomSheet;
 import com.example.wakey.ui.photo.PhotoDetailFragment;
 import com.example.wakey.ui.search.SearchActivity;
 import com.example.wakey.ui.search.SearchHistoryAdapter;
+import com.example.wakey.ui.search.SearchResultAdapter;
 import com.example.wakey.ui.timeline.TimelineAdapter;
 import com.example.wakey.ui.timeline.TimelineRenderer;
 import com.example.wakey.util.ToastManager;
@@ -47,6 +50,7 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.chip.Chip;
 import com.google.android.material.datepicker.MaterialDatePicker;
 import com.google.android.material.tabs.TabLayout;
+import com.google.android.material.tabs.TabLayoutMediator;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -418,82 +422,35 @@ public class UIManager {
      */
     public void showSearchDialog() {
         if (activity == null) return;
-        Intent intent = new Intent(activity, SearchActivity.class);
-        intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-
-        // 검색 서비스 초기화
-        SearchService searchService = SearchService.getInstance(context);
 
         // 1. 대화상자 레이아웃 로드
         View searchView = LayoutInflater.from(activity).inflate(R.layout.dialog_smart_search, null);
 
-        // 2. 검색 기록 데이터 준비
-        List<SearchHistoryItem> searchHistory = SearchHistoryRepository.getInstance(context).getSearchHistory();
-
-        // 데이터가 없으면 더미 데이터 표시
-        if (searchHistory == null || searchHistory.isEmpty()) {
-            searchHistory = new ArrayList<>();
-            searchHistory.add(new SearchHistoryItem("서울", null, System.currentTimeMillis()));
-            searchHistory.add(new SearchHistoryItem("카페", null, System.currentTimeMillis() - 3600000));
-            searchHistory.add(new SearchHistoryItem("공원", null, System.currentTimeMillis() - 7200000));
-        }
-
-        // 3. RecyclerView 및 어댑터 설정
-        RecyclerView recentSearchRecyclerView = searchView.findViewById(R.id.recentSearchRecyclerView);
-        LinearLayoutManager layoutManager = new LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false);
-        recentSearchRecyclerView.setLayoutManager(layoutManager);
-
-        SearchHistoryAdapter adapter = new SearchHistoryAdapter(searchHistory);
-        recentSearchRecyclerView.setAdapter(adapter);
-
-        // 4. 검색 기록 항목 클릭 리스너 설정
-        adapter.setOnHistoryItemClickListener(item -> {
-            if (searchListener != null) {
-                searchListener.onSearchPerformed(item.getQuery());
-            }
-            if (searchDialog != null && searchDialog.isShowing()) {
-                searchDialog.dismiss();
-            }
-        });
-
-        // 5. 추천 검색어 설정 - 첨부된 이미지와 동일한 추천 검색어로 수정
-        List<String> popularTerms = new ArrayList<>();
-        popularTerms.add("광주광역시 학술대회");
-        popularTerms.add("피자");
-        popularTerms.add("2025년 여행");
-
-        Chip suggestionChip1 = searchView.findViewById(R.id.suggestionChip1);
-        Chip suggestionChip2 = searchView.findViewById(R.id.suggestionChip2);
-        Chip suggestionChip3 = searchView.findViewById(R.id.suggestionChip3);
-
-        if (popularTerms.size() >= 1) suggestionChip1.setText(popularTerms.get(0));
-        if (popularTerms.size() >= 2) suggestionChip2.setText(popularTerms.get(1));
-        if (popularTerms.size() >= 3) suggestionChip3.setText(popularTerms.get(2));
-
-        View.OnClickListener chipClickListener = v -> {
-            String chipText = ((Chip) v).getText().toString();
-            if (searchListener != null) {
-                searchListener.onSearchPerformed(chipText);
-            }
-            if (searchDialog != null && searchDialog.isShowing()) {
-                searchDialog.dismiss();
-            }
-        };
-
-        suggestionChip1.setOnClickListener(chipClickListener);
-        suggestionChip2.setOnClickListener(chipClickListener);
-        suggestionChip3.setOnClickListener(chipClickListener);
-
-        // 6. 검색 EditText 설정
+        // 2. 검색 EditText 설정
         EditText searchEditText = searchView.findViewById(R.id.searchEditText);
         TextView resultTextView = searchView.findViewById(R.id.searchResultTextView);
-        ImageView resultImageView = searchView.findViewById(R.id.resultImageView);
+        TextView resultCountTextView = searchView.findViewById(R.id.resultCountTextView);
+
+        // ViewPager2 대신 RecyclerView 사용 - 격자형 레이아웃으로 변경
+        RecyclerView resultGridRecyclerView = searchView.findViewById(R.id.resultGridRecyclerView);
+
+        // 격자형 레이아웃 매니저 설정 (3열)
+        GridLayoutManager layoutManager = new GridLayoutManager(activity, 3);
+        resultGridRecyclerView.setLayoutManager(layoutManager);
+
+        // 어댑터 초기화
+        SearchResultAdapter adapter = new SearchResultAdapter(new ArrayList<>());
+        resultGridRecyclerView.setAdapter(adapter);
 
         searchEditText.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH) {
                 String query = searchEditText.getText().toString().trim();
                 if (!query.isEmpty()) {
                     resultTextView.setText("🔍 \"" + query + "\" 검색 중...");
+
+                    // UI 요소 숨기기
+                    resultCountTextView.setVisibility(View.GONE);
+                    resultGridRecyclerView.setVisibility(View.GONE);
 
                     new Thread(() -> {
                         try {
@@ -506,29 +463,42 @@ public class UIManager {
 
                             // 2. DB에서 이미지 벡터 가져와 유사도 비교
                             List<Photo> photoList = AppDatabase.getInstance(context).photoDao().getAllPhotos();
-                            float maxSim = -1f;
-                            Photo bestPhoto = null;
+                            List<SearchResultAdapter.SearchResult> allResults = new ArrayList<>();
+
                             for (Photo photo : photoList) {
                                 float[] imageVec = photo.getEmbeddingVector();
                                 if (imageVec == null) continue;
+
                                 float sim = SimilarityUtil.cosineSimilarity(textVec, imageVec);
-                                if (sim > maxSim) {
-                                    maxSim = sim;
-                                    bestPhoto = photo;
+                                allResults.add(new SearchResultAdapter.SearchResult(photo, sim));
+                            }
+
+                            // 3. 유사도 순으로 정렬
+                            Collections.sort(allResults, (a, b) -> Float.compare(b.similarity, a.similarity));
+
+                            // 4. 유사도 0.25 이상인 모든 결과 필터링
+                            float MINIMUM_SIMILARITY = 0.25f;
+                            List<SearchResultAdapter.SearchResult> filteredResults = new ArrayList<>();
+                            for (SearchResultAdapter.SearchResult result : allResults) {
+                                if (result.similarity >= MINIMUM_SIMILARITY) {
+                                    filteredResults.add(result);
                                 }
                             }
 
-                            // 3. UI 업데이트
-                            Photo finalBestPhoto = bestPhoto;
-                            float finalMaxSim = maxSim;
+                            // 5. UI 업데이트
                             activity.runOnUiThread(() -> {
-                                if (finalBestPhoto != null) {
-                                    Glide.with(context)
-                                            .load(Uri.parse(finalBestPhoto.getFilePath()))
-                                            .into(resultImageView);
-                                    resultTextView.setText("✅ 가장 유사한 이미지 유사도: " + String.format("%.3f", finalMaxSim));
+                                if (!filteredResults.isEmpty()) {
+                                    adapter.updateResults(filteredResults);
+                                    resultCountTextView.setText(String.format("검색 결과: %d/%d (유사도 %.3f 이상)",
+                                            filteredResults.size(), allResults.size(), MINIMUM_SIMILARITY));
+                                    resultTextView.setText(String.format("유사도 %.3f 이상인 모든 이미지 (%d개)",
+                                            MINIMUM_SIMILARITY, filteredResults.size()));
+
+                                    // UI 요소 표시
+                                    resultCountTextView.setVisibility(View.VISIBLE);
+                                    resultGridRecyclerView.setVisibility(View.VISIBLE);
                                 } else {
-                                    resultTextView.setText("❌ 유사한 이미지를 찾을 수 없습니다.");
+                                    resultTextView.setText(String.format("❌ 유사도 %.3f 이상인 이미지가 없습니다.", MINIMUM_SIMILARITY));
                                 }
                             });
                         } catch (Exception e) {
@@ -561,12 +531,6 @@ public class UIManager {
         }
 
         // 8. Dialog 생성 (전체화면 테마 적용)
-         /*
-         1) requestWindowFeature 제거 - 이미 Dialog.Builder에서 처리됨
-         2) 백그라운드 블러 처리 try-catch로 감싸기
-         */
-
-        // Dialog 생성
         AlertDialog.Builder builder = new AlertDialog.Builder(activity, R.style.FullScreenDialogStyle);
         builder.setView(searchView);
         searchDialog = builder.create();
@@ -575,12 +539,15 @@ public class UIManager {
         if (searchDialog.getWindow() != null) {
             Window window = searchDialog.getWindow();
 
-            // 배경 설정 - 반투명 흰색
-            window.setBackgroundDrawable(new ColorDrawable(Color.parseColor("#BFFFFFFF")));
+            // 배경 설정 - 반투명 밝은 회색
+            window.setBackgroundDrawable(new ColorDrawable(Color.parseColor("#80DDDDDD")));
 
             // 전체 화면 레이아웃 설정
             window.setLayout(WindowManager.LayoutParams.MATCH_PARENT,
                     WindowManager.LayoutParams.MATCH_PARENT);
+
+            // 키보드가 올라올 때 레이아웃 조정 방식 설정
+            window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN);
 
             // 상태바까지 확장
             window.setFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
@@ -589,7 +556,7 @@ public class UIManager {
             // 블러 효과 (Android 12 이상만 지원)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 try {
-                    window.setBackgroundBlurRadius(25);
+                    window.setBackgroundBlurRadius(20); // 블러 강도 약간 줄임 25 -> 20
                 } catch (Exception e) {
                     // 일부 기기에서는 지원하지 않을 수 있음
                     // 오류 무시하고 계속 진행

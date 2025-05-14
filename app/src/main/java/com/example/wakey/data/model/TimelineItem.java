@@ -1,6 +1,10 @@
 package com.example.wakey.data.model;
 
+import android.os.Parcel;
+import android.os.Parcelable;
 import android.util.Pair;
+
+import androidx.annotation.NonNull;
 
 import com.google.android.gms.maps.model.LatLng;
 
@@ -9,7 +13,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-public class TimelineItem implements Serializable {
+public class TimelineItem implements Parcelable {
     private Date time;
     private String location;
     private String photoPath;
@@ -55,6 +59,94 @@ public class TimelineItem implements Serializable {
         this.detectedObjectPairs = detectedObjectPairs;
     }
 
+    // Parcelable 구현
+    protected TimelineItem(Parcel in) {
+        // Date 읽기
+        long timeMillis = in.readLong();
+        time = new Date(timeMillis);
+
+        location = in.readString();
+        photoPath = in.readString();
+        description = in.readString();
+        latitude = in.readDouble();
+        longitude = in.readDouble();
+        activityType = in.readString();
+        placeProbability = in.readFloat();
+
+        // LatLng 읽기
+        if (in.readByte() == 1) {
+            double lat = in.readDouble();
+            double lng = in.readDouble();
+            latLng = new LatLng(lat, lng);
+        }
+
+        // List 읽기 - 새로운 ArrayList 생성
+        nearbyPOIs = new ArrayList<>();
+        in.readStringList(nearbyPOIs);
+
+        detectedObjects = new ArrayList<>();
+        in.readStringList(detectedObjects);
+
+        // detectedObjectPairs 읽기
+        int pairsSize = in.readInt();
+        detectedObjectPairs = new ArrayList<>();
+        for (int i = 0; i < pairsSize; i++) {
+            String key = in.readString();
+            Float value = in.readFloat();
+            detectedObjectPairs.add(new Pair<>(key, value));
+        }
+    }
+
+    @Override
+    public void writeToParcel(@NonNull Parcel dest, int flags) {
+        // Date 쓰기
+        dest.writeLong(time != null ? time.getTime() : 0);
+
+        dest.writeString(location);
+        dest.writeString(photoPath);
+        dest.writeString(description);
+        dest.writeDouble(latitude);
+        dest.writeDouble(longitude);
+        dest.writeString(activityType);
+        dest.writeFloat(placeProbability);
+
+        // LatLng 쓰기
+        if (latLng != null) {
+            dest.writeByte((byte) 1);
+            dest.writeDouble(latLng.latitude);
+            dest.writeDouble(latLng.longitude);
+        } else {
+            dest.writeByte((byte) 0);
+        }
+
+        // List 쓰기
+        dest.writeStringList(nearbyPOIs);
+        dest.writeStringList(detectedObjects);
+
+        // detectedObjectPairs 쓰기
+        dest.writeInt(detectedObjectPairs.size());
+        for (Pair<String, Float> pair : detectedObjectPairs) {
+            dest.writeString(pair.first);
+            dest.writeFloat(pair.second);
+        }
+    }
+
+    @Override
+    public int describeContents() {
+        return 0;
+    }
+
+    public static final Parcelable.Creator<TimelineItem> CREATOR = new Parcelable.Creator<TimelineItem>() {
+        @Override
+        public TimelineItem createFromParcel(Parcel in) {
+            return new TimelineItem(in);
+        }
+
+        @Override
+        public TimelineItem[] newArray(int size) {
+            return new TimelineItem[size];
+        }
+    };
 
     // Getters
     public Date getTime() {
@@ -160,4 +252,23 @@ public class TimelineItem implements Serializable {
             return this;
         }
     }
+
+//    private void writeObject(java.io.ObjectOutputStream out) throws java.io.IOException {
+//        out.defaultWriteObject();
+//
+//        // 직렬화하기 전에 새로운 ArrayList로 복사
+//        ArrayList<Pair<String, Float>> safePairs = new ArrayList<>(detectedObjectPairs);
+//        out.writeObject(safePairs);
+//    }
+//
+//    private void readObject(java.io.ObjectInputStream in)
+//            throws java.io.IOException, ClassNotFoundException {
+//        in.defaultReadObject();
+//
+//        // ArrayList로 읽어들이기
+//        @SuppressWarnings("unchecked")
+//        ArrayList<Pair<String, Float>> safePairs =
+//                (ArrayList<Pair<String, Float>>) in.readObject();
+//        this.detectedObjectPairs = new ArrayList<>(safePairs);
+//    }
 }

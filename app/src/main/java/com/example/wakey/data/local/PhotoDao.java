@@ -37,6 +37,7 @@ public interface PhotoDao {
     // 객체 인식 결과 있는 사진만
     @Query("SELECT * FROM Photo WHERE detectedObjectPairs IS NOT NULL")
     List<Photo> getPhotosWithObjects();
+
     // 날짜만 추출 (yyyy-MM-dd)
     @Query("SELECT DISTINCT SUBSTR(dateTaken, 1, 10) as date FROM Photo")
     List<String> getAvailableDates();
@@ -54,7 +55,6 @@ public interface PhotoDao {
     Photo getPhotoByFilePath(String filePath);
 
     // 모델 예측 결과 업데이트
-
     @Query("UPDATE Photo SET detectedObjectPairs = :detectedPairs WHERE filePath = :filePath")
     void updateDetectedObjectPairs(String filePath, List<Pair<String, Float>> detectedPairs);
 
@@ -69,6 +69,26 @@ public interface PhotoDao {
     // 예측된 객체 결과와 함께 저장된 사진 조회
     @Query("SELECT * FROM Photo WHERE filePath = :filePath LIMIT 1")
     Photo getPhotoWithDetectedPairs(String filePath);
+
+    @Query("SELECT * FROM Photo WHERE hashtags LIKE '%#' || :hashtag || ' %' OR hashtags LIKE '%#' || :hashtag || '%' OR hashtags LIKE '#' || :hashtag || ' %' OR hashtags = '#' || :hashtag")
+    List<Photo> getPhotosByHashtag(String hashtag);
+
+    @Query("SELECT hashtags FROM Photo WHERE filePath = :photoPath")
+    String getHashtagsByPath(String photoPath);
+
+    @Query("UPDATE Photo SET hashtags = :hashtags WHERE filePath = :photoPath")
+    void updateHashtags(String photoPath, String hashtags);
+
+    @Query("SELECT * FROM Photo WHERE filePath = :filePath")
+    Photo getPhotoByPath(String filePath);
+
+    // 추가: 해시태그가 없는 사진들 조회 (개수 제한)
+    @Query("SELECT * FROM Photo WHERE hashtags IS NULL OR hashtags = '' LIMIT :limit")
+    List<Photo> getPhotosWithoutHashtagsLimit(int limit);
+
+    // 추가: 해시태그가 없는 사진 개수 조회
+    @Query("SELECT COUNT(*) FROM Photo WHERE hashtags IS NULL OR hashtags = ''")
+    int countPhotosWithoutHashtags();
 
     @Query("SELECT DISTINCT country FROM Photo WHERE country IS NOT NULL")
     List<String> getAllCountries();
