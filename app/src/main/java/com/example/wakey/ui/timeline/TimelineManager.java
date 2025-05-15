@@ -9,12 +9,14 @@ import android.util.Log;
 import android.os.Handler;
 import android.os.Looper;
 
+import com.example.wakey.MainActivity;
 import com.example.wakey.R;
 import com.example.wakey.data.local.AppDatabase;
 import com.example.wakey.data.local.Photo;
 import com.example.wakey.data.local.PhotoDao;
 import com.example.wakey.data.model.PhotoInfo;
 import com.example.wakey.data.model.TimelineItem;
+import com.example.wakey.manager.UIManager;
 import com.example.wakey.service.ClusterService;
 import com.google.android.gms.maps.model.LatLng;
 
@@ -51,6 +53,11 @@ public class TimelineManager {
 
     private List<TimelineItem> currentTimelineItems = new ArrayList<>();
     private String currentDate;
+
+    private StoryAdapter storyAdapter;
+    public void setStoryAdapter(StoryAdapter adapter) {
+        this.storyAdapter = adapter;
+    }
 
     // 스토리 생성 리스너
     public interface OnStoryGeneratedListener {
@@ -1240,4 +1247,59 @@ public class TimelineManager {
             }
         });
     }
+
+    // TimelineManager.java에 추가
+    // In com.example.wakey.data.repository.TimelineManager.java, modify the updateTimelineItem method:
+
+    public void updateTimelineItem(TimelineItem updatedItem) {
+        Log.d(TAG, "🔄 updateTimelineItem 호출됨: " + updatedItem.getPhotoPath());
+        Log.d(TAG, "🔄 storyAdapter 상태: " + (storyAdapter != null ? "설정됨" : "설정되지 않음"));
+        Log.d(TAG, "🔄 업데이트 전 스토리: " + updatedItem.getStory());
+
+        // 기존 타임라인 항목 찾기 및 업데이트
+        boolean itemFound = false;
+        for (int i = 0; i < currentTimelineItems.size(); i++) {
+            TimelineItem item = currentTimelineItems.get(i);
+            if (item.getPhotoPath() != null &&
+                    item.getPhotoPath().equals(updatedItem.getPhotoPath())) {
+                // 스토리 필드 직접 업데이트
+                Log.d(TAG, "🔄 아이템 찾음, 인덱스: " + i);
+                currentTimelineItems.set(i, updatedItem);
+                itemFound = true;
+                break;
+            }
+        }
+
+        if (!itemFound) {
+            Log.e(TAG, "❌ 업데이트할 아이템을 찾을 수 없음: " + updatedItem.getPhotoPath());
+        }
+
+        if (storyAdapter != null) {
+            // UI 스레드에서 실행 보장
+            new Handler(Looper.getMainLooper()).post(() -> {
+                try {
+                    Log.d(TAG, "🔄 storyAdapter.updateItem 호출");
+                    storyAdapter.updateItem(updatedItem);
+
+                    Log.d(TAG, "🔄 storyAdapter.updateItems 호출");
+                    storyAdapter.updateItems(currentTimelineItems);
+
+                    // notifyDataSetChanged 강제 호출 추가
+                    Log.d(TAG, "🔄 어댑터 데이터 변경 알림 호출");
+                    storyAdapter.notifyDataSetChanged();
+
+                    // 스토리 탭으로 전환
+                    if (context instanceof MainActivity) {
+                        Log.d(TAG, "🔄 UIManager.switchToStoryTab 호출");
+                        UIManager.getInstance(context).switchToStoryTab();
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "❌ 어댑터 업데이트 중 오류: " + e.getMessage(), e);
+                }
+            });
+        } else {
+            Log.e(TAG, "❌ storyAdapter가 설정되지 않았습니다.");
+        }
+    }
+
 }

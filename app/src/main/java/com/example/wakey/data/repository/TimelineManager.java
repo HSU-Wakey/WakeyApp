@@ -2,11 +2,17 @@
 
 package com.example.wakey.data.repository;
 
+import static android.content.ContentValues.TAG;
+
 import android.content.Context;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 
+import com.example.wakey.MainActivity;
 import com.example.wakey.data.model.PhotoInfo;
 import com.example.wakey.data.model.TimelineItem;
+import com.example.wakey.manager.UIManager;
 import com.example.wakey.service.ClusterService;
 import com.google.android.gms.maps.model.LatLng;
 
@@ -14,7 +20,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
-
+import com.example.wakey.ui.timeline.StoryAdapter;
 /**
  * 타임라인 데이터 관리 클래스
  */
@@ -26,6 +32,13 @@ public class TimelineManager {
     private List<TimelineItem> currentTimelineItems = new ArrayList<>();
     private String currentDate;
 
+    private StoryAdapter storyAdapter;
+
+    public void setStoryAdapter(StoryAdapter adapter) {
+        Log.d(TAG, "setStoryAdapter 호출됨");
+        this.storyAdapter = adapter;
+        Log.d(TAG, "storyAdapter 설정 완료: " + (this.storyAdapter != null ? "성공" : "실패"));
+    }
     private TimelineManager(Context context) {
         this.context = context.getApplicationContext();
         this.clusterService = ClusterService.getInstance(context);
@@ -74,20 +87,33 @@ public class TimelineManager {
     /**
      * 타임라인 항목 업데이트
      *
-     * @param item 업데이트할 타임라인 항목
+     * @param updatedItem 업데이트할 타임라인 항목
      */
-    public void updateTimelineItem(TimelineItem item) {
-        if (item != null) {
-            // 기존 항목 찾기
-            for (int i = 0; i < currentTimelineItems.size(); i++) {
-                if (currentTimelineItems.get(i).getTime().equals(item.getTime()) &&
-                        currentTimelineItems.get(i).getPhotoPath() != null &&
-                        currentTimelineItems.get(i).getPhotoPath().equals(item.getPhotoPath())) {
-                    // 기존 항목 업데이트
-                    currentTimelineItems.set(i, item);
-                    break;
+    // TimelineManager.java의 updateTimelineItem 메서드 수정
+    public void updateTimelineItem(TimelineItem updatedItem) {
+        Log.d(TAG, "updateTimelineItem 호출됨: " + updatedItem.getPhotoPath());
+        Log.d(TAG, "storyAdapter 상태: " + (storyAdapter != null ? "설정됨" : "설정되지 않음"));
+
+        if (storyAdapter != null) {
+            // 스토리 어댑터 업데이트
+            storyAdapter.updateItem(updatedItem);
+
+            // UI 스레드에서 전체 목록 갱신 및 탭 전환
+            new Handler(Looper.getMainLooper()).post(() -> {
+                // 전체 목록 갱신
+                storyAdapter.updateItems(currentTimelineItems);
+
+                // 스토리 탭으로 전환 (UIManager 통해)
+                if (context instanceof MainActivity) {
+                    UIManager.getInstance(context).switchToStoryTab();
                 }
-            }
+            });
+
+            Log.d(TAG, "기존 스토리: " + updatedItem.getStory());
+            Log.d(TAG, "새로운 스토리: " + updatedItem.getStory());
+            Log.d(TAG, "업데이트 확인 - DB에 저장된 스토리: " + updatedItem.getStory());
+        } else {
+            Log.e(TAG, "storyAdapter가 설정되지 않았습니다.");
         }
     }
 

@@ -9,10 +9,12 @@ import android.os.Looper;
 import android.util.Base64;
 import android.util.Log;
 
+import com.example.wakey.MainActivity;
 import com.example.wakey.data.local.AppDatabase;
 import com.example.wakey.data.local.Photo;
 import com.example.wakey.data.local.PhotoDao;
 import com.example.wakey.data.model.TimelineItem;
+import com.example.wakey.manager.UIManager;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonArray;
@@ -136,8 +138,49 @@ public class StoryGenerator {
 
                     item.setStory(story);
 
-                    // DB에 저장
-                    photoDao.updateStory(item.getPhotoPath(), story);
+                    // In StoryGenerator.java, verify DB storage is working:
+
+// DB에 저장하는 부분 수정
+                    try {
+                        Log.d(TAG, "💾 스토리 DB 저장 시도: " + item.getPhotoPath());
+                        Log.d(TAG, "💾 저장할 스토리: " + story);
+
+                        // photoDao를 사용해 스토리 저장 (null 체크 추가)
+                        if (photoDao != null) {
+                            int updated = photoDao.updateStory(item.getPhotoPath(), story);
+                            Log.d(TAG, "💾 DB 업데이트 결과: " + updated + "행 업데이트됨");
+                        } else {
+                            Log.e(TAG, "💾 photoDao가 null입니다");
+                        }
+                    } catch (Exception e) {
+                        Log.e(TAG, "💾 DB 저장 중 오류: " + e.getMessage(), e);
+                    }
+
+// 생성된 아이템의 스토리 필드가 실제로 설정되었는지 확인
+                    Log.d(TAG, "💾 스토리 설정 확인 - story 변수: " + story);
+                    Log.d(TAG, "💾 스토리 설정 확인 - item.getStory(): " + item.getStory());
+
+// TimelineItem 객체에 스토리 직접 설정 확인
+                    item.setStory(story);
+                    Log.d(TAG, "💾 스토리 설정 후 - item.getStory(): " + item.getStory());
+                    // 여기에 아래 코드 추가
+                    if (context instanceof MainActivity) {
+                        final TimelineItem finalItem = item; // 로컬 변수로 캡처
+                        ((MainActivity) context).runOnUiThread(() -> {
+                            try {
+                                // UI 갱신 - 명확하게 패키지 지정
+                                Log.d(TAG, "⭐⭐⭐ UI 스레드에서 updateTimelineItem 호출");
+                                com.example.wakey.data.repository.TimelineManager.getInstance(context).updateTimelineItem(finalItem);
+
+                                // 스토리 탭으로 전환 시도
+                                Log.d(TAG, "⭐⭐⭐ UI 스레드에서 스토리 탭 전환 시도");
+                                UIManager.getInstance(context).switchToStoryTab();
+                            } catch (Exception e) {
+                                Log.e(TAG, "UI 업데이트 중 오류: " + e.getMessage(), e);
+                            }
+                        });
+                    }
+                    // 추가 코드 끝
 
                     Log.d(TAG, "스토리 생성 완료: " + story);
                     processedItems.add(item);
@@ -241,11 +284,18 @@ public class StoryGenerator {
 
             // API 호출
             String response = callGeminiAPI(requestBody);
+            String story = parseGeminiResponse(response);
 
-            return parseGeminiResponse(response);
-
+            // 명확한 로깅 추가
+            if (story != null && !story.isEmpty()) {
+                Log.d(TAG, "🌟🌟🌟 Gemini API 스토리 생성 성공: " + story);
+                return story;
+            } else {
+                Log.e(TAG, "🔴🔴🔴 Gemini API 스토리 생성 실패: 빈 응답");
+                return null;
+            }
         } catch (Exception e) {
-            Log.e(TAG, "Gemini API 호출 중 오류: " + e.getMessage(), e);
+            Log.e(TAG, "🔴🔴🔴 Gemini API 호출 중 오류: " + e.getMessage(), e);
             return null;
         }
     }
@@ -300,7 +350,7 @@ public class StoryGenerator {
         prompt.append("- 일반적인 표현('추억이 되었다', '소중한 시간')보다는 특별한 느낌의 표현 선호\n");
         prompt.append("- 시간, 장소, 요소들을 자연스럽게 녹여서 사용\n");
         prompt.append("- 매번 다른 스타일의 문체 시도\n");
-        prompt.append("- 한국어로 작성, 이모지는 사용하지 않음\n");
+        prompt.append("- 한국어로 작성, 관련된 이모지도 사용\n");
 
         // 시간대별 특별한 분위기 추가
         if (item.getTime() != null) {

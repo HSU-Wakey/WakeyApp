@@ -1,6 +1,7 @@
 package com.example.wakey.ui.timeline;
 
 import android.content.Context;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -55,21 +56,35 @@ public class StoryAdapter extends RecyclerView.Adapter<StoryAdapter.StoryViewHol
         return new StoryViewHolder(view);
     }
 
+    // StoryAdapter의 onBindViewHolder 메서드 수정:
+
     @Override
     public void onBindViewHolder(@NonNull StoryViewHolder holder, int position) {
         TimelineItem item = timelineItems.get(position);
 
+        // 모든 데이터 로깅
+        Log.d("StoryAdapter", "📌 onBindViewHolder 호출 - 위치: " + position);
+        Log.d("StoryAdapter", "📌 사진 경로: " + item.getPhotoPath());
+        Log.d("StoryAdapter", "📌 스토리 내용: " + item.getStory());
+        Log.d("StoryAdapter", "📌 캡션 내용: " + item.getCaption());
+
         // 1. 사진 로드
         if (item.getPhotoPath() != null) {
+            Log.d("StoryAdapter", "📌 사진 로드 시도: " + item.getPhotoPath());
             Glide.with(context)
                     .load(item.getPhotoPath())
                     .into(holder.imageView);
+        } else {
+            Log.d("StoryAdapter", "📌 사진 경로 없음");
         }
 
         // 2. 시간 표시
         if (item.getTime() != null) {
             String timeText = DateUtil.formatDate(item.getTime(), "HH:mm");
             holder.timeTextView.setText(timeText);
+            Log.d("StoryAdapter", "📌 시간 설정: " + timeText);
+        } else {
+            Log.d("StoryAdapter", "📌 시간 정보 없음");
         }
 
         // 3. 위치 표시
@@ -77,14 +92,21 @@ public class StoryAdapter extends RecyclerView.Adapter<StoryAdapter.StoryViewHol
                 !item.getLocation().equals("위치 정보 없음")) {
             holder.locationTextView.setText(item.getLocation());
             holder.locationTextView.setVisibility(View.VISIBLE);
+            Log.d("StoryAdapter", "📌 위치 표시: " + item.getLocation());
         } else {
             holder.locationTextView.setVisibility(View.GONE);
+            Log.d("StoryAdapter", "📌 위치 정보 숨김");
         }
 
         // 4. 스토리 표시 (스토리 우선, 없으면 캡션 사용)
-        if (item.getStory() != null && !item.getStory().isEmpty()) {
-            // 스토리가 있는 경우
-            holder.captionTextView.setText(item.getStory());
+        String storyText = item.getStory();
+        boolean hasStory = storyText != null && !storyText.trim().isEmpty();
+
+        Log.d("StoryAdapter", "📌 스토리 확인: " + (hasStory ? "있음" : "없음"));
+
+        if (hasStory) {
+            Log.d("StoryAdapter", "📌 스토리 표시: " + storyText);
+            holder.captionTextView.setText(storyText);
             holder.captionTextView.setVisibility(View.VISIBLE);
             holder.captionProgressBar.setVisibility(View.GONE);
         } else if (item.getCaption() != null && !item.getCaption().isEmpty()) {
@@ -92,11 +114,13 @@ public class StoryAdapter extends RecyclerView.Adapter<StoryAdapter.StoryViewHol
             holder.captionTextView.setText(item.getCaption());
             holder.captionTextView.setVisibility(View.VISIBLE);
             holder.captionProgressBar.setVisibility(View.GONE);
+            Log.d("StoryAdapter", "📌 캡션 표시: " + item.getCaption());
         } else {
             // 스토리와 캡션 모두 없는 경우 "생성 중..." 표시
             holder.captionTextView.setText("스토리 생성 중...");
             holder.captionTextView.setVisibility(View.VISIBLE);
             holder.captionProgressBar.setVisibility(View.VISIBLE);
+            Log.d("StoryAdapter", "📌 스토리 생성 중... 표시");
 
             // 스토리 생성 요청
             generateStory(item, holder);
@@ -112,9 +136,16 @@ public class StoryAdapter extends RecyclerView.Adapter<StoryAdapter.StoryViewHol
             }
             holder.tagsTextView.setText(sb.toString());
             holder.tagsTextView.setVisibility(View.VISIBLE);
+            Log.d("StoryAdapter", "📌 태그 표시: " + sb.toString());
         } else {
             holder.tagsTextView.setVisibility(View.GONE);
+            Log.d("StoryAdapter", "📌 태그 정보 숨김");
         }
+
+        // 로그를 추가하여 텍스트뷰 상태 확인
+        Log.d("StoryAdapter", "📌 텍스트뷰 확인 - captionTextView: " +
+                (holder.captionTextView.getVisibility() == View.VISIBLE ? "보임" : "숨김") +
+                ", 텍스트: \"" + holder.captionTextView.getText() + "\"");
 
         // 클릭 리스너 설정
         holder.itemView.setOnClickListener(v -> {
@@ -194,9 +225,26 @@ public class StoryAdapter extends RecyclerView.Adapter<StoryAdapter.StoryViewHol
     /**
      * 데이터 업데이트
      */
+    // StoryAdapter.java의 updateItems 메서드 수정
     public void updateItems(List<TimelineItem> newItems) {
-        this.timelineItems = newItems != null ? newItems : new ArrayList<>();
-        notifyDataSetChanged();
+        Log.d("StoryAdapter", "🔄 updateItems 호출됨, 항목 수: " +
+                (newItems != null ? newItems.size() : 0));
+
+        if (newItems != null) {
+            // 스토리 상태 로깅
+            for (TimelineItem item : newItems) {
+                Log.d("StoryAdapter", "🔄 항목: " + item.getPhotoPath() +
+                        ", 스토리: " + (item.getStory() != null ? item.getStory() : "null"));
+            }
+
+            // 리스트 완전히 교체
+            this.timelineItems.clear();
+            this.timelineItems.addAll(newItems);
+
+            // UI 갱신
+            notifyDataSetChanged();
+            Log.d("StoryAdapter", "🔄 notifyDataSetChanged 호출됨");
+        }
     }
 
     /**
@@ -224,6 +272,39 @@ public class StoryAdapter extends RecyclerView.Adapter<StoryAdapter.StoryViewHol
     public void release() {
         if (executor != null && !executor.isShutdown()) {
             executor.shutdown();
+        }
+    }
+
+    // StoryAdapter.java에 추가
+    public void updateItem(TimelineItem updatedItem) {
+        Log.d("StoryAdapter", "🔄 updateItem 호출됨: " + updatedItem.getPhotoPath());
+        Log.d("StoryAdapter", "🔄 스토리 내용: " + updatedItem.getStory());
+
+        boolean itemFound = false;
+        for (int i = 0; i < timelineItems.size(); i++) {
+            TimelineItem item = timelineItems.get(i);
+            if (item.getPhotoPath() != null &&
+                    item.getPhotoPath().equals(updatedItem.getPhotoPath())) {
+                Log.d("StoryAdapter", "🔄 아이템 업데이트: 위치=" + i +
+                        ", 이전 스토리=" + item.getStory() +
+                        ", 새 스토리=" + updatedItem.getStory());
+
+                // 기존 아이템을 완전히 새 아이템으로 대체
+                timelineItems.set(i, updatedItem);
+
+                // 항목 하나만 갱신
+                notifyItemChanged(i);
+
+                itemFound = true;
+                break;
+            }
+        }
+
+        if (!itemFound) {
+            Log.e("StoryAdapter", "❌ 아이템을 찾을 수 없음: " + updatedItem.getPhotoPath());
+        } else {
+            // 전체 데이터셋 변경 알림 (안전을 위해)
+            notifyDataSetChanged();
         }
     }
 }

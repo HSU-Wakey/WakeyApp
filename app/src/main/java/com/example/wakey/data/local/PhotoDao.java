@@ -87,7 +87,7 @@ public interface PhotoDao {
     void updateCaption(String filePath, String caption);
 
     @Query("UPDATE Photo SET story = :story WHERE filePath = :filePath")
-    void updateStory(String filePath, String story);
+    int updateStory(String filePath, String story);
 
     @Query("UPDATE Photo SET detectedObjects = :objects WHERE filePath = :filePath")
     void updateObjectLabels(String filePath, String objects);

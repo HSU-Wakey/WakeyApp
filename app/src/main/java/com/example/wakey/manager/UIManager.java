@@ -8,6 +8,8 @@ import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
@@ -207,6 +209,8 @@ public class UIManager {
             storyAdapter = new StoryAdapter(timelineItems);
             storyRecyclerView.setAdapter(storyAdapter);
 
+            TimelineManager.getInstance(context).setStoryAdapter(storyAdapter);
+
             // 초기 상태는 숨김
             storyRecyclerView.setVisibility(View.GONE);
 
@@ -224,8 +228,11 @@ public class UIManager {
             @Override
             public void onTabSelected(TabLayout.Tab tab) {
                 int position = tab.getPosition();
+                Log.d("UIManager", "탭 선택됨: " + position);
+
                 if (position == 0) {
                     // 타임라인 탭 선택
+                    Log.d("UIManager", "타임라인 탭 표시, 아이템 수: " + timelineItems.size());
                     timelineRecyclerView.setVisibility(View.VISIBLE);
                     if (storyRecyclerView != null) {
                         storyRecyclerView.setVisibility(View.GONE);
@@ -233,9 +240,15 @@ public class UIManager {
                     isTimelineTabSelected = true;
                 } else if (position == 1) {
                     // 스토리 탭 선택
+                    Log.d("UIManager", "스토리 탭 표시, 아이템 수: " + timelineItems.size());
                     timelineRecyclerView.setVisibility(View.GONE);
                     if (storyRecyclerView != null) {
                         storyRecyclerView.setVisibility(View.VISIBLE);
+
+                        // 스토리 상태 로깅
+                        for (TimelineItem item : timelineItems) {
+                            Log.d("UIManager", "스토리 항목: " + item.getPhotoPath() + ", 스토리: " + item.getStory());
+                        }
 
                         // 스토리 탭 선택 시 스토리 생성 시작
                         TimelineManager timelineManager = TimelineManager.getInstance(context);
@@ -846,5 +859,72 @@ public class UIManager {
         void onTransitToggled(boolean enabled);
 
         void onOptionsApplied();
+    }
+
+    // UIManager.java에 추가
+    // In UIManager.java, enhance the switchToStoryTab method:
+
+    public void switchToStoryTab() {
+        Log.d(TAG, "⭐⭐⭐ 스토리 탭으로 전환 시도");
+        if (tabLayout != null && tabLayout.getTabCount() > 1) {
+            TabLayout.Tab storyTab = tabLayout.getTabAt(1);
+            if (storyTab != null) {
+                Log.d(TAG, "⭐⭐⭐ 스토리 탭 선택");
+
+                // 강제로 UI 스레드에서 실행
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    // 탭 선택
+                    storyTab.select();
+
+                    // 즉시 RecyclerView 설정 변경
+                    if (storyRecyclerView != null && timelineRecyclerView != null) {
+                        storyRecyclerView.setVisibility(View.VISIBLE);
+                        timelineRecyclerView.setVisibility(View.GONE);
+                        Log.d(TAG, "⭐⭐⭐ 즉시 스토리 RecyclerView 표시됨");
+                    }
+                });
+
+                // 지연된 추가 확인 - UI가 제대로 업데이트되지 않는 경우를 대비
+                new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                    if (storyRecyclerView != null) {
+                        Log.d(TAG, "⭐⭐⭐ 지연 후 스토리 RecyclerView 가시성 재확인");
+
+                        // 강제로 가시성 설정
+                        storyRecyclerView.setVisibility(View.VISIBLE);
+                        if (timelineRecyclerView != null) {
+                            timelineRecyclerView.setVisibility(View.GONE);
+                        }
+
+                        // 어댑터 갱신 강제 호출
+                        if (storyAdapter != null) {
+                            Log.d(TAG, "⭐⭐⭐ 스토리 어댑터 강제 갱신");
+                            storyAdapter.notifyDataSetChanged();
+
+                            // 상태 로깅
+                            for (TimelineItem item : timelineItems) {
+                                Log.d(TAG, "⭐⭐⭐ 스토리 항목 검증: " +
+                                        item.getPhotoPath() + ", 스토리: " + item.getStory());
+                            }
+                        }
+
+                        // 상태 변수 업데이트
+                        isTimelineTabSelected = false;
+                    }
+                }, 300);  // 시간 약간 늘림
+
+                // 더 긴 지연 후 한번 더 확인
+                new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                    if (storyRecyclerView != null && storyAdapter != null) {
+                        Log.d(TAG, "⭐⭐⭐ 최종 확인: 스토리 어댑터 갱신");
+                        storyAdapter.notifyDataSetChanged();
+                    }
+                }, 800);  // 더 긴 지연
+            } else {
+                Log.e(TAG, "❌ 스토리 탭이 null입니다");
+            }
+        } else {
+            Log.e(TAG, "❌ 탭 레이아웃이 없거나 탭이 부족합니다: " +
+                    (tabLayout != null ? "탭 개수=" + tabLayout.getTabCount() : "tabLayout=null"));
+        }
     }
 }
