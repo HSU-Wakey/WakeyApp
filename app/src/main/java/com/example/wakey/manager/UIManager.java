@@ -400,12 +400,10 @@ public class UIManager {
      * 날짜 표시 업데이트
      */
     private void updateDateDisplay() {
-        // ✅ 수정된 포맷 - 일(dd)을 포함
-        SimpleDateFormat yearMonthDayFormat = new SimpleDateFormat("yyyy년 MM월 dd일", Locale.getDefault());
+        SimpleDateFormat yearMonthDayFormat = new SimpleDateFormat("yyyy.M.d", Locale.getDefault());
         SimpleDateFormat shortDateFormat = new SimpleDateFormat("yyyy.M.d", Locale.getDefault());  // 간단한 형식도 수정
 
         if (dateTextView != null) {
-            // ✅ 일을 포함한 포맷 사용
             dateTextView.setText(yearMonthDayFormat.format(currentSelectedDate.getTime()));
         }
         if (bottomSheetDateTextView != null) {
