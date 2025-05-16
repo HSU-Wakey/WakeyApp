@@ -92,6 +92,18 @@
                 android:clipToPadding="false"
                 android:paddingStart="8dp"
                 android:paddingEnd="8dp" />
+
+            <!-- Story RecyclerView (추가) -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/storyRecyclerView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:clipToPadding="false"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:visibility="gone" />
+
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

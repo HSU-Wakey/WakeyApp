@@ -2,7 +2,6 @@ package com.example.wakey.ui.timeline;
 
 import android.os.Bundle;
 import android.util.Log;
-import android.util.Pair;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -18,6 +17,7 @@ import com.example.wakey.data.local.Photo;
 import com.example.wakey.data.model.PhotoInfo;
 import com.example.wakey.data.model.TimelineItem;
 import com.example.wakey.data.repository.PhotoRepository;
+import com.example.wakey.service.ClusterService;
 import com.google.android.gms.maps.model.LatLng;
 
 import java.text.ParseException;
@@ -67,13 +67,8 @@ public class TimelineFragment extends Fragment {
                 }
 
                 List<String> objects = new ArrayList<>();
-                if (photo.getDetectedObjectPairs() != null) {
-                    for (Pair<String, Float> pair : photo.getDetectedObjectPairs()) {
-                        String label = pair.first;
-                        if (label != null) {
-                            objects.add(label);
-                        }
-                    }
+                if (photo.detectedObjects != null && !photo.detectedObjects.isEmpty()) {
+                    objects = Arrays.asList(photo.detectedObjects.split(","));
                 }
 
                 String address = photo.locationDo + " " + photo.locationGu + " " + photo.locationStreet;
@@ -86,8 +81,7 @@ public class TimelineFragment extends Fragment {
                         null,
                         address,
                         photo.caption,
-                        objects,
-                        photo.detectedObjectPairs
+                        objects
                 );
 
                 info.setLocationDo(photo.locationDo);
@@ -97,8 +91,8 @@ public class TimelineFragment extends Fragment {
                 photoInfoList.add(info);
             }
 
-            List<TimelineItem> timelineItems = TimelineManager.getInstance(requireContext())
-                    .buildTimelineWithObjects(photoInfoList);
+            ClusterService clusterService = ClusterService.getInstance(requireContext());
+            List<TimelineItem> timelineItems = clusterService.generateTimelineFromPhotoList(photoInfoList);
 
             requireActivity().runOnUiThread(() -> {
                 adapter = new TimelineAdapter(timelineItems);

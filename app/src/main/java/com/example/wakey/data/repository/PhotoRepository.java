@@ -161,9 +161,12 @@ public class PhotoRepository {
                         // 국내 지역인 경우 - locationDo로 비교
                         inRegion = regionName.equals(photo.locationDo);
                     } else {
-                        // 해외 지역인 경우 - locationDo로 비교
-                        inRegion = regionName.equals(photo.locationDo) ||
-                                regionName.equals(locationUtils.getTranslatedCountryName(photo.locationDo));
+                        // 해외 지역인 경우 - country 또는 locationDo로 비교
+                        String photoCountry = (photo.country != null && !photo.country.isEmpty())
+                                ? photo.country
+                                : photo.locationDo;
+                        inRegion = regionName.equals(photoCountry) ||
+                                regionName.equals(locationUtils.getTranslatedCountryName(photoCountry));
                     }
 
                     if (inRegion) {
@@ -234,7 +237,7 @@ public class PhotoRepository {
             }
         }
 
-        // PhotoInfo 객체 생성
+        // PhotoInfo 객체 생성 (detectedObjectPairs를 포함한 생성자 사용)
         PhotoInfo photoInfo = new PhotoInfo(
                 photo.filePath,
                 dateTaken,
@@ -244,7 +247,7 @@ public class PhotoRepository {
                 photo.fullAddress,
                 photo.caption,
                 objects,
-                photo.detectedObjectPairs
+                photo.getDetectedObjectPairs() // 객체 쌍 추가
         );
 
         // 추가 정보 설정
@@ -299,29 +302,22 @@ public class PhotoRepository {
         if (photo.latitude != null && photo.longitude != null) {
             try {
                 Photo enrichedPhoto = locationUtils.enrichPhotoWithLocationInfo(photo).get();
-                database.photoDao().insertPhoto(enrichedPhoto);
+                return database.photoDao().insertPhoto(enrichedPhoto);
             } catch (Exception e) {
                 Log.e(TAG, "Error enriching photo with location info", e);
-                database.photoDao().insertPhoto(photo);
+                return database.photoDao().insertPhoto(photo);
             }
         } else {
-            database.photoDao().insertPhoto(photo);
+            return database.photoDao().insertPhoto(photo);
         }
-
-        // 성공적으로 저장된 경우 id 반환
-        Photo savedPhoto = database.photoDao().getPhotoByFilePath(photo.filePath);
-        return savedPhoto != null ? savedPhoto.id : -1;
     }
 
-//    /**
-//     * 사진 정보 갱신
-//     */
-//    public void updatePhoto(Photo photo) {
-//        database.photoDao().updateFullAddress(photo.filePath, photo.fullAddress);
-//        if (photo.detectedObjects != null) {
-//            database.photoDao().updateDetectedObjectPairs(photo.filePath, photo.detectedObjects);
-//        }
-//    }
+    /**
+     * 사진 정보 갱신
+     */
+    public void updatePhoto(Photo photo) {
+        database.photoDao().updatePhoto(photo);
+    }
 
     /**
      * 사진 정보 삭제
@@ -382,7 +378,7 @@ public class PhotoRepository {
                 if (photo.latitude != null && photo.longitude != null) {
                     try {
                         Photo enrichedPhoto = locationUtils.enrichPhotoWithLocationInfo(photo).get();
-//                        updatePhoto(enrichedPhoto);
+                        updatePhoto(enrichedPhoto);
                     } catch (Exception e) {
                         Log.e(TAG, "Error enriching photo with location info", e);
                     }
@@ -400,4 +396,10 @@ public class PhotoRepository {
         );
     }
 
+    /**
+     * AppDatabase 인스턴스 가져오기
+     */
+    public AppDatabase getAppDatabase() {
+        return database;
+    }
 }
