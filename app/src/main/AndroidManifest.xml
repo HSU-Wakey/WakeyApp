@@ -64,6 +64,13 @@
             android:name=".ui.album.common.AlbumDetailActivity"
             android:exported="false" />
 
+        <activity
+            android:name=".ui.album.diary.DiaryDetailActivity"
+            android:exported="false" />
+
+        <activity android:name=".ui.album.domestic.DomesticRegionActivity"
+            android:exported="false" />
+
     </application>
 
 </manifest>

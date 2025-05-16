@@ -28,6 +28,7 @@ places-sdk                 = "3.3.0"
 glide                      = "4.15.1"
 gson                       = "2.9.0"
 vision-common = "17.3.0"
+compiler = "3.2.0-alpha11"
 
 [libraries]
 # AndroidX & Google
@@ -63,6 +64,7 @@ glide                      = { module = "com.github.bumptech.glide:glide", versi
 glideCompiler              = { module = "com.github.bumptech.glide:compiler", version.ref = "glide" }
 gson                       = { module = "com.google.code.gson:gson", version.ref = "gson" }
 visionCommon = { group = "com.google.mlkit", name = "vision-common", version.ref = "vision-common" }
+compiler = { group = "androidx.databinding", name = "compiler", version.ref = "compiler" }
 
 [plugins]
 android-application        = { id = "com.android.application", version.ref = "agp" }

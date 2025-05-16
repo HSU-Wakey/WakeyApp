@@ -103,10 +103,7 @@ public class TimelineManager {
                 // 전체 목록 갱신
                 storyAdapter.updateItems(currentTimelineItems);
 
-                // 스토리 탭으로 전환 (UIManager 통해)
-                if (context instanceof MainActivity) {
-                    UIManager.getInstance(context).switchToStoryTab();
-                }
+
             });
 
             Log.d(TAG, "기존 스토리: " + updatedItem.getStory());

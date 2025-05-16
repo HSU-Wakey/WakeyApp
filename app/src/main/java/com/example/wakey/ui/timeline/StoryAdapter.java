@@ -33,6 +33,7 @@ public class StoryAdapter extends RecyclerView.Adapter<StoryAdapter.StoryViewHol
     private OnItemClickListener clickListener;
     private ExecutorService executor = Executors.newSingleThreadExecutor();
     private StoryGenerator storyGenerator;
+    private List<TimelineItem> items;
 
     // 클릭 리스너 인터페이스
     public interface OnItemClickListener {
@@ -67,6 +68,7 @@ public class StoryAdapter extends RecyclerView.Adapter<StoryAdapter.StoryViewHol
         Log.d("StoryAdapter", "📌 사진 경로: " + item.getPhotoPath());
         Log.d("StoryAdapter", "📌 스토리 내용: " + item.getStory());
         Log.d("StoryAdapter", "📌 캡션 내용: " + item.getCaption());
+        Log.d("StoryAdapter", "📌 객체 인식: " + item.getDetectedObjects());
 
         // 1. 사진 로드
         if (item.getPhotoPath() != null) {
@@ -226,27 +228,122 @@ public class StoryAdapter extends RecyclerView.Adapter<StoryAdapter.StoryViewHol
      * 데이터 업데이트
      */
     // StoryAdapter.java의 updateItems 메서드 수정
+
+    // StoryAdapter.java의 updateItems 메서드 개선
     public void updateItems(List<TimelineItem> newItems) {
         Log.d("StoryAdapter", "🔄 updateItems 호출됨, 항목 수: " +
                 (newItems != null ? newItems.size() : 0));
 
-        if (newItems != null) {
-            // 스토리 상태 로깅
+        if (newItems == null || newItems.isEmpty()) {
+            Log.d("StoryAdapter", "새 항목이 없음");
+            return;
+        }
+
+        try {
+            // 각 항목의 스토리 상태 명시적 확인
             for (TimelineItem item : newItems) {
                 Log.d("StoryAdapter", "🔄 항목: " + item.getPhotoPath() +
-                        ", 스토리: " + (item.getStory() != null ? item.getStory() : "null"));
+                        ", 스토리: " + (item.getStory() != null ? "\"" + item.getStory() + "\"" : "null"));
             }
 
-            // 리스트 완전히 교체
-            this.timelineItems.clear();
-            this.timelineItems.addAll(newItems);
+            // 기존 리스트를 완전히 교체 (참조 문제 방지)
+            timelineItems = new ArrayList<>(newItems);
 
             // UI 갱신
             notifyDataSetChanged();
-            Log.d("StoryAdapter", "🔄 notifyDataSetChanged 호출됨");
+            Log.d("StoryAdapter", "🔄 notifyDataSetChanged 호출됨 - 항목 수: " + timelineItems.size());
+        } catch (Exception e) {
+            Log.e("StoryAdapter", "항목 업데이트 중 오류: " + e.getMessage(), e);
         }
     }
+// StoryAdapter.java의 updateItem 메서드 수정
 
+    public void updateItem(TimelineItem updatedItem) {
+        Log.d("StoryAdapter", "🔄 updateItem 호출됨: " + updatedItem.getPhotoPath());
+        Log.d("StoryAdapter", "🔄 스토리 내용: " + updatedItem.getStory());
+
+        boolean updated = false;
+
+        // 아이템 찾아서 업데이트
+        for (int i = 0; i < timelineItems.size(); i++) {
+            TimelineItem item = timelineItems.get(i);
+            if (item.getPhotoPath() != null &&
+                    item.getPhotoPath().equals(updatedItem.getPhotoPath())) {
+
+                Log.d("StoryAdapter", "🔄 아이템 찾음 (위치: " + i + ")");
+                Log.d("StoryAdapter", "🔄 기존 스토리: " + item.getStory());
+                Log.d("StoryAdapter", "🔄 새 스토리: " + updatedItem.getStory());
+
+                // 아이템 교체
+                timelineItems.set(i, updatedItem);
+                updated = true;
+
+                // 해당 위치만 업데이트
+                notifyItemChanged(i);
+                break;
+            }
+        }
+
+        if (!updated) {
+            Log.e("StoryAdapter", "❌ 업데이트할 아이템을 찾을 수 없음: " + updatedItem.getPhotoPath());
+        }
+    }
+    public void setItems(List<TimelineItem> items) {
+        Log.d("StoryAdapter", "🔄 setItems 호출됨, 항목 수: " +
+                (items != null ? items.size() : 0));
+
+        if (items == null) {
+            this.timelineItems = new ArrayList<>();
+        } else {
+            this.timelineItems = new ArrayList<>(items);  // 항상 새 리스트로 복사
+
+            // 각 항목의 스토리 상태 확인 로깅
+            for (TimelineItem item : this.timelineItems) {
+                Log.d("StoryAdapter", "🔄 항목: " + item.getPhotoPath() +
+                        ", 스토리: " + (item.getStory() != null ? item.getStory() : "null"));
+            }
+        }
+
+        notifyDataSetChanged();
+    }
+
+
+    // TimelineItem 복사 헬퍼 메서드 추가
+    private TimelineItem copyTimelineItem(TimelineItem original) {
+        TimelineItem.Builder builder = new TimelineItem.Builder()
+                .setPhotoPath(original.getPhotoPath())
+                .setTime(original.getTime())
+                .setLocation(original.getLocation())
+                .setPlaceName(original.getPlaceName())
+                .setLatLng(original.getLatLng())
+                .setDescription(original.getDescription())
+                .setCaption(original.getCaption());
+
+        // 중요: 스토리 복사
+        if (original.getStory() != null) {
+            builder.setStory(original.getStory());
+        }
+
+        if (original.getDetectedObjects() != null) {
+            builder.setDetectedObjects(original.getDetectedObjects());
+        }
+
+        if (original.getDetectedObjectPairs() != null) {
+            builder.setDetectedObjectPairs(original.getDetectedObjectPairs());
+        }
+
+        if (original.getActivityType() != null) {
+            builder.setActivityType(original.getActivityType());
+        }
+
+        builder.setPlaceProbability(original.getPlaceProbability());
+
+        if (original.getNearbyPOIs() != null) {
+            builder.setNearbyPOIs(original.getNearbyPOIs());
+        }
+
+        return builder.build();
+    }
     /**
      * ViewHolder 클래스
      */
@@ -275,36 +372,4 @@ public class StoryAdapter extends RecyclerView.Adapter<StoryAdapter.StoryViewHol
         }
     }
 
-    // StoryAdapter.java에 추가
-    public void updateItem(TimelineItem updatedItem) {
-        Log.d("StoryAdapter", "🔄 updateItem 호출됨: " + updatedItem.getPhotoPath());
-        Log.d("StoryAdapter", "🔄 스토리 내용: " + updatedItem.getStory());
-
-        boolean itemFound = false;
-        for (int i = 0; i < timelineItems.size(); i++) {
-            TimelineItem item = timelineItems.get(i);
-            if (item.getPhotoPath() != null &&
-                    item.getPhotoPath().equals(updatedItem.getPhotoPath())) {
-                Log.d("StoryAdapter", "🔄 아이템 업데이트: 위치=" + i +
-                        ", 이전 스토리=" + item.getStory() +
-                        ", 새 스토리=" + updatedItem.getStory());
-
-                // 기존 아이템을 완전히 새 아이템으로 대체
-                timelineItems.set(i, updatedItem);
-
-                // 항목 하나만 갱신
-                notifyItemChanged(i);
-
-                itemFound = true;
-                break;
-            }
-        }
-
-        if (!itemFound) {
-            Log.e("StoryAdapter", "❌ 아이템을 찾을 수 없음: " + updatedItem.getPhotoPath());
-        } else {
-            // 전체 데이터셋 변경 알림 (안전을 위해)
-            notifyDataSetChanged();
-        }
-    }
 }

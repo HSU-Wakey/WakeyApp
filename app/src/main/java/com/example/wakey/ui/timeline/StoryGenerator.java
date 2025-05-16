@@ -15,15 +15,18 @@ import com.example.wakey.data.local.Photo;
 import com.example.wakey.data.local.PhotoDao;
 import com.example.wakey.data.model.TimelineItem;
 import com.example.wakey.manager.UIManager;
+import com.google.android.gms.maps.model.LatLng;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonArray;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -49,6 +52,7 @@ public class StoryGenerator {
     private Context context;
     private ExecutorService executorService;
     private Handler mainHandler;
+    private StoryAdapter storyAdapter;
 
     // Gemini API 설정
     private String getGeminiApiKey() {
@@ -119,8 +123,9 @@ public class StoryGenerator {
                         continue;
                     }
 
-                    // 이미 스토리가 있으면 건너뛰기
+                    // 이미 스토리가 있으면 건너뛰기 (API에서 이미 생성된 경우)
                     if (item.getStory() != null && !item.getStory().isEmpty()) {
+                        Log.d(TAG, "🔄 기존 스토리 발견, 스토리 생성 건너뛰기: [" + item.getStory() + "]");
                         processedItems.add(item);
                         continue;
                     }
@@ -128,65 +133,38 @@ public class StoryGenerator {
                     // DB에서 추가 정보 로드
                     loadAdditionalInfoFromDB(item);
 
-                    // Gemini API로 스토리 생성
-                    String story = generateStoryWithGemini(item);
-
-                    // API 실패 시 기본 스토리 생성
-                    if (story == null || story.isEmpty()) {
-                        story = generateFallbackStory(item);
+                    // DB에서 이미 저장된 스토리가 있는지 확인
+                    Photo existingPhoto = photoDao.getPhotoByFilePath(item.getPhotoPath());
+                    if (existingPhoto != null && existingPhoto.story != null && !existingPhoto.story.isEmpty()) {
+                        // DB에 스토리가 있다면 그것을 사용
+                        Log.d(TAG, "💾 DB에서 기존 스토리 불러옴: [" + existingPhoto.story + "]");
+                        item.setStory(existingPhoto.story);
+                    } else {
+                        // 스토리가 없는 경우 - 임시 메시지 설정
+                        item.setStory("스토리 생성 중...");
+                        Log.d(TAG, "⏳ 스토리 생성 대기 중: " + item.getPhotoPath());
                     }
 
-                    item.setStory(story);
-
-                    // In StoryGenerator.java, verify DB storage is working:
-
-// DB에 저장하는 부분 수정
-                    try {
-                        Log.d(TAG, "💾 스토리 DB 저장 시도: " + item.getPhotoPath());
-                        Log.d(TAG, "💾 저장할 스토리: " + story);
-
-                        // photoDao를 사용해 스토리 저장 (null 체크 추가)
-                        if (photoDao != null) {
-                            int updated = photoDao.updateStory(item.getPhotoPath(), story);
-                            Log.d(TAG, "💾 DB 업데이트 결과: " + updated + "행 업데이트됨");
-                        } else {
-                            Log.e(TAG, "💾 photoDao가 null입니다");
-                        }
-                    } catch (Exception e) {
-                        Log.e(TAG, "💾 DB 저장 중 오류: " + e.getMessage(), e);
-                    }
-
-// 생성된 아이템의 스토리 필드가 실제로 설정되었는지 확인
-                    Log.d(TAG, "💾 스토리 설정 확인 - story 변수: " + story);
-                    Log.d(TAG, "💾 스토리 설정 확인 - item.getStory(): " + item.getStory());
-
-// TimelineItem 객체에 스토리 직접 설정 확인
-                    item.setStory(story);
-                    Log.d(TAG, "💾 스토리 설정 후 - item.getStory(): " + item.getStory());
-                    // 여기에 아래 코드 추가
+                    // UI 업데이트
                     if (context instanceof MainActivity) {
-                        final TimelineItem finalItem = item; // 로컬 변수로 캡처
+                        final TimelineItem finalItem = item;
                         ((MainActivity) context).runOnUiThread(() -> {
                             try {
-                                // UI 갱신 - 명확하게 패키지 지정
-                                Log.d(TAG, "⭐⭐⭐ UI 스레드에서 updateTimelineItem 호출");
-                                com.example.wakey.data.repository.TimelineManager.getInstance(context).updateTimelineItem(finalItem);
+                                // TimelineManager를 통한 업데이트
+                                com.example.wakey.data.repository.TimelineManager.getInstance(context)
+                                        .updateTimelineItem(finalItem);
 
-                                // 스토리 탭으로 전환 시도
-                                Log.d(TAG, "⭐⭐⭐ UI 스레드에서 스토리 탭 전환 시도");
-                                UIManager.getInstance(context).switchToStoryTab();
+                                // 스토리 어댑터 직접 업데이트
+                                if (storyAdapter != null) {
+                                    storyAdapter.updateItem(finalItem);
+                                }
                             } catch (Exception e) {
                                 Log.e(TAG, "UI 업데이트 중 오류: " + e.getMessage(), e);
                             }
                         });
                     }
-                    // 추가 코드 끝
 
-                    Log.d(TAG, "스토리 생성 완료: " + story);
                     processedItems.add(item);
-
-                    // API 레이트 리밋 고려
-                    Thread.sleep(2000);
                 }
 
                 final List<TimelineItem> finalProcessedItems = processedItems;
@@ -205,7 +183,6 @@ public class StoryGenerator {
             }
         });
     }
-
     /**
      * DB에서 추가 정보 로드
      */
@@ -267,44 +244,25 @@ public class StoryGenerator {
 
     /**
      * Gemini API를 사용한 창의적인 스토리 생성
+     * 현재 API 호출은 TimelineManager에서 처리되므로 이 메서드는 사용하지 않습니다.
      */
     private String generateStoryWithGemini(TimelineItem item) {
-        try {
-            // 이미지를 Base64로 인코딩
-            String base64Image = encodeImageToBase64(item.getPhotoPath());
-            if (base64Image == null) {
-                return null;
-            }
-
-            // 창의적인 프롬프트 생성
-            String prompt = createCreativePromptForStory(item);
-
-            // API 요청 생성
-            JsonObject requestBody = createGeminiRequest(base64Image, prompt);
-
-            // API 호출
-            String response = callGeminiAPI(requestBody);
-            String story = parseGeminiResponse(response);
-
-            // 명확한 로깅 추가
-            if (story != null && !story.isEmpty()) {
-                Log.d(TAG, "🌟🌟🌟 Gemini API 스토리 생성 성공: " + story);
-                return story;
-            } else {
-                Log.e(TAG, "🔴🔴🔴 Gemini API 스토리 생성 실패: 빈 응답");
-                return null;
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "🔴🔴🔴 Gemini API 호출 중 오류: " + e.getMessage(), e);
-            return null;
-        }
+        // TimelineManager에서 API 호출이 처리되므로 사용하지 않음
+        return null;
     }
 
     /**
      * 창의적인 프롬프트 생성 (모든 DB 정보 활용)
      */
+    /**
+     * 창의적인 프롬프트 생성 (모든 DB 정보 활용)
+     */
     private String createCreativePromptForStory(TimelineItem item) {
         StringBuilder prompt = new StringBuilder();
+
+        // 랜덤으로 스토리 스타일 선택
+        Random random = new Random();
+        int styleChoice = random.nextInt(5); // 0~4 사이의 랜덤 스타일
 
         prompt.append("이 사진에 대한 창의적이고 개성 있는 1-2줄 스토리를 만들어주세요.\n\n");
         prompt.append("참고 정보:\n");
@@ -347,15 +305,57 @@ public class StoryGenerator {
         prompt.append("- 1-2문장으로 간결하게 작성\n");
         prompt.append("- 창의적이고 개성 있는 표현 사용\n");
         prompt.append("- 감정적으로 공감할 수 있도록 작성\n");
-        prompt.append("- 일반적인 표현('추억이 되었다', '소중한 시간')보다는 특별한 느낌의 표현 선호\n");
-        prompt.append("- 시간, 장소, 요소들을 자연스럽게 녹여서 사용\n");
-        prompt.append("- 매번 다른 스타일의 문체 시도\n");
-        prompt.append("- 한국어로 작성, 관련된 이모지도 사용\n");
+        prompt.append("- 뻔한 표현(예: '추억이 되었다', '소중한 시간')은 피하고, 특별한 느낌의 표현 선호\n");
 
-        // 시간대별 특별한 분위기 추가
+        // 랜덤 스타일에 따른 추가 지침
+        switch (styleChoice) {
+            case 0:
+                // 감성적 일기체
+                prompt.append("- 감성적인 일기체로 작성\n");
+                prompt.append("- 시간과 장소는 문장 중간이나 끝에 자연스럽게 녹여서 사용\n");
+                prompt.append("- 첫 문장을 '오늘은', '어느새', '문득' 같은 표현으로 시작\n");
+                prompt.append("- '-했다', '-였다' 같은 과거형 종결어미 사용\n");
+                break;
+            case 1:
+                // 시적 표현체
+                prompt.append("- 서정적이고 시적인 표현으로 작성\n");
+                prompt.append("- 비유와 은유를 활용한 독특한 문체 사용\n");
+                prompt.append("- 날짜나 장소를 직접적으로 언급하지 말고 간접적인 표현으로 암시\n");
+                prompt.append("- 마치 짧은 시처럼 감각적인 표현 사용\n");
+                break;
+            case 2:
+                // 현재 진행형 체험
+                prompt.append("- 현재형 시점으로 작성\n");
+                prompt.append("- '-고 있다', '-는 중이다' 같은 현재 진행형 표현 사용\n");
+                prompt.append("- 마치 지금 그 순간을 경험하는 것처럼 생생하게 묘사\n");
+                prompt.append("- 날짜보다 시간대(아침, 저녁 등)와 분위기에 초점\n");
+                break;
+            case 3:
+                // 대화체/독백체
+                prompt.append("- 대화체나 독백체로 작성\n");
+                prompt.append("- '~네', '~구나', '~지' 같은 종결어미 사용\n");
+                prompt.append("- 마치 친구에게 말하듯 편안한 어조 사용\n");
+                prompt.append("- 날짜와 장소는 '거기' '그때' 같은 지시어로 간접적으로 표현\n");
+                break;
+            case 4:
+                // 감탄/질문형
+                prompt.append("- 감탄사나 질문형으로 시작하는 문장 포함\n");
+                prompt.append("- '어쩜!', '와!', '정말?'과 같은 표현으로 시작하거나 끝맺음\n");
+                prompt.append("- 시간과 장소는 구체적으로 언급하되 문장 구조 속에 자연스럽게 통합\n");
+                prompt.append("- 감정을 강조하는 어조 사용\n");
+                break;
+        }
+
+        prompt.append("- 이 사진만의 특별한 요소나 분위기를 포착\n");
+        prompt.append("- 한국어로 작성하고, 어울리는 이모지도 함께 사용\n");
+
+        // 시간대별 분위기 추가 (기존 코드와 동일)
         if (item.getTime() != null) {
             addTimeBasedMood(prompt, item.getTime());
         }
+
+        // 중요: 날짜/장소 구조 변경 명시
+        prompt.append("\n\n특별 지시사항: 날짜와 장소를 문장 시작에 '5월 4일 일요일 중구에서...'와 같은 형식으로 나열하지 마세요. 문장 중간이나 뒷부분에 자연스럽게 통합하거나, 간접적으로 표현하세요. 매번 다른 문장 구조를 사용해서 다양한 스토리를 만들어주세요.\n");
 
         prompt.append("\n\n스토리:");
 
@@ -547,24 +547,12 @@ public class StoryGenerator {
 
     /**
      * 기본 스토리 생성 (API 실패 시)
+     * 현재는 사용하지 않습니다.
      */
     private String generateFallbackStory(TimelineItem item) {
-        Random random = new Random();
-        String template = CREATIVE_TEMPLATES[random.nextInt(CREATIVE_TEMPLATES.length)];
-
-        String location = getLocationString(item);
-        String object = getObjectString(item);
-
-        String story = String.format(template, location, object);
-
-        // null 처리
-        story = story.replace("null", "");
-        story = story.replaceAll("\\s+", " ").trim();
-
-        Log.d(TAG, "기본 스토리 생성: " + story);
-        return story;
+        // 더 이상 기본 템플릿 스토리를 사용하지 않음
+        return "스토리 생성 중...";
     }
-
     /**
      * 위치 표현 추출
      */
@@ -602,6 +590,96 @@ public class StoryGenerator {
         }
 
         return "사진 속 풍경";
+    }
+
+    public void setStoryAdapter(StoryAdapter adapter) {
+        this.storyAdapter = adapter;
+        Log.d(TAG, "StoryAdapter 설정됨: " + (adapter != null));
+    }
+
+    // 스토리 생성 완료 후 어댑터 직접 업데이트 메서드 수정
+    // StoryGenerator.java에서 updateStoryInUI 메서드 수정
+
+    private void updateStoryInUI(TimelineItem item) {
+        // 로깅
+        Log.d(TAG, "⭐ updateStoryInUI 호출됨: " + item.getPhotoPath());
+        Log.d(TAG, "⭐ 스토리 내용: " + item.getStory());
+
+        // StoryAdapter 업데이트
+        if (storyAdapter != null) {
+            new Handler(Looper.getMainLooper()).post(() -> {
+                try {
+                    Log.d(TAG, "⭐ storyAdapter.updateItem 호출");
+                    storyAdapter.updateItem(item);
+
+                    // 전체 리스트 갱신
+                    storyAdapter.notifyDataSetChanged();
+                    Log.d(TAG, "⭐ 어댑터 갱신 완료");
+                } catch (Exception e) {
+                    Log.e(TAG, "⭐ 어댑터 업데이트 실패: " + e.getMessage(), e);
+                }
+            });
+        } else {
+            Log.e(TAG, "⭐ storyAdapter가 null입니다!");
+        }
+
+        // TimelineManager를 통한 추가 업데이트
+        try {
+            Log.d(TAG, "⭐ TimelineManager 업데이트 호출");
+            com.example.wakey.data.repository.TimelineManager.getInstance(context)
+                    .updateTimelineItem(item);
+        } catch (Exception e) {
+            Log.e(TAG, "⭐ TimelineManager 업데이트 실패: " + e.getMessage(), e);
+        }
+
+        // UI 탭 전환
+        if (context instanceof MainActivity) {
+            Log.d(TAG, "⭐ UIManager 스토리 탭 전환 호출");
+            new Handler(Looper.getMainLooper()).post(() -> {
+                UIManager.getInstance(context).switchToStoryTab();
+            });
+        }
+    }
+    public List<TimelineItem> getStoriesForDate(Date date) {
+        // 날짜를 yyyy-MM-dd 형식 문자열로 변환
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+        String dateString = sdf.format(date);
+
+        // PhotoDao에서 해당 날짜 사진들 가져오기
+        List<Photo> photos = photoDao.getPhotosForDate(dateString);
+        List<TimelineItem> timelineItems = new ArrayList<>();
+
+        for (Photo photo : photos) {
+            // photo.dateTaken은 String 이므로 Date로 변환 필요 (yyyy-MM-dd HH:mm:ss 가정)
+            Date photoDate = null;
+            try {
+                photoDate = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).parse(photo.dateTaken);
+            } catch (ParseException e) {
+                // 변환 실패 시, 기본 null 또는 예외 처리
+                e.printStackTrace();
+            }
+
+            // LatLng 생성 (위도/경도 정보가 있을 때)
+            LatLng latLng = null;
+            if (photo.latitude != null && photo.longitude != null) {
+                latLng = new LatLng(photo.latitude, photo.longitude);
+            }
+
+            // TimelineItem 빌더로 세팅
+            TimelineItem item = new TimelineItem.Builder()
+                    .setPhotoPath(photo.filePath)
+                    .setTime(photoDate)
+                    .setStory(photo.story)
+                    .setCaption(photo.caption)
+                    .setLocation(photo.fullAddress)
+                    .setLatLng(latLng)
+                    .setDetectedObjects(photo.detectedObjects)
+                    .build();
+
+            timelineItems.add(item);
+        }
+
+        return timelineItems;
     }
 
     /**

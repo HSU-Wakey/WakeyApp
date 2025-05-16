@@ -43,6 +43,7 @@ import com.example.wakey.ui.photo.PhotoDetailFragment;
 import com.example.wakey.ui.search.SearchActivity;
 import com.example.wakey.ui.search.SearchHistoryAdapter;
 import com.example.wakey.ui.timeline.StoryAdapter;
+import com.example.wakey.ui.timeline.StoryFragment;
 import com.example.wakey.ui.timeline.TimelineAdapter;
 import com.example.wakey.ui.timeline.TimelineManager;
 import com.example.wakey.ui.timeline.TimelineRenderer;
@@ -96,6 +97,7 @@ public class UIManager {
     public static final int BOTTOM_SHEET_HALF_EXPANDED = 1;
     public static final int BOTTOM_SHEET_EXPANDED = 2;
     public int currentBottomSheetState = BOTTOM_SHEET_HIDDEN;
+
 
     // 검색 대화상자
     private AlertDialog searchDialog;
@@ -224,6 +226,18 @@ public class UIManager {
 
         // 탭 레이아웃 설정
         tabLayout = bottomSheetView.findViewById(R.id.tab_layout);
+
+// 기본 탭을 명시적으로 타임라인(0번 탭)으로 설정
+        TabLayout.Tab timelineTab = tabLayout.getTabAt(0);
+        if (timelineTab != null) {
+            timelineTab.select();
+        }
+        timelineRecyclerView.setVisibility(View.VISIBLE);
+        if (storyRecyclerView != null) {
+            storyRecyclerView.setVisibility(View.GONE);
+        }
+        isTimelineTabSelected = true;
+
         tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
             @Override
             public void onTabSelected(TabLayout.Tab tab) {
@@ -247,12 +261,9 @@ public class UIManager {
 
                         // 스토리 상태 로깅
                         for (TimelineItem item : timelineItems) {
-                            Log.d("UIManager", "스토리 항목: " + item.getPhotoPath() + ", 스토리: " + item.getStory());
+                            Log.d("UIManager", "스토리 항목: " + item.getPhotoPath() +
+                                    ", 스토리: " + (item.getStory() != null ? item.getStory() : "null"));
                         }
-
-                        // 스토리 탭 선택 시 스토리 생성 시작
-                        TimelineManager timelineManager = TimelineManager.getInstance(context);
-                        timelineManager.generateStoriesForTimelineOptimized(timelineItems);
                     }
                     isTimelineTabSelected = false;
                 }
@@ -862,14 +873,28 @@ public class UIManager {
     // UIManager.java에 추가
     // In UIManager.java, enhance the switchToStoryTab method:
 
+    // UIManager.java의 switchToStoryTab 메서드 수정
+
     public void switchToStoryTab() {
         Log.d(TAG, "⭐⭐⭐ 스토리 탭으로 전환 시도");
+
         if (tabLayout != null && tabLayout.getTabCount() > 1) {
             TabLayout.Tab storyTab = tabLayout.getTabAt(1);
             if (storyTab != null) {
                 Log.d(TAG, "⭐⭐⭐ 스토리 탭 선택");
 
-                // 강제로 UI 스레드에서 실행
+                // 스토리 생성 완료 확인
+                boolean hasStories = false;
+                for (TimelineItem item : timelineItems) {
+                    if (item.getStory() != null && !item.getStory().isEmpty()) {
+                        hasStories = true;
+                        break;
+                    }
+                }
+
+                Log.d(TAG, "⭐⭐⭐ 스토리 존재 여부: " + (hasStories ? "있음" : "없음"));
+
+                // UI 스레드에서 실행
                 new Handler(Looper.getMainLooper()).post(() -> {
                     // 탭 선택
                     storyTab.select();
@@ -878,51 +903,26 @@ public class UIManager {
                     if (storyRecyclerView != null && timelineRecyclerView != null) {
                         storyRecyclerView.setVisibility(View.VISIBLE);
                         timelineRecyclerView.setVisibility(View.GONE);
-                        Log.d(TAG, "⭐⭐⭐ 즉시 스토리 RecyclerView 표시됨");
+                        Log.d(TAG, "⭐⭐⭐ RecyclerView 가시성 설정: 스토리=표시, 타임라인=숨김");
+
+                        // 어댑터 갱신 명시적 호출
+                        if (storyAdapter != null) {
+                            storyAdapter.notifyDataSetChanged();
+                            Log.d(TAG, "⭐⭐⭐ 스토리 어댑터 명시적 갱신");
+                        }
+
                     }
                 });
 
-                // 지연된 추가 확인 - UI가 제대로 업데이트되지 않는 경우를 대비
-                new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                    if (storyRecyclerView != null) {
-                        Log.d(TAG, "⭐⭐⭐ 지연 후 스토리 RecyclerView 가시성 재확인");
-
-                        // 강제로 가시성 설정
-                        storyRecyclerView.setVisibility(View.VISIBLE);
-                        if (timelineRecyclerView != null) {
-                            timelineRecyclerView.setVisibility(View.GONE);
-                        }
-
-                        // 어댑터 갱신 강제 호출
-                        if (storyAdapter != null) {
-                            Log.d(TAG, "⭐⭐⭐ 스토리 어댑터 강제 갱신");
-                            storyAdapter.notifyDataSetChanged();
-
-                            // 상태 로깅
-                            for (TimelineItem item : timelineItems) {
-                                Log.d(TAG, "⭐⭐⭐ 스토리 항목 검증: " +
-                                        item.getPhotoPath() + ", 스토리: " + item.getStory());
-                            }
-                        }
-
-                        // 상태 변수 업데이트
-                        isTimelineTabSelected = false;
-                    }
-                }, 300);  // 시간 약간 늘림
-
-                // 더 긴 지연 후 한번 더 확인
-                new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                    if (storyRecyclerView != null && storyAdapter != null) {
-                        Log.d(TAG, "⭐⭐⭐ 최종 확인: 스토리 어댑터 갱신");
-                        storyAdapter.notifyDataSetChanged();
-                    }
-                }, 800);  // 더 긴 지연
-            } else {
-                Log.e(TAG, "❌ 스토리 탭이 null입니다");
+                // 바텀 시트 상태 확인 및 조정
+                if (currentBottomSheetState != BOTTOM_SHEET_EXPANDED) {
+                    setBottomSheetState(BOTTOM_SHEET_EXPANDED);
+                    Log.d(TAG, "⭐⭐⭐ 바텀 시트 확장됨");
+                }
             }
         } else {
-            Log.e(TAG, "❌ 탭 레이아웃이 없거나 탭이 부족합니다: " +
-                    (tabLayout != null ? "탭 개수=" + tabLayout.getTabCount() : "tabLayout=null"));
+            Log.e(TAG, "❌ 탭 레이아웃이 없거나 탭이 부족함: " +
+                    (tabLayout != null ? "탭 수=" + tabLayout.getTabCount() : "tabLayout=null"));
         }
     }
 }

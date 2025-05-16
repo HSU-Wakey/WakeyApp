@@ -55,10 +55,11 @@ public class TimelineManager {
     private String currentDate;
 
     private StoryAdapter storyAdapter;
+
     public void setStoryAdapter(StoryAdapter adapter) {
         this.storyAdapter = adapter;
+        Log.d(TAG, "TimelineManager: StoryAdapter 설정됨");
     }
-
     // 스토리 생성 리스너
     public interface OnStoryGeneratedListener {
         void onStoryGenerated(List<TimelineItem> itemsWithStories);
@@ -336,8 +337,9 @@ public class TimelineManager {
 
             // API 키 검증
             if (!validateGeminiApiKey(apiKey)) {
-                Log.e(TAG, "API 키 검증 실패, 기본 스토리 생성");
-                createDefaultStory(item);
+                Log.e(TAG, "API 키 검증 실패");
+                // 기본 스토리 생성 대신 오류 처리
+                item.setStory("API 키 오류로 스토리를 생성할 수 없습니다");
                 return;
             }
 
@@ -357,6 +359,16 @@ public class TimelineManager {
 
                     Log.d(TAG, "✅ Gemini 스토리 생성 완료: \"" + story + "\"");
 
+                    item.setStory(story);
+
+                    // UI 업데이트
+                    if (storyAdapter != null) {
+                        final TimelineItem finalItem = item;
+                        new Handler(Looper.getMainLooper()).post(() -> {
+                            storyAdapter.updateItem(finalItem);
+                            Log.d(TAG, "✅ 스토리 어댑터 아이템 업데이트: " + finalItem.getPhotoPath());
+                        });
+                    }
                     // UI 업데이트 - 딜레이 추가하여 DB 업데이트 완료 대기
                     new Handler(Looper.getMainLooper()).postDelayed(() -> {
                         Log.d(TAG, "=== UI 업데이트 시작 ===");
@@ -368,8 +380,9 @@ public class TimelineManager {
                         }
                     }, 500); // 500ms 딜레이
                 } else {
-                    Log.e(TAG, "Gemini 응답이 비어있음, 기본 스토리 생성");
-                    createDefaultStory(item);
+                    Log.e(TAG, "Gemini 응답이 비어있음");
+                    // 기본 스토리 생성 대신 오류 메시지
+                    item.setStory("스토리 생성 실패. 다시 시도해주세요.");
                 }
             } catch (Exception e) {
                 Log.e(TAG, "=== Gemini API 호출 실패 상세 정보 ===");
@@ -377,7 +390,8 @@ public class TimelineManager {
                 Log.e(TAG, "오류 메시지: " + e.getMessage());
                 e.printStackTrace();
 
-                createDefaultStory(item);
+                // 기본 스토리 생성 대신 오류 메시지
+                item.setStory("스토리 생성 중 오류가 발생했습니다.");
             }
         });
     }
@@ -525,8 +539,10 @@ public class TimelineManager {
     // createSimplePrompt 메서드 수정 - 2줄 정도의 적당한 스토리
     private String createSimplePrompt(TimelineItem item) {
         StringBuilder prompt = new StringBuilder();
+        Random random = new Random();
+        int styleChoice = random.nextInt(5); // 0~4 사이의 랜덤 스타일
 
-        prompt.append("이 사진에 대한 간단한 한국어 스토리를 2문장으로 작성해주세요.\n\n");
+        prompt.append("이 사진에 대한 창의적이고 개성 있는 1-2줄 스토리를 만들어주세요.\n\n");
         prompt.append("참고 정보:\n");
 
         // 시간 정보
@@ -536,14 +552,14 @@ public class TimelineManager {
             prompt.append("시간: ").append(dayFormat.format(item.getTime())).append(" ").append(timeFormat.format(item.getTime())).append("\n");
         }
 
-        // 장소 정보 - 실제 장소명이나 상세 주소 활용
+        // 장소 정보
         if (item.getPlaceName() != null && !item.getPlaceName().isEmpty()) {
             prompt.append("장소: ").append(item.getPlaceName()).append("\n");
         } else if (item.getLocation() != null && !item.getLocation().isEmpty() && !item.getLocation().equals("위치 정보 없음")) {
             prompt.append("위치: ").append(item.getLocation()).append("\n");
         }
 
-        // 감지된 객체들 (Vision + DB의 해시태그 통합)
+        // 감지된 객체들
         if (item.getDetectedObjects() != null && !item.getDetectedObjects().isEmpty()) {
             prompt.append("사진 속 요소: ").append(item.getDetectedObjects()).append("\n");
         }
@@ -553,28 +569,56 @@ public class TimelineManager {
             prompt.append("AI 설명: ").append(item.getCaption()).append("\n");
         }
 
-        // 전후 맥락 정보
-        if (currentTimelineItems != null && !currentTimelineItems.isEmpty()) {
-            int currentIndex = currentTimelineItems.indexOf(item);
-            if (currentIndex > 0) {
-                TimelineItem prevItem = currentTimelineItems.get(currentIndex - 1);
-                if (prevItem.getLocation() != null) {
-                    prompt.append("이전 위치: ").append(prevItem.getLocation()).append("\n");
-                }
-            }
+        // 스타일 지침
+        prompt.append("\n스토리 작성 가이드라인:\n");
+        prompt.append("- 2문장 이내로 작성하세요\n");
+
+        // 랜덤 스타일에 따른 추가 지침
+        switch (styleChoice) {
+            case 0:
+                // 감성적 일기체
+                prompt.append("- 감성적인 일기체로 작성\n");
+                prompt.append("- 시간과 장소는 문장 중간이나 끝에 자연스럽게 녹여서 사용\n");
+                prompt.append("- 첫 문장을 '오늘은', '어느새', '문득' 같은 표현으로 시작\n");
+                prompt.append("- '-했다', '-였다' 같은 과거형 종결어미 사용\n");
+                break;
+            case 1:
+                // 시적 표현체
+                prompt.append("- 서정적이고 시적인 표현으로 작성\n");
+                prompt.append("- 비유와 은유를 활용한 독특한 문체 사용\n");
+                prompt.append("- 날짜나 장소를 직접적으로 언급하지 말고 간접적인 표현으로 암시\n");
+                prompt.append("- 마치 짧은 시처럼 감각적인 표현 사용\n");
+                break;
+            case 2:
+                // 현재 진행형 체험
+                prompt.append("- 현재형 시점으로 작성\n");
+                prompt.append("- '-고 있다', '-는 중이다' 같은 현재 진행형 표현 사용\n");
+                prompt.append("- 마치 지금 그 순간을 경험하는 것처럼 생생하게 묘사\n");
+                prompt.append("- 날짜보다 시간대(아침, 저녁 등)와 분위기에 초점\n");
+                break;
+            case 3:
+                // 대화체/독백체
+                prompt.append("- 대화체나 독백체로 작성\n");
+                prompt.append("- '~네', '~구나', '~지' 같은 종결어미 사용\n");
+                prompt.append("- 마치 친구에게 말하듯 편안한 어조 사용\n");
+                prompt.append("- 날짜와 장소는 '거기' '그때' 같은 지시어로 간접적으로 표현\n");
+                break;
+            case 4:
+                // 감탄/질문형
+                prompt.append("- 감탄사나 질문형으로 시작하는 문장 포함\n");
+                prompt.append("- '어쩜!', '와!', '정말?'과 같은 표현으로 시작하거나 끝맺음\n");
+                prompt.append("- 시간과 장소는 구체적으로 언급하되 문장 구조 속에 자연스럽게 통합\n");
+                prompt.append("- 감정을 강조하는 어조 사용\n");
+                break;
         }
 
-        prompt.append("\n요구사항:\n");
-        prompt.append("- 정확히 2문장으로 작성\n");
-        prompt.append("- 자연스럽고 일상적인 표현 사용\n");
-        prompt.append("- 시간, 장소, 객체 정보를 적절히 포함\n");
-        prompt.append("- 과도하게 문학적이거나 감상적인 표현 피하기\n");
-        prompt.append("- 사실 중심의 간단명료한 서술\n");
-        prompt.append("- 각 문장은 20자 내외로 작성\n");
+        // 중요한 지시사항 추가
+        prompt.append("\n특별 지시사항: 날짜와 장소를 문장 시작에 '5월 4일 일요일 중구에서...'와 같은 형식으로 나열하지 마세요. ");
+        prompt.append("문장 중간이나 뒷부분에 자연스럽게 통합하거나, 간접적으로 표현하세요. 매번 다른 문장 구조를 사용해서 다양한 스토리를 만들어주세요.");
+        prompt.append("\n\n스토리:");
 
         return prompt.toString();
     }
-
     /**
      * Gemini 응답 파싱
      */
@@ -661,187 +705,6 @@ public class TimelineManager {
         return Bitmap.createScaledBitmap(original, newWidth, newHeight, true);
     }
 
-    /**
-     * 기본 스토리 생성 (API 실패 시) - 단일 정의로 통합
-     */
-    private void createDefaultStory(TimelineItem item) {
-        Log.d(TAG, "기본 스토리 생성 시작");
-
-        // 2줄 기본 스토리 템플릿
-        String[] templates = {
-                "%s에서 %s를 촬영했다. %s의 일상이 담긴 순간이다.",
-                "%s %s에서 발견한 %s. 평범하지만 특별한 장면이 펼쳐졌다.",
-                "%s의 %s, %s가 눈에 띈다. 잠시 멈춰 사진으로 남긴 순간이다.",
-                "%s에 머문 %s 시간. %s를 배경으로 한 컷을 담았다.",
-                "%s, %s에서 마주친 %s. 이날의 기록이 사진에 남았다.",
-                "%s의 %s 무렵, %s가 인상적이었다. 카메라에 담은 순간의 기록이다.",
-                "%s %s를 지나며 포착한 %s. 여행의 한 장면이 기록되었다.",
-                "%s에서 보낸 시간, %s가 기억에 남는다. 일상 속 소중한 순간이다.",
-                "%s의 풍경 속 %s. %s 시간에 담아낸 하루의 일부다.",
-                "%s 거리에서 발견한 %s. 평범한 일상이 특별해지는 순간이다."
-        };
-
-        // 정보 추출
-        String timeExpression = getTimeExpression(item);
-        String locationExpression = getLocationExpression(item);
-        String objectExpression = getObjectExpression(item);
-
-        // 랜덤 템플릿 선택
-        Random random = new Random();
-        String template = templates[random.nextInt(templates.length)];
-        String story = String.format(template, locationExpression, timeExpression, objectExpression);
-
-        // 빈 값 처리
-        story = story.replace("null", "");
-        story = story.replace("  ", " ");
-        story = story.trim();
-
-        item.setStory(story);
-        updateItemInDatabase(item);
-        Log.d(TAG, "✅ 기본 스토리 생성: \"" + story + "\"");
-    }
-
-    /**
-     * 시간 표현 추출
-     */
-    private String getTimeExpression(TimelineItem item) {
-        if (item.getTime() == null) return "오늘";
-
-        SimpleDateFormat periodFormat = new SimpleDateFormat("a", Locale.KOREAN);
-        String period = periodFormat.format(item.getTime());
-
-        if (period.contains("오전")) {
-            int hour = Integer.parseInt(new SimpleDateFormat("HH", Locale.getDefault()).format(item.getTime()));
-            if (hour < 9) return "이른 아침";
-            else return "오전";
-        } else {
-            int hour = Integer.parseInt(new SimpleDateFormat("HH", Locale.getDefault()).format(item.getTime()));
-            if (hour < 18) return "오후";
-            else if (hour < 22) return "저녁";
-            else return "밤";
-        }
-    }
-
-    /**
-     * 장소 표현 추출
-     */
-    private String getLocationExpression(TimelineItem item) {
-        // 실제 장소명 우선
-        if (item.getPlaceName() != null && !item.getPlaceName().isEmpty()) {
-            return item.getPlaceName();
-        }
-
-        // 주소에서 핵심 위치만 추출
-        if (item.getLocation() != null && !item.getLocation().isEmpty() && !item.getLocation().equals("위치 정보 없음")) {
-            String location = item.getLocation();
-            if (location.contains("구 ")) {
-                // "서울 강남구 삼성동" -> "강남구"
-                String[] parts = location.split("구 ");
-                if (parts.length > 0) {
-                    String guName = parts[0].substring(parts[0].lastIndexOf(" ") + 1) + "구";
-                    return guName;
-                }
-            } else if (location.contains("동")) {
-                // "삼성동"만 추출
-                String[] parts = location.split(" ");
-                for (String part : parts) {
-                    if (part.endsWith("동")) {
-                        return part;
-                    }
-                }
-            }
-            return location;
-        }
-
-        return "이곳";
-    }
-
-    /**
-     * 객체 표현 추출
-     */
-    private String getObjectExpression(TimelineItem item) {
-        if (item.getDetectedObjects() == null || item.getDetectedObjects().isEmpty()) {
-            return "일상의 모습들";
-        }
-
-        String[] objects = item.getDetectedObjects().split(",");
-
-        // 한국어로 번역하거나 더 자연스러운 표현으로 변경
-        String primaryObject = objects[0].trim();
-        primaryObject = translateObject(primaryObject);
-
-        if (objects.length > 2) {
-            // 여러 객체가 있을 때
-            String secondObject = translateObject(objects[1].trim());
-            return primaryObject + "와 " + secondObject;
-        } else {
-            return primaryObject;
-        }
-    }
-
-    /**
-     * 영어 객체명을 한국어로 번역
-     */
-    private String translateObject(String object) {
-        // 간단한 번역 맵
-        switch (object.toLowerCase()) {
-            case "person":
-            case "people":
-                return "사람들";
-            case "car":
-                return "자동차";
-            case "building":
-                return "건물";
-            case "tree":
-                return "나무";
-            case "flower":
-                return "꽃";
-            case "food":
-                return "음식";
-            case "table":
-                return "테이블";
-            case "chair":
-                return "의자";
-            case "sky":
-                return "하늘";
-            case "water":
-                return "물";
-            case "snow":
-                return "눈";
-            case "dog":
-                return "강아지";
-            case "cat":
-                return "고양이";
-            case "bird":
-                return "새";
-            case "hand":
-                return "손";
-            case "face":
-                return "얼굴";
-            case "book":
-                return "책";
-            case "phone":
-                return "휴대폰";
-            case "cup":
-                return "컵";
-            case "plate":
-                return "접시";
-            case "window":
-                return "창문";
-            case "door":
-                return "문";
-            case "road":
-                return "길";
-            case "sign":
-                return "표지판";
-            case "light":
-                return "빛";
-            case "shadow":
-                return "그림자";
-            default:
-                return object; // 번역되지 않은 경우 원래 텍스트 유지
-        }
-    }
 
     /**
      * DB에 타임라인 아이템 업데이트
@@ -1251,12 +1114,14 @@ public class TimelineManager {
     // TimelineManager.java에 추가
     // In com.example.wakey.data.repository.TimelineManager.java, modify the updateTimelineItem method:
 
+    // TimelineManager.java의 updateTimelineItem 메서드 수정
+
     public void updateTimelineItem(TimelineItem updatedItem) {
         Log.d(TAG, "🔄 updateTimelineItem 호출됨: " + updatedItem.getPhotoPath());
         Log.d(TAG, "🔄 storyAdapter 상태: " + (storyAdapter != null ? "설정됨" : "설정되지 않음"));
         Log.d(TAG, "🔄 업데이트 전 스토리: " + updatedItem.getStory());
 
-        // 기존 타임라인 항목 찾기 및 업데이트
+        // 1. 기존 아이템 찾기 및 업데이트
         boolean itemFound = false;
         for (int i = 0; i < currentTimelineItems.size(); i++) {
             TimelineItem item = currentTimelineItems.get(i);
@@ -1264,6 +1129,8 @@ public class TimelineManager {
                     item.getPhotoPath().equals(updatedItem.getPhotoPath())) {
                 // 스토리 필드 직접 업데이트
                 Log.d(TAG, "🔄 아이템 찾음, 인덱스: " + i);
+
+                // 완전히 새 인스턴스로 교체
                 currentTimelineItems.set(i, updatedItem);
                 itemFound = true;
                 break;
@@ -1274,32 +1141,49 @@ public class TimelineManager {
             Log.e(TAG, "❌ 업데이트할 아이템을 찾을 수 없음: " + updatedItem.getPhotoPath());
         }
 
+        // 2. DB 업데이트 확인
+        executor.execute(() -> {
+            try {
+                PhotoDao photoDao = AppDatabase.getInstance(context).photoDao();
+                Photo photo = photoDao.getPhotoByFilePath(updatedItem.getPhotoPath());
+
+                if (photo != null) {
+                    String dbStory = photo.story;
+                    String newStory = updatedItem.getStory();
+
+                    Log.d(TAG, "🔄 DB 확인 - 파일: " + updatedItem.getPhotoPath());
+                    Log.d(TAG, "🔄 DB 스토리: " + (dbStory != null ? dbStory : "null"));
+                    Log.d(TAG, "🔄 새 스토리: " + (newStory != null ? newStory : "null"));
+
+                    // DB에 저장되지 않았으면 저장
+                    if (newStory != null && !newStory.equals(dbStory)) {
+                        Log.d(TAG, "🔄 스토리 DB 업데이트 필요");
+                        int updated = photoDao.updateStory(updatedItem.getPhotoPath(), newStory);
+                        Log.d(TAG, "🔄 DB 업데이트 결과: " + updated + "행");
+                    }
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "❌ DB 확인 중 오류: " + e.getMessage(), e);
+            }
+        });
+
+        // 3. 어댑터 업데이트
         if (storyAdapter != null) {
-            // UI 스레드에서 실행 보장
+            // UI 스레드에서 실행
             new Handler(Looper.getMainLooper()).post(() -> {
                 try {
                     Log.d(TAG, "🔄 storyAdapter.updateItem 호출");
                     storyAdapter.updateItem(updatedItem);
 
+                    // 전체 데이터 갱신도 함께
                     Log.d(TAG, "🔄 storyAdapter.updateItems 호출");
                     storyAdapter.updateItems(currentTimelineItems);
-
-                    // notifyDataSetChanged 강제 호출 추가
-                    Log.d(TAG, "🔄 어댑터 데이터 변경 알림 호출");
-                    storyAdapter.notifyDataSetChanged();
-
-                    // 스토리 탭으로 전환
-                    if (context instanceof MainActivity) {
-                        Log.d(TAG, "🔄 UIManager.switchToStoryTab 호출");
-                        UIManager.getInstance(context).switchToStoryTab();
-                    }
                 } catch (Exception e) {
                     Log.e(TAG, "❌ 어댑터 업데이트 중 오류: " + e.getMessage(), e);
                 }
             });
         } else {
-            Log.e(TAG, "❌ storyAdapter가 설정되지 않았습니다.");
+            Log.e(TAG, "❌ storyAdapter가 설정되지 않았습니다");
         }
     }
-
 }
