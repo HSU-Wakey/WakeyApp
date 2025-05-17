@@ -12,12 +12,17 @@ import android.location.Address;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
+import android.util.Pair;
 import android.view.View;
 import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.example.wakey.data.local.AppDatabase;
+import com.example.wakey.data.local.Photo;
 import com.example.wakey.data.model.PhotoInfo;
 import com.example.wakey.data.model.PlaceData;
 import com.example.wakey.data.model.TimelineItem;
@@ -26,6 +31,7 @@ import com.example.wakey.manager.ApiManager;
 import com.example.wakey.manager.DataManager;
 import com.example.wakey.manager.MapManager;
 import com.example.wakey.manager.UIManager;
+import com.example.wakey.tflite.ImageClassifier;
 import com.example.wakey.ui.album.SmartAlbumActivity;
 import com.example.wakey.ui.timeline.StoryGenerator;
 import com.example.wakey.ui.timeline.TimelineManager;
@@ -44,10 +50,13 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class MainActivity extends AppCompatActivity implements OnMapReadyCallback {
     private static final String TAG = "MainActivity";
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1000;
+    private static final int MAX_PHOTOS_PER_BATCH = 10; // 한 번에 처리할 최대 사진 수
 
     private MapManager mapManager;
     private UIManager uiManager;
@@ -61,16 +70,24 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private FusedLocationProviderClient fusedLocationClient;
 
     private ImageRepository imageRepository;
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private ExecutorService backgroundExecutor;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        // 단일 스레드 실행기 생성 (병렬 처리 방지)
+        backgroundExecutor = Executors.newSingleThreadExecutor();
+
         initUI();
         initManagers();
         initStoryComponents();
 
+        imageRepository = new ImageRepository(this);
+
+        // 지도 초기화
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         if (mapFragment != null) {
@@ -80,9 +97,188 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
 
         setupClickListeners();
+
+        // 권한 요청
         requestLocationPermission();
 
-        imageRepository = new ImageRepository(this);
+        // 앱 시작 후 5초 후에 해시태그 처리 시작 (지연 시작)
+        mainHandler.postDelayed(this::initializeHashtagsDelayed, 5000);
+    }
+
+    @Override
+    protected void onDestroy() {
+        // 백그라운드 작업 정리
+        if (backgroundExecutor != null) {
+            backgroundExecutor.shutdown();
+        }
+        super.onDestroy();
+    }
+
+    // 지연 시작을 위한 메서드
+    private void initializeHashtagsDelayed() {
+        Log.d(TAG, "해시태그 처리 지연 시작");
+        // 한 번에 모든 작업을 시작하지 않고 필수 작업만 먼저 수행
+        processExistingPhotosWithoutHashtags(MAX_PHOTOS_PER_BATCH);
+    }
+
+    // 기존 해시태그 없는 사진만 우선 처리 (개수 제한)
+    private void processExistingPhotosWithoutHashtags(int maxPhotos) {
+        backgroundExecutor.execute(() -> {
+            Log.d(TAG, "기존 해시태그 없는 사진 처리 시작");
+            ImageClassifier classifier = null;
+
+            try {
+                AppDatabase db = AppDatabase.getInstance(this);
+                // 해시태그 없는 사진만 조회 (최대 개수 제한)
+                List<Photo> photosWithoutHashtags = db.photoDao().getPhotosWithoutHashtagsLimit(maxPhotos);
+                Log.d(TAG, "해시태그 없는 사진 수: " + photosWithoutHashtags.size());
+
+                if (photosWithoutHashtags.isEmpty()) {
+                    Log.d(TAG, "처리할 사진이 없습니다. 신규 사진 스캔으로 넘어갑니다.");
+                    // 이미 모든 사진에 해시태그가 있으면 신규 사진 스캔으로 넘어감
+                    mainHandler.postDelayed(this::scanNewPhotos, 2000);
+                    return;
+                }
+
+                // 분류기 초기화
+                try {
+                    classifier = new ImageClassifier(this);
+                } catch (Exception e) {
+                    Log.e(TAG, "이미지 분류기 초기화 실패", e);
+                    return;
+                }
+
+                int successCount = 0;
+
+                // 사진 한 장씩 순차 처리
+                for (Photo photo : photosWithoutHashtags) {
+                    try {
+                        Uri uri = Uri.parse(photo.filePath);
+                        Bitmap bitmap = ImageUtils.loadBitmapFromUri(this, uri);
+
+                        if (bitmap != null) {
+                            List<Pair<String, Float>> predictions = classifier.classifyImage(bitmap);
+
+                            StringBuilder hashtagBuilder = new StringBuilder();
+                            for (Pair<String, Float> pred : predictions) {
+                                if (pred != null && pred.first != null) {
+                                    String term = pred.first.split(",")[0].trim();
+                                    if (!term.isEmpty()) {
+                                        String hashtag = "#" + term.replace(" ", "");
+                                        hashtagBuilder.append(hashtag).append(" ");
+                                    }
+                                }
+                            }
+
+                            String finalHashtags = hashtagBuilder.toString().trim();
+                            if (!finalHashtags.isEmpty()) {
+                                db.photoDao().updateHashtags(photo.filePath, finalHashtags);
+                                Log.d(TAG, "해시태그 생성 완료: " + photo.filePath);
+                                successCount++;
+                            }
+
+                            // 메모리 누수 방지
+                            bitmap.recycle();
+                        }
+
+                        // 처리 간 지연 (부하 감소)
+                        Thread.sleep(100);
+                    } catch (Exception e) {
+                        Log.e(TAG, "사진 처리 중 오류: " + photo.filePath, e);
+                    }
+                }
+
+                Log.d(TAG, "기존 사진 " + successCount + "개 처리 완료");
+
+                // 남은 사진이 있는지 확인
+                int remainingCount = db.photoDao().countPhotosWithoutHashtags();
+
+                if (remainingCount > 0) {
+                    // 아직 처리할 사진이 남아있으면 5초 후 다음 배치 처리
+                    mainHandler.postDelayed(() ->
+                            processExistingPhotosWithoutHashtags(MAX_PHOTOS_PER_BATCH), 5000);
+                } else {
+                    // 모든 기존 사진이 처리되었으면 신규 사진 스캔으로 넘어감
+                    mainHandler.postDelayed(this::scanNewPhotos, 2000);
+                }
+
+            } catch (Exception e) {
+                Log.e(TAG, "해시태그 초기화 중 오류", e);
+            } finally {
+                // 리소스 정리
+                if (classifier != null) {
+                    try {
+                        classifier.close();
+                    } catch (Exception e) {
+                        Log.e(TAG, "분류기 닫기 실패", e);
+                    }
+                }
+            }
+        });
+    }
+
+    // 신규 사진 스캔 및 처리
+    private void scanNewPhotos() {
+        backgroundExecutor.execute(() -> {
+            Log.d(TAG, "신규 사진 스캔 시작");
+            try {
+                AppDatabase db = AppDatabase.getInstance(this);
+                List<Uri> imageUris = ImageUtils.getAllImageUris(this);
+                Log.d(TAG, "기기에서 발견된 총 이미지 수: " + imageUris.size());
+
+                // 최대 처리 개수 제한
+                int processedCount = 0;
+                int maxToProcess = MAX_PHOTOS_PER_BATCH;
+
+                for (Uri uri : imageUris) {
+                    if (processedCount >= maxToProcess) {
+                        break;
+                    }
+
+                    try {
+                        // 이미 DB에 있는지 확인
+                        Photo existingPhoto = db.photoDao().getPhotoByPath(uri.toString());
+
+                        if (existingPhoto == null) {
+                            // 신규 사진만 처리
+                            Bitmap bitmap = ImageUtils.loadBitmapFromUri(this, uri);
+                            if (bitmap != null) {
+                                try {
+                                    ImageMeta meta = imageRepository.classifyImage(uri, bitmap);
+                                    Photo savedPhoto = imageRepository.savePhotoToDB(uri, meta);
+
+                                    if (savedPhoto != null) {
+                                        processedCount++;
+                                        Log.d(TAG, "신규 사진 저장 완료: " + uri.toString());
+                                    }
+
+                                    // 메모리 정리
+                                    bitmap.recycle();
+
+                                    // 처리 간 지연
+                                    Thread.sleep(100);
+                                } catch (Exception e) {
+                                    Log.e(TAG, "신규 사진 처리 중 오류: " + e.getMessage());
+                                }
+                            }
+                        }
+                    } catch (Exception e) {
+                        Log.e(TAG, "URI 처리 중 오류: " + uri.toString(), e);
+                    }
+                }
+
+                Log.d(TAG, "신규 사진 " + processedCount + "개 처리 완료");
+
+                // 모든 작업 완료 메시지
+                mainHandler.post(() -> {
+                    Log.d(TAG, "이미지 처리 작업 모두 완료");
+                    ToastManager.getInstance().showToast("이미지 준비 완료", Toast.LENGTH_SHORT);
+                });
+
+            } catch (Exception e) {
+                Log.e(TAG, "신규 사진 스캔 중 오류", e);
+            }
+        });
     }
 
     private void initUI() {
@@ -194,11 +390,49 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 }
             }
             if (allGranted) {
-                loadPhotoData();
+                // 권한이 있을 경우 - 무거운 작업은 지연 실행하고 필수적인 UI 관련 작업만 즉시 실행
+                if (mMap != null) {
+                    loadAllPhotos();
+                }
             } else {
                 ToastManager.getInstance().showToast("앱 사용에 필요한 권한이 필요합니다", Toast.LENGTH_LONG);
             }
         }
+    }
+
+    // 개별 사진 해시태그 생성 - 안전하게 수정
+    private void generateHashtagsForPhoto(Photo photo, Bitmap bitmap) {
+        backgroundExecutor.execute(() -> {
+            ImageClassifier classifier = null;
+            try {
+                classifier = new ImageClassifier(this);
+                List<Pair<String, Float>> predictions = classifier.classifyImage(bitmap);
+
+                StringBuilder hashtagBuilder = new StringBuilder();
+                for (Pair<String, Float> pred : predictions) {
+                    if (pred != null && pred.first != null) {
+                        String term = pred.first.split(",")[0].trim();
+                        if (!term.isEmpty()) {
+                            String hashtag = "#" + term.replace(" ", "");
+                            hashtagBuilder.append(hashtag).append(" ");
+                        }
+                    }
+                }
+
+                String finalHashtags = hashtagBuilder.toString().trim();
+                if (!finalHashtags.isEmpty()) {
+                    AppDatabase db = AppDatabase.getInstance(this);
+                    db.photoDao().updateHashtags(photo.filePath, finalHashtags);
+                    Log.d("HASHTAG_GENERATE", "해시태그 생성 완료: " + photo.filePath);
+                }
+            } catch (Exception e) {
+                Log.e("HASHTAG_GENERATE", "해시태그 생성 실패: " + photo.filePath, e);
+            } finally {
+                if (classifier != null) {
+                    classifier.close();
+                }
+            }
+        });
     }
 
     private void loadPhotoData() {
@@ -243,7 +477,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             @Override
             public void onTimelineLoaded(List<TimelineItem> timelineItems) {
                 uiManager.updateTimelineData(timelineItems);
-                // 더 이상 storyFragment를 사용하지 않고, UIManager에서 바로 처리합니다.
             }
 
             @Override
@@ -394,11 +627,11 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
     }
 
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-
-        // StoryGenerator 자원 해제
-        StoryGenerator.getInstance(this).release();
-    }
+//    @Override
+//    protected void onDestroy() {
+//        super.onDestroy();
+//
+//        // StoryGenerator 자원 해제
+//        StoryGenerator.getInstance(this).release();
+//    }
 }

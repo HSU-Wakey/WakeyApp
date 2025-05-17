@@ -44,13 +44,13 @@ public class SearchActivity extends AppCompatActivity {
 
         // 기본 UI 초기화
         searchEditText = findViewById(R.id.searchEditText);
-        resultImageView = findViewById(R.id.resultImageView);
-        recentSearchRecyclerView = findViewById(R.id.recentSearchRecyclerView);
-        recentSearchRecyclerView.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+//        resultImageView = findViewById(R.id.resultImageView);
+//        recentSearchRecyclerView = findViewById(R.id.recentSearchRecyclerView);
+//        recentSearchRecyclerView.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
 
-        // 최근 검색어 어댑터 연결
-        historyAdapter = new SearchHistoryAdapter(SearchHistoryRepository.getInstance(this).getSearchHistory());
-        recentSearchRecyclerView.setAdapter(historyAdapter);
+//        // 최근 검색어 어댑터 연결
+//        historyAdapter = new SearchHistoryAdapter(SearchHistoryRepository.getInstance(this).getSearchHistory());
+//        recentSearchRecyclerView.setAdapter(historyAdapter);
 
         // 검색어 입력 후 엔터 누르면 실행
         searchEditText.setOnEditorActionListener((v, actionId, event) -> {

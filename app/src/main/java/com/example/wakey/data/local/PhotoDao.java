@@ -53,6 +53,10 @@ public interface PhotoDao {
     @Query("SELECT * FROM Photo WHERE latitude IS NOT NULL AND longitude IS NOT NULL AND detectedObjects IS NOT NULL")
     List<Photo> getPhotosWithLocationAndObjects();
 
+    // 위치 + 객체가 있는 사진만 조회 (detectedObjectPairs 기준)
+    @Query("SELECT * FROM Photo WHERE latitude IS NOT NULL AND longitude IS NOT NULL AND detectedObjectPairs IS NOT NULL")
+    List<Photo> getPhotosWithLocationAndObjectPairs();
+
     // 전체 주소가 포함된 사진 조회
     @Query("SELECT * FROM Photo WHERE fullAddress IS NOT NULL")
     List<Photo> getPhotosWithFullAddress();
@@ -96,13 +100,10 @@ public interface PhotoDao {
     @Query("DELETE FROM Photo")
     void deleteAllPhotos();
 
-    @Query("DELETE FROM Photo WHERE filePath IN " +
-            "(SELECT filePath FROM Photo GROUP BY filePath HAVING COUNT(*) > 1) " +
-            "AND id NOT IN " +
-            "(SELECT MIN(id) FROM Photo GROUP BY filePath HAVING COUNT(*) > 1)")
+    // 중복 제거 대체 쿼리
+    @Query("DELETE FROM Photo WHERE rowid NOT IN (SELECT MIN(rowid) FROM Photo GROUP BY filePath)")
     void deleteDuplicatePhotos();
 
-    // 중복 제거 대체 쿼리
     @Query("DELETE FROM Photo WHERE rowid NOT IN (SELECT MIN(rowid) FROM Photo GROUP BY filePath)")
     void deleteDuplicatePhotosAlt();
 
@@ -120,4 +121,28 @@ public interface PhotoDao {
     // detectedObjects 조회
     @Query("SELECT detectedObjects FROM Photo WHERE filePath = :filePath")
     String getDetectedObjects(String filePath);
+
+    // 해시태그 관련 쿼리
+    @Query("SELECT * FROM Photo WHERE hashtags LIKE '%#' || :hashtag || ' %' OR hashtags LIKE '%#' || :hashtag || '%' OR hashtags LIKE '#' || :hashtag || ' %' OR hashtags = '#' || :hashtag")
+    List<Photo> getPhotosByHashtag(String hashtag);
+
+    @Query("SELECT hashtags FROM Photo WHERE filePath = :photoPath")
+    String getHashtagsByPath(String photoPath);
+
+    @Query("UPDATE Photo SET hashtags = :hashtags WHERE filePath = :photoPath")
+    void updateHashtags(String photoPath, String hashtags);
+
+    @Query("SELECT * FROM Photo WHERE filePath = :filePath")
+    Photo getPhotoByPath(String filePath);
+
+    // 추가: 해시태그가 없는 사진들 조회 (개수 제한)
+    @Query("SELECT * FROM Photo WHERE hashtags IS NULL OR hashtags = '' LIMIT :limit")
+    List<Photo> getPhotosWithoutHashtagsLimit(int limit);
+
+    // 추가: 해시태그가 없는 사진 개수 조회
+    @Query("SELECT COUNT(*) FROM Photo WHERE hashtags IS NULL OR hashtags = ''")
+    int countPhotosWithoutHashtags();
+
+    @Query("SELECT DISTINCT country FROM Photo WHERE country IS NOT NULL")
+    List<String> getAllCountries();
 }

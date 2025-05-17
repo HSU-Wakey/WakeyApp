@@ -2,6 +2,9 @@ package com.example.wakey.data.model;
 
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.util.Pair;
+
+import androidx.annotation.NonNull;
 
 import com.google.android.gms.maps.model.LatLng;
 
@@ -26,10 +29,13 @@ public class TimelineItem implements Parcelable, Serializable {
     private String caption;          // 캡션 (BLIP 모델로 생성)
     private String story;            // 스토리 (새로 추가)
     private String detectedObjects;  // 탐지된 객체 목록 (문자열)
-    private transient Map<String, Float> detectedObjectPairs; // 객체-신뢰도 쌍
     private String activityType;     // 활동 유형
     private float placeProbability;  // 장소 확률
     private List<String> nearbyPOIs; // 주변 관심장소 목록
+
+    // 두 버전의 코드 호환을 위해 두 타입 모두 유지
+    private transient Map<String, Float> detectedObjectMap; // Map 형태의 객체-신뢰도 쌍
+    private List<Pair<String, Float>> detectedObjectPairs; // List<Pair> 형태의 객체-신뢰도 쌍
 
     // LatLng를 대체할 수 있는 직렬화 가능한 필드
     private double latitude;
@@ -51,21 +57,59 @@ public class TimelineItem implements Parcelable, Serializable {
         }
     }
 
+    // Pair 형태의 객체 목록을 사용하는 생성자
+    public TimelineItem(Date time, String location, String photoPath, LatLng latLng,
+                        String description, List<Pair<String, Float>> detectedObjectPairs) {
+        this.time = time;
+        this.location = location;
+        this.photoPath = photoPath;
+        this.latLng = latLng;
+        this.description = description;
+        this.detectedObjectPairs = detectedObjectPairs;
+        this.nearbyPOIs = new ArrayList<>();
+
+        // LatLng가 있으면 위도/경도 별도 저장
+        if (latLng != null) {
+            this.latitude = latLng.latitude;
+            this.longitude = latLng.longitude;
+        }
+    }
+
+    // 확장된 생성자
+    public TimelineItem(Date time, String location, String photoPath, LatLng latLng,
+                        String description, String activityType, List<Pair<String, Float>> detectedObjectPairs) {
+        this.time = time;
+        this.location = location;
+        this.photoPath = photoPath;
+        this.latLng = latLng;
+        this.description = description;
+        this.activityType = activityType;
+        this.detectedObjectPairs = detectedObjectPairs;
+        this.nearbyPOIs = new ArrayList<>();
+
+        // LatLng가 있으면 위도/경도 별도 저장
+        if (latLng != null) {
+            this.latitude = latLng.latitude;
+            this.longitude = latLng.longitude;
+        }
+    }
+
     // 빌더 패턴을 사용한 생성자
     private TimelineItem(Builder builder) {
         this.time = builder.time;
         this.location = builder.location;
+        this.placeName = builder.placeName;
         this.photoPath = builder.photoPath;
         this.latLng = builder.latLng;
         this.description = builder.description;
         this.caption = builder.caption;
         this.story = builder.story;
         this.detectedObjects = builder.detectedObjects;
+        this.detectedObjectMap = builder.detectedObjectMap;
         this.detectedObjectPairs = builder.detectedObjectPairs;
         this.activityType = builder.activityType;
         this.placeProbability = builder.placeProbability;
         this.nearbyPOIs = builder.nearbyPOIs;
-        this.placeName = builder.placeName;
 
         // LatLng가 있으면 위도/경도 별도 저장
         if (builder.latLng != null) {
@@ -74,8 +118,242 @@ public class TimelineItem implements Parcelable, Serializable {
         }
     }
 
+    // Parcelable 구현
+    protected TimelineItem(Parcel in) {
+        // Date 읽기
+        long timeMillis = in.readLong();
+        time = timeMillis != -1 ? new Date(timeMillis) : null;
+
+        location = in.readString();
+        placeName = in.readString();
+        photoPath = in.readString();
+        description = in.readString();
+        caption = in.readString();
+        story = in.readString();
+        detectedObjects = in.readString();
+        activityType = in.readString();
+        placeProbability = in.readFloat();
+        latitude = in.readDouble();
+        longitude = in.readDouble();
+
+        // LatLng 복원
+        if (latitude != 0 || longitude != 0) {
+            latLng = new LatLng(latitude, longitude);
+        }
+
+        // List 읽기
+        nearbyPOIs = in.createStringArrayList();
+
+        // detectedObjectPairs 읽기
+        int pairsSize = in.readInt();
+        if (pairsSize > 0) {
+            detectedObjectPairs = new ArrayList<>();
+            for (int i = 0; i < pairsSize; i++) {
+                String key = in.readString();
+                Float value = in.readFloat();
+                detectedObjectPairs.add(new Pair<>(key, value));
+            }
+        }
+    }
+
+    @Override
+    public void writeToParcel(@NonNull Parcel dest, int flags) {
+        // Date 쓰기
+        dest.writeLong(time != null ? time.getTime() : -1);
+
+        dest.writeString(location);
+        dest.writeString(placeName);
+        dest.writeString(photoPath);
+        dest.writeString(description);
+        dest.writeString(caption);
+        dest.writeString(story);
+        dest.writeString(detectedObjects);
+        dest.writeString(activityType);
+        dest.writeFloat(placeProbability);
+        dest.writeDouble(latitude);
+        dest.writeDouble(longitude);
+
+        // List 쓰기
+        dest.writeStringList(nearbyPOIs != null ? nearbyPOIs : new ArrayList<>());
+
+        // detectedObjectPairs 쓰기
+        if (detectedObjectPairs != null) {
+            dest.writeInt(detectedObjectPairs.size());
+            for (Pair<String, Float> pair : detectedObjectPairs) {
+                dest.writeString(pair.first);
+                dest.writeFloat(pair.second);
+            }
+        } else {
+            dest.writeInt(0);
+        }
+    }
+
+    @Override
+    public int describeContents() {
+        return 0;
+    }
+
+    public static final Creator<TimelineItem> CREATOR = new Creator<TimelineItem>() {
+        @Override
+        public TimelineItem createFromParcel(Parcel in) {
+            return new TimelineItem(in);
+        }
+
+        @Override
+        public TimelineItem[] newArray(int size) {
+            return new TimelineItem[size];
+        }
+    };
+
+    // Getters
+    public Date getTime() {
+        return time;
+    }
+
+    public String getLocation() {
+        return location;
+    }
+
+    public String getPlaceName() {
+        return placeName;
+    }
+
+    public String getPhotoPath() {
+        return photoPath;
+    }
+
+    public LatLng getLatLng() {
+        // 직렬화/역직렬화 과정에서 latLng이 null이 되었다면 위도/경도로 재생성
+        if (latLng == null && (latitude != 0 || longitude != 0)) {
+            latLng = new LatLng(latitude, longitude);
+        }
+        return latLng;
+    }
+
+    public double getLatitude() {
+        return latitude;
+    }
+
+    public double getLongitude() {
+        return longitude;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public String getCaption() {
+        return caption;
+    }
+
+    public String getStory() {
+        return story;
+    }
+
+    public String getDetectedObjects() {
+        return detectedObjects;
+    }
+
+    public List<Pair<String, Float>> getDetectedObjectPairs() {
+        return detectedObjectPairs;
+    }
+
+    public Map<String, Float> getDetectedObjectMap() {
+        return detectedObjectMap;
+    }
+
+    public String getActivityType() {
+        return activityType;
+    }
+
+    public float getPlaceProbability() {
+        return placeProbability;
+    }
+
+    public List<String> getNearbyPOIs() {
+        return nearbyPOIs;
+    }
+
+    // Setters
+    public void setTime(Date time) {
+        this.time = time;
+    }
+
+    public void setLocation(String location) {
+        this.location = location;
+    }
+
+    public void setPlaceName(String placeName) {
+        this.placeName = placeName;
+    }
+
+    public void setPhotoPath(String photoPath) {
+        this.photoPath = photoPath;
+    }
+
+    public void setLatLng(LatLng latLng) {
+        this.latLng = latLng;
+        if (latLng != null) {
+            this.latitude = latLng.latitude;
+            this.longitude = latLng.longitude;
+        }
+    }
+
+    public void setLatitude(double latitude) {
+        this.latitude = latitude;
+        updateLatLng();
+    }
+
+    public void setLongitude(double longitude) {
+        this.longitude = longitude;
+        updateLatLng();
+    }
+
+    // 위도/경도 변경 시 LatLng 업데이트 헬퍼 메서드
+    private void updateLatLng() {
+        if (latitude != 0 || longitude != 0) {
+            this.latLng = new LatLng(latitude, longitude);
+        }
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public void setCaption(String caption) {
+        this.caption = caption;
+    }
+
+    public void setStory(String story) {
+        this.story = story;
+    }
+
+    public void setDetectedObjects(String detectedObjects) {
+        this.detectedObjects = detectedObjects;
+    }
+
+    public void setDetectedObjectPairs(List<Pair<String, Float>> detectedObjectPairs) {
+        this.detectedObjectPairs = detectedObjectPairs;
+    }
+
+    public void setDetectedObjectMap(Map<String, Float> detectedObjectMap) {
+        this.detectedObjectMap = detectedObjectMap;
+    }
+
+    public void setActivityType(String activityType) {
+        this.activityType = activityType;
+    }
+
+    public void setPlaceProbability(float placeProbability) {
+        this.placeProbability = placeProbability;
+    }
+
+    public void setNearbyPOIs(List<String> nearbyPOIs) {
+        this.nearbyPOIs = nearbyPOIs;
+    }
+
     // 빌더 클래스
-    public static class Builder implements Serializable {
+    public static class Builder {
         private Date time;
         private String location;
         private String placeName;
@@ -85,7 +363,8 @@ public class TimelineItem implements Parcelable, Serializable {
         private String caption;
         private String story;
         private String detectedObjects;
-        private Map<String, Float> detectedObjectPairs;
+        private Map<String, Float> detectedObjectMap;
+        private List<Pair<String, Float>> detectedObjectPairs;
         private String activityType;
         private float placeProbability;
         private List<String> nearbyPOIs = new ArrayList<>();
@@ -138,7 +417,12 @@ public class TimelineItem implements Parcelable, Serializable {
             return this;
         }
 
-        public Builder setDetectedObjectPairs(Map<String, Float> detectedObjectPairs) {
+        public Builder setDetectedObjectMap(Map<String, Float> detectedObjectMap) {
+            this.detectedObjectMap = detectedObjectMap;
+            return this;
+        }
+
+        public Builder setDetectedObjectPairs(List<Pair<String, Float>> detectedObjectPairs) {
             this.detectedObjectPairs = detectedObjectPairs;
             return this;
         }
@@ -162,206 +446,4 @@ public class TimelineItem implements Parcelable, Serializable {
             return new TimelineItem(this);
         }
     }
-
-    // 게터/세터 메서드들
-    public Date getTime() {
-        return time;
-    }
-
-    public void setTime(Date time) {
-        this.time = time;
-    }
-
-    public String getLocation() {
-        return location;
-    }
-
-    public void setLocation(String location) {
-        this.location = location;
-    }
-
-    public String getPlaceName() {
-        return placeName;
-    }
-
-    public void setPlaceName(String placeName) {
-        this.placeName = placeName;
-    }
-
-    public String getPhotoPath() {
-        return photoPath;
-    }
-
-    public void setPhotoPath(String photoPath) {
-        this.photoPath = photoPath;
-    }
-
-    public LatLng getLatLng() {
-        // 직렬화/역직렬화 과정에서 latLng이 null이 되었다면 위도/경도로 재생성
-        if (latLng == null && (latitude != 0 || longitude != 0)) {
-            latLng = new LatLng(latitude, longitude);
-        }
-        return latLng;
-    }
-
-    public void setLatLng(LatLng latLng) {
-        this.latLng = latLng;
-        if (latLng != null) {
-            this.latitude = latLng.latitude;
-            this.longitude = latLng.longitude;
-        }
-    }
-
-    // ⭐ 위도 게터/세터 추가
-    public double getLatitude() {
-        return latitude;
-    }
-
-    public void setLatitude(double latitude) {
-        this.latitude = latitude;
-        updateLatLng();
-    }
-
-    // ⭐ 경도 게터/세터 추가
-    public double getLongitude() {
-        return longitude;
-    }
-
-    public void setLongitude(double longitude) {
-        this.longitude = longitude;
-        updateLatLng();
-    }
-
-    // ⭐ 위도/경도 변경 시 LatLng 업데이트 헬퍼 메서드
-    private void updateLatLng() {
-        if (latitude != 0 || longitude != 0) {
-            this.latLng = new LatLng(latitude, longitude);
-        }
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public String getCaption() {
-        return caption;
-    }
-
-    public void setCaption(String caption) {
-        this.caption = caption;
-    }
-
-    public String getStory() {
-        return story;
-    }
-
-    public void setStory(String story) {
-        this.story = story;
-    }
-
-    public String getDetectedObjects() {
-        return detectedObjects;
-    }
-
-    public void setDetectedObjects(String detectedObjects) {
-        this.detectedObjects = detectedObjects;
-    }
-
-    public Map<String, Float> getDetectedObjectPairs() {
-        return detectedObjectPairs;
-    }
-
-    public void setDetectedObjectPairs(Map<String, Float> detectedObjectPairs) {
-        this.detectedObjectPairs = detectedObjectPairs;
-    }
-
-    public String getActivityType() {
-        return activityType;
-    }
-
-    public void setActivityType(String activityType) {
-        this.activityType = activityType;
-    }
-
-    public float getPlaceProbability() {
-        return placeProbability;
-    }
-
-    public void setPlaceProbability(float placeProbability) {
-        this.placeProbability = placeProbability;
-    }
-
-    public List<String> getNearbyPOIs() {
-        return nearbyPOIs;
-    }
-
-    public void setNearbyPOIs(List<String> nearbyPOIs) {
-        this.nearbyPOIs = nearbyPOIs;
-    }
-
-    // Parcelable 구현
-    protected TimelineItem(Parcel in) {
-        long tmpTime = in.readLong();
-        time = tmpTime != -1 ? new Date(tmpTime) : null;
-        location = in.readString();
-        placeName = in.readString();
-        photoPath = in.readString();
-        description = in.readString();
-        caption = in.readString();
-        story = in.readString();
-        detectedObjects = in.readString();
-        activityType = in.readString();
-        placeProbability = in.readFloat();
-        nearbyPOIs = in.createStringArrayList();
-
-        latitude = in.readDouble();
-        longitude = in.readDouble();
-        if (latitude != 0 || longitude != 0) {
-            latLng = new LatLng(latitude, longitude);
-        }
-    }
-
-    @Override
-    public void writeToParcel(Parcel dest, int flags) {
-        dest.writeLong(time != null ? time.getTime() : -1);
-        dest.writeString(location);
-        dest.writeString(placeName);
-        dest.writeString(photoPath);
-        dest.writeString(description);
-        dest.writeString(caption);
-        dest.writeString(story);
-        dest.writeString(detectedObjects);
-        dest.writeString(activityType);
-        dest.writeFloat(placeProbability);
-        dest.writeStringList(nearbyPOIs);
-
-        if (latLng != null) {
-            dest.writeDouble(latLng.latitude);
-            dest.writeDouble(latLng.longitude);
-        } else {
-            dest.writeDouble(latitude);
-            dest.writeDouble(longitude);
-        }
-    }
-
-    @Override
-    public int describeContents() {
-        return 0;
-    }
-
-    public static final Creator<TimelineItem> CREATOR = new Creator<TimelineItem>() {
-        @Override
-        public TimelineItem createFromParcel(Parcel in) {
-            return new TimelineItem(in);
-        }
-
-        @Override
-        public TimelineItem[] newArray(int size) {
-            return new TimelineItem[size];
-        }
-    };
 }
