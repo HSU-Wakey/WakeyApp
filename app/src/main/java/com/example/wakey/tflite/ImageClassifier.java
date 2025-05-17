@@ -10,6 +10,9 @@ import org.tensorflow.lite.Interpreter;
 import org.tensorflow.lite.support.common.FileUtil;
 import org.tensorflow.lite.support.tensorbuffer.TensorBuffer;
 import org.tensorflow.lite.DataType;
+import org.tensorflow.lite.support.image.ImageProcessor;
+import org.tensorflow.lite.support.image.TensorImage;
+import org.tensorflow.lite.support.image.ops.ResizeOp;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -20,17 +23,57 @@ import java.util.Collections;
 import java.util.List;
 
 public class ImageClassifier {
+    private static final String TAG = "ImageClassifier";
     private static final String MODEL_PATH = "mobilenet_v3_large_quantized-snapdragon_8_gen_3.tflite";
     private static final int IMAGE_SIZE = 224;
     private static final int NUM_CLASSES = 1000;
-    private Interpreter tflite;
-    private List<String> labels;
+
+    private final Interpreter tflite;
+    private final List<String> labels;
+    private final boolean isQuantized;
 
     public ImageClassifier(Context context) throws IOException {
-        MappedByteBuffer tfliteModel = FileUtil.loadMappedFile(context, MODEL_PATH);
-        Interpreter.Options options = new Interpreter.Options();
-        tflite = new Interpreter(tfliteModel, options);
-        labels = FileUtil.loadLabels(context, "labels.txt");
+        try {
+            Log.d(TAG, "ImageClassifier 초기화 시작");
+
+            // CPU 기반 인터프리터 옵션 설정
+            Interpreter.Options options = new Interpreter.Options();
+            options.setNumThreads(4); // CPU 스레드 수 설정
+            Log.d(TAG, "CPU 사용: 4 스레드");
+
+            // 모델 파일 로드
+            MappedByteBuffer tfliteModel;
+            try {
+                tfliteModel = FileUtil.loadMappedFile(context, MODEL_PATH);
+                Log.d(TAG, "모델 파일 로드 성공: " + MODEL_PATH);
+            } catch (IOException e) {
+                Log.e(TAG, "모델 파일 로드 실패: " + e.getMessage(), e);
+                throw e;
+            }
+
+            // 인터프리터 생성
+            tflite = new Interpreter(tfliteModel, options);
+
+            // 레이블 로드
+            try {
+                labels = FileUtil.loadLabels(context, "labels.txt");
+                Log.d(TAG, "레이블 파일 로드 성공: " + labels.size() + "개 레이블");
+            } catch (IOException e) {
+                Log.e(TAG, "레이블 파일 로드 실패: " + e.getMessage(), e);
+                throw e;
+            }
+
+            // 입력 텐서 정보 확인
+            isQuantized = tflite.getInputTensor(0).dataType() == org.tensorflow.lite.DataType.UINT8;
+
+            Log.d(TAG, "양자화 모델 여부: " + isQuantized);
+            Log.d(TAG, "ImageClassifier 초기화 완료");
+
+        } catch (Exception e) {
+            Log.e(TAG, "ImageClassifier 초기화 중 예외 발생", e);
+            close();
+            throw e;
+        }
     }
 
     public List<Pair<String, Float>> classifyImage(Bitmap bitmap) {
@@ -64,9 +107,9 @@ public class ImageClassifier {
             logits[i] = (quantizedOutput[i] - outputZeroPoint) * outputScale;
         }
 
-        // 추가 로그: 처음 5개 로직
+        // 처음 5개 로직
         for (int i = 0; i < 5; i++) {
-            Log.d("ImageClassifier", "🔢 Raw Output[" + i + "]: " + quantizedOutput[i] + " -> Logit: " + logits[i]);
+            Log.d(TAG, "🔢 Raw Output[" + i + "]: " + quantizedOutput[i] + " -> Logit: " + logits[i]);
         }
 
         float maxLogit = Float.NEGATIVE_INFINITY;
@@ -85,20 +128,32 @@ public class ImageClassifier {
             probabilities[i] = (probabilities[i] / sumExp) * 100;
         }
 
+        // 결과 처리
         List<Pair<String, Float>> results = new ArrayList<>();
-        for (int i = 0; i < probabilities.length; i++) {
+        for (int i = 0; i < NUM_CLASSES && i < labels.size(); i++) {
             results.add(new Pair<>(labels.get(i), probabilities[i]));
         }
+
+        // 확률 기준 내림차순 정렬
         Collections.sort(results, (o1, o2) -> Float.compare(o2.second, o1.second));
 
-        for (int i = 0; i < Math.min(5, results.size()); i++) {
-            Log.d("ImageClassifier", "🔥 Softmax Top [" + i + "]: " + results.get(i).first + " - " + results.get(i).second + "%");
+        // 상위 5개 결과 로깅
+        int topK = Math.min(5, results.size());
+        for (int i = 0; i < topK; i++) {
+            Log.d(TAG, "🔥 Softmax Top [" + i + "]: " + results.get(i).first + " - " + results.get(i).second + "%");
         }
 
-        return results.subList(0, Math.min(5, results.size()));
+        return results.subList(0, topK);
     }
 
-    public void close() {
-        tflite.close();
+    public synchronized void close() {
+        try {
+            if (tflite != null) {
+                tflite.close();
+                Log.d(TAG, "TFLite 인터프리터 닫기 완료");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "리소스 해제 중 오류: " + e.getMessage(), e);
+        }
     }
 }

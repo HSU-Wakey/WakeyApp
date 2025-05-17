@@ -9,4 +9,5 @@
     <string name="category_diary">기록</string>
     <string name="other_region">기타 지역</string>
     <string name="other_country">기타 국가</string>
+    <string name="photo_grid">photo grid</string>
 </resources>

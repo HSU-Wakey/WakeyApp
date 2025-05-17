@@ -7,8 +7,7 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_MEDIA_LOCATION"/>
-
+    <uses-permission android:name="android.permission.ACCESS_MEDIA_LOCATION" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
 
@@ -21,8 +20,15 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
+        android:largeHeap="true"
         android:theme="@style/Theme.Wakey"
         tools:targetApi="31">
+        <activity
+            android:name=".ui.album.diary.DiaryDetailActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.album.common.PhotoDetailViewActivity"
+            android:exported="false" />
 
         <!-- Google Maps API Key -->
         <meta-data
@@ -31,7 +37,9 @@
 
         <activity
             android:name=".MainActivity"
-            android:exported="true">
+            android:exported="true"
+            android:windowSoftInputMode="adjustNothing|stateHidden"
+            android:configChanges="orientation|screenSize|keyboardHidden">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -42,11 +50,24 @@
         <activity
             android:name=".ui.search.SearchActivity"
             android:exported="false"
-            android:windowSoftInputMode="adjustResize" />
+            android:windowSoftInputMode="adjustPan|stateVisible" />
+        <activity
+            android:name=".ui.search.HashtagPhotosActivity"
+            android:exported="false"
+            android:parentActivityName=".MainActivity" />
 
         <!-- 스마트 앨범 액티비티 -->
         <activity
             android:name=".ui.album.SmartAlbumActivity"
+            android:exported="false" />
+
+        <!-- 앨범 상세 보기 액티비티 -->
+        <activity
+            android:name=".ui.album.common.AlbumDetailActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.album.domestic.DomesticRegionActivity"
             android:exported="false" />
 
         <!-- 해외 지역 액티비티 -->
@@ -57,18 +78,6 @@
         <!-- 해외 국가 액티비티 (이미지에서 확인됨) -->
         <activity
             android:name=".ui.album.overseas.OverseasCountryActivity"
-            android:exported="false" />
-
-        <!-- 앨범 상세 보기 액티비티 -->
-        <activity
-            android:name=".ui.album.common.AlbumDetailActivity"
-            android:exported="false" />
-
-        <activity
-            android:name=".ui.album.diary.DiaryDetailActivity"
-            android:exported="false" />
-
-        <activity android:name=".ui.album.domestic.DomesticRegionActivity"
             android:exported="false" />
 
     </application>
