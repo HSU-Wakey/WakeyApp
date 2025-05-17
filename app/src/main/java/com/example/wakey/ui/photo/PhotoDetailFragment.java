@@ -540,10 +540,15 @@ public class PhotoDetailFragment extends DialogFragment {
         // 해시태그 문자열 생성
         StringBuilder hashtagBuilder = new StringBuilder();
         int count = 0;
+        // 최대 3개의 해시태그만 표시하도록 제한
+        int maxHashtags = 3;
 
         for (Pair<String, Float> pred : predictions) {
+            if (count >= maxHashtags) break; // 최대 3개까지만 처리
+
             // 예측 항목에서 해시태그 추출
             String term = pred.first != null ? pred.first.split(",")[0].trim() : "";
+            if (term.isEmpty()) continue;
             String hashtag = "#" + term.replace(" ", "");
 
             // 해시태그 문자열에 추가

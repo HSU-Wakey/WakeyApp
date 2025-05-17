@@ -10,7 +10,7 @@ import androidx.room.TypeConverters;
 import androidx.room.migration.Migration;
 import androidx.sqlite.db.SupportSQLiteDatabase;
 
-@Database(entities = {Photo.class}, version = 3, exportSchema = false)
+@Database(entities = {Photo.class}, version = 5, exportSchema = false)
 @TypeConverters({Converters.class})
 public abstract class AppDatabase extends RoomDatabase {
 
@@ -46,6 +46,56 @@ public abstract class AppDatabase extends RoomDatabase {
         }
     };
 
+    // 3 -> 4 버전 마이그레이션
+    static final Migration MIGRATION_3_4 = new Migration(3, 4) {
+        @Override
+        public void migrate(SupportSQLiteDatabase database)
+        {
+            try {
+                Cursor cursor = database.query("SELECT * FROM Photo LIMIT 1");
+                String[] columns = cursor.getColumnNames();
+                boolean hasLocationDo = false;
+
+                for (String column : columns) {
+                    if (column.equals("locationDo")) {
+                        hasLocationDo = true;
+                        break;
+                    }
+                }
+
+                if (!hasLocationDo) {
+                    database.execSQL("ALTER TABLE Photo ADD COLUMN locationDo TEXT");
+                }
+
+                cursor.close();
+            } catch (Exception e)
+            {
+                // 예외 처리
+                e.printStackTrace();
+            }
+        }
+    };
+
+    // 4 -> 5 버전 마이그레이션
+    static final Migration MIGRATION_4_5 = new Migration(4, 5) {
+        @Override
+        public void migrate(SupportSQLiteDatabase database)
+        {
+            try {
+                // ALTER TABLE을 직접 시도하고 실패하면 무시
+                try {
+                    database.execSQL("ALTER TABLE Photo ADD COLUMN story TEXT");
+                } catch (Exception e) {
+                    // 이미 story 컬럼이 존재하면 무시
+                    e.printStackTrace();
+                }
+            } catch (Exception e) {
+                // 예외 처리
+                e.printStackTrace();
+            }
+        }
+    };
+
     public abstract PhotoDao photoDao();
 
     public static AppDatabase getInstance(Context context) {
@@ -57,7 +107,7 @@ public abstract class AppDatabase extends RoomDatabase {
                             AppDatabase.class,
                             "AppDatabase"
                     )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)  // 마이그레이션 추가
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)  // 마이그레이션 추가
                     .fallbackToDestructiveMigration()
                     .build();
                 }
