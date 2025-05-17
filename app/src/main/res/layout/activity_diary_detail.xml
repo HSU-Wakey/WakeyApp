@@ -156,4 +156,27 @@
         app:layout_anchor="@id/appBarLayout"
         app:layout_anchorGravity="bottom|right|end"
         android:contentDescription="Change cover image" />
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/recordVoiceFab"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        android:src="@drawable/ic_baseline_mic_24"
+        android:backgroundTint="@color/colorAccent"
+        android:contentDescription="Record Voice"
+        app:layout_anchor="@id/appBarLayout"
+        app:layout_anchorGravity="bottom|left|start" />
+
+    <TextView
+        android:id="@+id/recordingStatusText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text=""
+        android:textColor="@android:color/holo_red_dark"
+        android:textSize="16sp"
+        android:layout_marginBottom="8dp"
+        android:layout_gravity="center_horizontal"/>
+
+
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

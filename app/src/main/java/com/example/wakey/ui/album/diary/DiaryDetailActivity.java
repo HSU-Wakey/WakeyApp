@@ -1,6 +1,8 @@
 package com.example.wakey.ui.album.diary;
 
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
@@ -12,18 +14,31 @@ import android.widget.TextView;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 import com.bumptech.glide.Glide;
 import com.example.wakey.R;
+import com.example.wakey.audio.AudioRecorder;
+import com.example.wakey.audio.MelSpectrogramGenerator;
+import com.example.wakey.audio.WhisperDecoder;
+import com.example.wakey.audio.WhisperEncoder;
+import com.example.wakey.audio.WhisperTokenizer;
 import com.example.wakey.util.ToastManager;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 
-public class DiaryDetailActivity extends AppCompatActivity {
 
+public class DiaryDetailActivity extends AppCompatActivity {
+    private boolean isRecording = false;
+    private AudioRecorder recorder;
+    private TextView recordingStatusTextView;
+    private static final int REQUEST_RECORD_AUDIO_PERMISSION = 1001;
     private static final int PICK_IMAGE_REQUEST = 1;
 
     private ImageView coverImageView;
@@ -82,12 +97,97 @@ public class DiaryDetailActivity extends AppCompatActivity {
                         .into(coverImageView);
             }
         }
+
+        recorder = new AudioRecorder();
+        recordingStatusTextView = findViewById(R.id.recordingStatusText);
+        FloatingActionButton recordVoiceFab = findViewById(R.id.recordVoiceFab);
+        recordVoiceFab.setOnClickListener(v -> {
+            if (!isRecording) {
+                startRecording();
+            } else {
+                stopRecordingAndRunInference();
+            }
+        });
+
     }
 
+
+    private void startRecording() {
+        isRecording = true;
+        recorder.startRecording();
+        recordingStatusTextView.setText("🎙 녹음 중...");
+        ToastManager.getInstance().showToast("녹음을 시작했습니다");
+    }
+
+    private void stopRecordingAndRunInference() {
+        isRecording = false;
+        recordingStatusTextView.setText("");
+        ToastManager.getInstance().showToast("녹음 종료, 변환 중...");
+
+        float[] audioData = recorder.stopRecordingAndGetData();
+        float[][][] mel = MelSpectrogramGenerator.generate(audioData);
+        WhisperEncoder encoder = new WhisperEncoder(this);
+        float[][][] encoderOutput = encoder.runInference(mel);
+        WhisperDecoder decoder = new WhisperDecoder(this);
+        WhisperTokenizer tokenizer = new WhisperTokenizer(this);
+
+        List<Integer> tokenIds = new ArrayList<>();
+        tokenIds.add(50258); // BOS
+
+        for (int i = 0; i < 100; i++) {
+            int[] inputTokens = tokenIds.stream().mapToInt(Integer::intValue).toArray();
+            float[][] logits = decoder.run(encoderOutput, inputTokens);
+
+            int nextToken = 0;
+            float maxLogit = -Float.MAX_VALUE;
+            for (int j = 0; j < logits[0].length; j++) {
+                if (logits[0][j] > maxLogit) {
+                    maxLogit = logits[0][j];
+                    nextToken = j;
+                }
+            }
+
+            if (nextToken == 50257) break; // EOT
+            tokenIds.add(nextToken);
+        }
+
+        int[] finalTokenArray = tokenIds.stream().mapToInt(Integer::intValue).toArray();
+        String result = tokenizer.decode(finalTokenArray);
+        contentEditText.setText(result);
+    }
     private void openGallery() {
         Intent galleryIntent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
         startActivityForResult(galleryIntent, PICK_IMAGE_REQUEST);
     }
+
+    private void checkAudioPermissionAndStartRecording() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+                != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.RECORD_AUDIO},
+                    REQUEST_RECORD_AUDIO_PERMISSION);
+            return;
+        }
+
+        // 권한이 있을 경우 실제 녹음 시작
+        startRecording();
+    }
+
+
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQUEST_RECORD_AUDIO_PERMISSION) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                checkAudioPermissionAndStartRecording(); // 다시 시도
+            } else {
+                ToastManager.getInstance().showToast("음성 녹음 권한이 필요합니다");
+            }
+        }
+    }
+
+
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
