@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- 사진 이미지 -->
+    <ImageView
+        android:id="@+id/photoItemImageView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:contentDescription="Photo" />
+
+    <!-- 업스케일 로딩 스피너 -->
+    <ProgressBar
+        android:id="@+id/progressBarItemUpscale"
+        style="?android:attr/progressBarStyleLarge"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_centerInParent="true"
+        android:visibility="gone"
+        android:indeterminate="true"
+        android:elevation="5dp"/>
+
+    <!-- 업스케일 버튼 -->
+    <ImageButton
+        android:id="@+id/upscaleItemButton"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentEnd="true"
+        android:layout_margin="12dp"
+        android:background="@drawable/rounded_button_bg"
+        android:src="@drawable/upscale"
+        android:scaleType="fitCenter"
+        android:visibility="gone"
+        android:contentDescription="이미지 선명하게"/>
+
+</RelativeLayout>

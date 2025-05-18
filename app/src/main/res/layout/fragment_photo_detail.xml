@@ -6,7 +6,7 @@
     android:layout_height="match_parent"
     android:background="#F5F5F5">
 
-    <!-- Background frame for the entire dialog -->
+    <!-- 전체 다이얼로그 배경 프레임 -->
     <androidx.cardview.widget.CardView
         android:layout_width="match_parent"
         android:layout_height="0dp"
@@ -18,7 +18,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <!-- Main container -->
+        <!-- 메인 컨테이너 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
@@ -26,7 +26,7 @@
             android:background="#F5F5F5"
             android:padding="8dp">
 
-            <!-- Photo container with rounded corners -->
+            <!-- 이미지 컨테이너(라운드 코너) -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
@@ -34,20 +34,27 @@
                 app:cardCornerRadius="16dp"
                 app:cardElevation="0dp">
 
-                <!-- Photo frame layout -->
+                <!-- 뷰페이저 추가 (스와이프 기능) -->
+                <androidx.viewpager2.widget.ViewPager2
+                    android:id="@+id/photoViewPager"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"/>
+
+                <!-- 이미지 프레임 레이아웃 -->
                 <RelativeLayout
                     android:layout_width="match_parent"
                     android:layout_height="match_parent">
 
-                    <!-- Photo display -->
+                    <!-- 원래 이미지뷰 (ViewPager2로 대체) -->
                     <ImageView
                         android:id="@+id/photoDetailImageView"
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
                         android:scaleType="centerCrop"
+                        android:visibility="gone"
                         android:contentDescription="Photo" />
 
-                    <!-- 가운데 로딩 스피너 추가 -->
+                    <!-- 업스케일 로딩 스피너 -->
                     <ProgressBar
                         android:id="@+id/progressBarUpscale"
                         style="?android:attr/progressBarStyleLarge"
@@ -58,8 +65,7 @@
                         android:indeterminate="true"
                         android:elevation="5dp"/>
 
-
-                    <!-- Close button -->
+                    <!-- 닫기 버튼 -->
                     <ImageButton
                         android:id="@+id/closeButton"
                         android:layout_width="30dp"
@@ -71,7 +77,7 @@
                         android:scaleType="fitCenter"
                         android:contentDescription="닫기"/>
 
-                    <!-- Navigation buttons -->
+                    <!-- 네비게이션 버튼 -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -82,7 +88,7 @@
                             android:id="@+id/btnPrevious"
                             android:layout_width="30dp"
                             android:layout_height="30dp"
-                            android:layout_marginStart="0dp"
+                            android:layout_marginStart="12dp"
                             android:background="@drawable/rounded_button_bg"
                             android:src="@drawable/ic_arrow_left"
                             android:scaleType="fitCenter"
@@ -97,14 +103,14 @@
                             android:id="@+id/btnNext"
                             android:layout_width="30dp"
                             android:layout_height="30dp"
-                            android:layout_marginEnd="0dp"
+                            android:layout_marginEnd="12dp"
                             android:background="@drawable/rounded_button_bg"
                             android:src="@drawable/ic_arrow_right"
                             android:scaleType="fitCenter"
                             android:contentDescription="다음 사진"/>
                     </LinearLayout>
 
-                    <!-- Upscale button -->
+                    <!-- 업스케일 버튼 -->
                     <ImageButton
                         android:id="@+id/upscaleButton"
                         android:layout_width="30dp"
@@ -119,12 +125,12 @@
                 </RelativeLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- Space between cards -->
+            <!-- 카드 사이 간격 -->
             <View
                 android:layout_width="match_parent"
                 android:layout_height="8dp" />
 
-            <!-- Info section as separate card with WHITE background -->
+            <!-- 정보 섹션 (흰색 배경) -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -142,7 +148,7 @@
                     android:paddingTop="16dp"
                     android:paddingBottom="16dp">
 
-                    <!-- Activity tag -->
+                    <!-- 활동 태그 -->
                     <TextView
                         android:id="@+id/activityChip"
                         android:layout_width="wrap_content"
@@ -156,7 +162,7 @@
                         android:textColor="#000000"
                         android:textSize="14sp" />
 
-                    <!-- Date/Time -->
+                    <!-- 날짜/시간 -->
                     <TextView
                         android:id="@+id/photoDetailTimeTextView"
                         android:layout_width="wrap_content"
@@ -166,7 +172,7 @@
                         android:textColor="#000000"
                         android:textSize="14sp" />
 
-                    <!-- Location -->
+                    <!-- 위치 -->
                     <TextView
                         android:id="@+id/photoDetailLocationTextView"
                         android:layout_width="match_parent"
@@ -177,7 +183,7 @@
                         android:textSize="22sp"
                         android:textStyle="bold" />
 
-                    <!-- Address -->
+                    <!-- 주소 -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -201,14 +207,14 @@
                             android:textColor="#666666" />
                     </LinearLayout>
 
-                    <!-- Hashtags Container - Horizontal scroll with individual tags -->
+                    <!-- 해시태그 컨테이너 -->
                     <HorizontalScrollView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="10dp"
                         android:scrollbars="none">
 
-                        <!-- This container will hold dynamically created hashtags -->
+                        <!-- 동적으로 생성될 해시태그 컨테이너 -->
                         <LinearLayout
                             android:id="@+id/hashtagContainer"
                             android:layout_width="wrap_content"
