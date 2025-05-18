@@ -13,12 +13,15 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.resource.bitmap.RoundedCorners;
 import com.example.wakey.R;
 import com.example.wakey.data.model.TimelineItem;
 import com.example.wakey.data.util.DateUtil;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -70,30 +73,35 @@ public class StoryAdapter extends RecyclerView.Adapter<StoryAdapter.StoryViewHol
         Log.d("StoryAdapter", "📌 캡션 내용: " + item.getCaption());
         Log.d("StoryAdapter", "📌 객체 인식: " + item.getDetectedObjects());
 
-        // 1. 사진 로드
+        // 1. 사진 로드 - 코너를 둥글게 처리
         if (item.getPhotoPath() != null) {
             Log.d("StoryAdapter", "📌 사진 로드 시도: " + item.getPhotoPath());
             Glide.with(context)
                     .load(item.getPhotoPath())
+                    .transform(new RoundedCorners(16)) // 이미지 모서리 둥글게
                     .into(holder.imageView);
         } else {
             Log.d("StoryAdapter", "📌 사진 경로 없음");
         }
 
-        // 2. 시간 표시
+        // 2. 시간 표시 - "오전/오후 시간:분" 형식으로 변경
         if (item.getTime() != null) {
-            String timeText = DateUtil.formatDate(item.getTime(), "HH:mm");
+            // 한국어 오전/오후 포맷으로 변경
+            SimpleDateFormat timeFormat = new SimpleDateFormat("a h:mm", Locale.KOREAN);
+            String timeText = timeFormat.format(item.getTime());
             holder.timeTextView.setText(timeText);
             Log.d("StoryAdapter", "📌 시간 설정: " + timeText);
         } else {
+            holder.timeTextView.setText("");
             Log.d("StoryAdapter", "📌 시간 정보 없음");
         }
 
-        // 3. 위치 표시
+        // 3. 위치 표시 (기본적으로 숨김, 필요 시 표시)
         if (item.getLocation() != null && !item.getLocation().isEmpty() &&
                 !item.getLocation().equals("위치 정보 없음")) {
             holder.locationTextView.setText(item.getLocation());
-            holder.locationTextView.setVisibility(View.VISIBLE);
+            // 위치 정보 표시 여부 결정 (예: 위치 표시가 필요하면 VISIBLE로 변경)
+            holder.locationTextView.setVisibility(View.GONE);
             Log.d("StoryAdapter", "📌 위치 표시: " + item.getLocation());
         } else {
             holder.locationTextView.setVisibility(View.GONE);
@@ -144,11 +152,6 @@ public class StoryAdapter extends RecyclerView.Adapter<StoryAdapter.StoryViewHol
             Log.d("StoryAdapter", "📌 태그 정보 숨김");
         }
 
-        // 로그를 추가하여 텍스트뷰 상태 확인
-        Log.d("StoryAdapter", "📌 텍스트뷰 확인 - captionTextView: " +
-                (holder.captionTextView.getVisibility() == View.VISIBLE ? "보임" : "숨김") +
-                ", 텍스트: \"" + holder.captionTextView.getText() + "\"");
-
         // 클릭 리스너 설정
         holder.itemView.setOnClickListener(v -> {
             if (clickListener != null) {
@@ -156,7 +159,6 @@ public class StoryAdapter extends RecyclerView.Adapter<StoryAdapter.StoryViewHol
             }
         });
     }
-
     /**
      * 스토리 생성 메서드
      * StoryGenerator를 사용해 스토리 생성
