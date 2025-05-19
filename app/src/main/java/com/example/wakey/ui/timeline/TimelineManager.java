@@ -536,13 +536,12 @@ public class TimelineManager {
         return requestJson;
     }
 
-    // createSimplePrompt 메서드 수정 - 2줄 정도의 적당한 스토리
     private String createSimplePrompt(TimelineItem item) {
         StringBuilder prompt = new StringBuilder();
         Random random = new Random();
         int styleChoice = random.nextInt(5); // 0~4 사이의 랜덤 스타일
 
-        prompt.append("이 사진에 대한 창의적이고 개성 있는 1-2줄 스토리를 만들어주세요.\n\n");
+        prompt.append("이 사진에 대한 짧고 간결한 두~세줄 정도의 스토리 일기를 만들어줘.\n\n");
         prompt.append("참고 정보:\n");
 
         // 시간 정보
@@ -569,53 +568,48 @@ public class TimelineManager {
             prompt.append("AI 설명: ").append(item.getCaption()).append("\n");
         }
 
-        // 스타일 지침
+        // 공통 가이드라인
         prompt.append("\n스토리 작성 가이드라인:\n");
-        prompt.append("- 2문장 이내로 작성하세요\n");
+        prompt.append("- 두 문장으로 짧게 작성해줘. 어울리는 이모지와 함께.\n");
+        prompt.append("- '~했다', '~였다', '~이다', '~하다' 같은 간결한 종결어미 사용해줘.\n");
+        prompt.append("- 과도한 감성표현이나 오글거리는 표현은 사용하지 마.\n");
+        prompt.append("- 날짜와 장소는 문장 중간이나 끝에 자연스럽게 녹여서 간결하게 사용해줘.\n");
+        prompt.append("- '와', '대박', '좋았다', '재밌었다', '맛있었다' 같은 간단한 표현 사용해줘.\n");
 
         // 랜덤 스타일에 따른 추가 지침
         switch (styleChoice) {
             case 0:
-                // 감성적 일기체
-                prompt.append("- 감성적인 일기체로 작성\n");
-                prompt.append("- 시간과 장소는 문장 중간이나 끝에 자연스럽게 녹여서 사용\n");
-                prompt.append("- 첫 문장을 '오늘은', '어느새', '문득' 같은 표현으로 시작\n");
-                prompt.append("- '-했다', '-였다' 같은 과거형 종결어미 사용\n");
+                // 단순 사실형
+                prompt.append("- 사실만 간결하게 적어줘. (예: 치킨 먹었다. 영화 봤다.)\n");
+                prompt.append("- 불필요한 수식어 없이 핵심만 적어줘.\n");
                 break;
             case 1:
-                // 시적 표현체
-                prompt.append("- 서정적이고 시적인 표현으로 작성\n");
-                prompt.append("- 비유와 은유를 활용한 독특한 문체 사용\n");
-                prompt.append("- 날짜나 장소를 직접적으로 언급하지 말고 간접적인 표현으로 암시\n");
-                prompt.append("- 마치 짧은 시처럼 감각적인 표현 사용\n");
+                // 감각 중심형
+                prompt.append("- 맛, 향, 색깔 등 한 가지 감각에 집중해서 짧게 표현해줘. (예: 커피 향 좋았다.)\n");
+                prompt.append("- 장소나 시간은 최소한으로만 언급해줘.\n");
                 break;
             case 2:
-                // 현재 진행형 체험
-                prompt.append("- 현재형 시점으로 작성\n");
-                prompt.append("- '-고 있다', '-는 중이다' 같은 현재 진행형 표현 사용\n");
-                prompt.append("- 마치 지금 그 순간을 경험하는 것처럼 생생하게 묘사\n");
-                prompt.append("- 날짜보다 시간대(아침, 저녁 등)와 분위기에 초점\n");
+                // 상태 표현형
+                prompt.append("- 현재 상태나 기분을 간단히 표현해줘. (예: 피곤하다. 행복하다.)\n");
+                prompt.append("- 감정을 단순하고 직관적으로 표현해줘.\n");
                 break;
             case 3:
-                // 대화체/독백체
-                prompt.append("- 대화체나 독백체로 작성\n");
-                prompt.append("- '~네', '~구나', '~지' 같은 종결어미 사용\n");
-                prompt.append("- 마치 친구에게 말하듯 편안한 어조 사용\n");
-                prompt.append("- 날짜와 장소는 '거기' '그때' 같은 지시어로 간접적으로 표현\n");
+                // 짧은 독백형
+                prompt.append("- 매우 짧은 독백체로 적어줘. (예: 좋은 날이다. 대박.)\n");
+                prompt.append("- '뭐지?', '왜?', '진짜?' 같은 간단한 의문형도 가능.\n");
                 break;
             case 4:
-                // 감탄/질문형
-                prompt.append("- 감탄사나 질문형으로 시작하는 문장 포함\n");
-                prompt.append("- '어쩜!', '와!', '정말?'과 같은 표현으로 시작하거나 끝맺음\n");
-                prompt.append("- 시간과 장소는 구체적으로 언급하되 문장 구조 속에 자연스럽게 통합\n");
-                prompt.append("- 감정을 강조하는 어조 사용\n");
+                // 행동 중심형
+                prompt.append("- 주요 행동만 간결하게 적어줘. (예: 산책했다. 밥 먹었다.)\n");
+                prompt.append("- 동작 중심으로 간단하게 표현해줘.\n");
                 break;
         }
 
         // 중요한 지시사항 추가
-        prompt.append("\n특별 지시사항: 날짜와 장소를 문장 시작에 '5월 4일 일요일 중구에서...'와 같은 형식으로 나열하지 마세요. ");
-        prompt.append("문장 중간이나 뒷부분에 자연스럽게 통합하거나, 간접적으로 표현하세요. 매번 다른 문장 구조를 사용해서 다양한 스토리를 만들어주세요.");
-        prompt.append("\n\n스토리:");
+        prompt.append("\n특별 지시사항: 반드시 매우 짧은 한 문장으로만 작성하고, 앱 화면에 짤리지 않도록 간결하게 만들어줘. ");
+        prompt.append("날짜나 장소 정보는 꼭 필요한 경우에만 간단히 포함해줘. ");
+        prompt.append("'~했어', '~구나' 같은 표현 대신 '~했다', '~이다', '대박', '좋다' 같은 매우 간결한 표현을 사용해줘.\n\n");
+        prompt.append("스토리:");
 
         return prompt.toString();
     }

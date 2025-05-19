@@ -4,97 +4,91 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginStart="8dp"
+    android:layout_marginStart="10dp"
+    android:layout_marginEnd="10dp"
     android:layout_marginTop="8dp"
-    android:layout_marginEnd="8dp"
     android:layout_marginBottom="8dp"
-    app:cardCornerRadius="12dp"
-    app:cardElevation="4dp">
+    app:cardCornerRadius="16dp"
+    app:cardElevation="3dp"
+    app:cardBackgroundColor="#FFFFFF">
 
-    <LinearLayout
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:padding="16dp">
 
-        <!-- 이미지 -->
-        <ImageView
-            android:id="@+id/storyImageView"
-            android:layout_width="match_parent"
-            android:layout_height="200dp"
-            android:scaleType="centerCrop"
-            android:contentDescription="스토리 이미지" />
-
-        <!-- 내용 영역 -->
-        <LinearLayout
-            android:layout_width="match_parent"
+        <!-- 시간 TextView - 크기 증가 -->
+        <TextView
+            android:id="@+id/storyTimeTextView"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="16dp">
+            android:textSize="14sp"
+            android:textColor="#757575"
+            android:textStyle="bold"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/storyImageView"
+            android:layout_marginEnd="12dp"
+            tools:text="오후 3시 30분" />
 
-            <!-- 시간 및 위치 -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="8dp">
+        <!-- 장소 TextView - 크기 증가 -->
+        <TextView
+            android:id="@+id/storyLocationTextView"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:textSize="14sp"
+            android:textColor="#757575"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/storyTimeTextView"
+            app:layout_constraintEnd_toStartOf="@id/storyImageView"
+            android:layout_marginEnd="12dp"
+            android:layout_marginTop="6dp"
+            tools:text="인천 부평구 카페" />
 
-                <!-- 시간 -->
-                <TextView
-                    android:id="@+id/storyTimeTextView"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textSize="14sp"
-                    android:textColor="#757575"
-                    tools:text="14:30" />
+        <!-- 스크롤뷰 내의 스토리 TextView - 크기 증가 -->
+        <ScrollView
+            android:id="@+id/storyScrollView"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:layout_marginEnd="12dp"
+            android:minHeight="40dp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/storyLocationTextView"
+            app:layout_constraintEnd_toStartOf="@id/storyImageView"
+            app:layout_constraintBottom_toBottomOf="parent"
+            android:scrollbars="none">
 
-                <!-- 구분점 -->
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:layout_marginEnd="8dp"
-                    android:textSize="14sp"
-                    android:textColor="#757575"
-                    android:text="•" />
-
-                <!-- 위치 -->
-                <TextView
-                    android:id="@+id/storyLocationTextView"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textSize="14sp"
-                    android:textColor="#757575"
-                    tools:text="서울시 강남구" />
-            </LinearLayout>
-
-            <!-- 캡션 (BLIP 모델 결과) -->
             <TextView
                 android:id="@+id/storyCaptionTextView"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:textSize="16sp"
-                android:textColor="#212121"
-                android:lineSpacingExtra="4dp"
-                tools:text="이 사진에는 사람들이 모여있고, 배경에는 건물이 보입니다." />
+                android:textColor="#000000"
+                android:lineSpacingExtra="2dp"
+                tools:text="커피 맛있다." />
+        </ScrollView>
 
-            <!-- 캡션 로딩 표시 -->
-            <ProgressBar
-                android:id="@+id/captionProgressBar"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:layout_gravity="center_horizontal"
-                android:layout_marginTop="8dp"
-                android:visibility="gone" />
+        <!-- 프로그레스바 -->
+        <ProgressBar
+            android:id="@+id/captionProgressBar"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:visibility="gone"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/storyLocationTextView"
+            android:layout_marginTop="10dp"/>
 
-            <!-- 객체 인식 태그 -->
-            <TextView
-                android:id="@+id/storyTagsTextView"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:textSize="14sp"
-                android:textColor="#2196F3"
-                tools:text="#사람 #건물 #야외" />
-        </LinearLayout>
-    </LinearLayout>
+        <!-- 이미지 크기 증가 -->
+        <ImageView
+            android:id="@+id/storyImageView"
+            android:layout_width="100dp"
+            android:layout_height="100dp"
+            android:scaleType="centerCrop"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            tools:src="@tools:sample/backgrounds/scenic" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
 </androidx.cardview.widget.CardView>
