@@ -1,8 +1,8 @@
 package com.example.wakey.ui.album.common;
 
-import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
+import android.util.Pair;
 import android.view.View;
 import android.widget.ImageButton;
 import android.widget.TextView;
@@ -14,11 +14,18 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.wakey.R;
 import com.example.wakey.data.local.AppDatabase;
 import com.example.wakey.data.local.Photo;
+import com.example.wakey.data.model.TimelineItem;
+import com.example.wakey.ui.photo.PhotoDetailFragment;
 import com.example.wakey.util.ToastManager;
+import com.google.android.gms.maps.model.LatLng;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class AlbumDetailActivity extends AppCompatActivity {
     private static final String TAG = "AlbumDetailActivity";
@@ -115,8 +122,12 @@ public class AlbumDetailActivity extends AppCompatActivity {
             AppDatabase db = AppDatabase.getInstance(getApplicationContext());
             List<Photo> dbPhotos = db.photoDao().getAllPhotos();
 
-            // Filter photos by region
+            // 최종 TimelineItem 리스트를 저장할 리스트
+            final List<TimelineItem> timelineItems = new ArrayList<>();
+            // 기존의 photoUrls 리스트도 유지 (UI 업데이트에 사용)
             List<String> photoUrls = new ArrayList<>();
+
+            // Filter photos by region
             for (Photo photo : dbPhotos) {
                 // Apply year filter if set
                 if (yearFilter != null && (photo.dateTaken == null || !photo.dateTaken.startsWith(yearFilter))) {
@@ -126,16 +137,30 @@ public class AlbumDetailActivity extends AppCompatActivity {
                 // Filter logic based on region
                 if (matchesRegion(photo, regionName)) {
                     photoUrls.add(photo.filePath);
+
+                    // Photo를 TimelineItem으로 변환
+                    TimelineItem item = convertPhotoToTimelineItem(photo);
+                    timelineItems.add(item);
                 }
             }
 
             // If no photos found, add dummy data for demo
             if (photoUrls.isEmpty()) {
                 for (int i = 0; i < 30; i++) {
-                    photoUrls.add("photo_" + i);
+                    String dummyPath = "photo_" + i;
+                    photoUrls.add(dummyPath);
+
+                    // 더미 TimelineItem 생성
+                    TimelineItem dummyItem = new TimelineItem.Builder()
+                            .setPhotoPath(dummyPath)
+                            .setActivityType("일상")
+                            .build();
+                    timelineItems.add(dummyItem);
                 }
             }
 
+            // UI는 메인 스레드에서 업데이트
+            final List<TimelineItem> finalTimelineItems = timelineItems;
             runOnUiThread(() -> {
                 PhotoAdapter adapter = new PhotoAdapter(photoUrls);
                 adapter.setOnItemClickListener(new PhotoAdapter.OnPhotoClickListener() {
@@ -144,7 +169,13 @@ public class AlbumDetailActivity extends AppCompatActivity {
                         if (isSelectionMode) {
                             togglePhotoSelection(photoPath);
                         } else {
-                            showPhotoDetail(photoPath, position);
+                            // position이 범위 내에 있는지 확인
+                            if (position >= 0 && position < finalTimelineItems.size()) {
+                                showPhotoDetail(photoPath, position, finalTimelineItems.get(position));
+                            } else {
+                                // TimelineItem이 없으면 기본 메서드 호출
+                                showPhotoDetail(photoPath, position);
+                            }
                         }
                     }
 
@@ -162,6 +193,95 @@ public class AlbumDetailActivity extends AppCompatActivity {
                 updatePhotoCount(photoUrls.size());
             });
         });
+    }
+
+    /**
+     * Photo 객체를 TimelineItem으로 변환
+     */
+    private TimelineItem convertPhotoToTimelineItem(Photo photo) {
+        TimelineItem.Builder builder = new TimelineItem.Builder();
+
+        // 필수 정보 설정
+        builder.setPhotoPath(photo.filePath);
+
+        // 날짜 설정
+        if (photo.dateTaken != null) {
+            try {
+                SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
+                Date date = format.parse(photo.dateTaken);
+                builder.setTime(date);
+            } catch (Exception e) {
+                // 파싱 실패 시 timestamp 사용 시도
+                final long timestamp = photo.timestamp;
+                if (timestamp > 0) {
+                    builder.setTime(new Date(timestamp));
+                } else {
+                    Log.e(TAG, "날짜 파싱 실패: " + photo.dateTaken, e);
+                }
+            }
+        } else if (photo.timestamp > 0) {
+            // dateTaken이 없지만 timestamp가 있는 경우
+            builder.setTime(new Date(photo.timestamp));
+        }
+
+        // 위치 정보 설정
+        StringBuilder locationBuilder = new StringBuilder();
+        if (photo.locationDo != null) locationBuilder.append(photo.locationDo).append(" ");
+        if (photo.locationSi != null) locationBuilder.append(photo.locationSi).append(" ");
+        if (photo.locationGu != null) locationBuilder.append(photo.locationGu);
+        final String location = locationBuilder.toString().trim();
+
+        if (!location.isEmpty()) {
+            builder.setLocation(location);
+        } else {
+            final String fullAddress = photo.fullAddress;
+            final String country = photo.country;
+
+            if (fullAddress != null && !fullAddress.isEmpty()) {
+                // fullAddress가 있으면 사용
+                builder.setLocation(fullAddress);
+            } else if (country != null && !country.isEmpty()) {
+                // country가 있으면 사용
+                builder.setLocation(country);
+            }
+        }
+
+        // 위도/경도 설정
+        final Double latitude = photo.latitude;
+        final Double longitude = photo.longitude;
+        if (latitude != null && longitude != null &&
+                (latitude != 0 || longitude != 0)) {
+            builder.setLatLng(new LatLng(latitude, longitude));
+        }
+
+        // 캡션 설정
+        final String caption = photo.caption;
+        if (caption != null && !caption.isEmpty()) {
+            builder.setCaption(caption);
+        }
+
+        // 스토리 설정
+        final String story = photo.story;
+        if (story != null && !story.isEmpty()) {
+            builder.setStory(story);
+        }
+
+        // 감지된 객체 설정
+        final String detectedObjects = photo.detectedObjects;
+        if (detectedObjects != null && !detectedObjects.isEmpty()) {
+            builder.setDetectedObjects(detectedObjects);
+        }
+
+        // 객체 쌍 설정
+        final List<Pair<String, Float>> detectedObjectPairs = photo.detectedObjectPairs;
+        if (detectedObjectPairs != null && !detectedObjectPairs.isEmpty()) {
+            builder.setDetectedObjectPairs(detectedObjectPairs);
+        }
+
+        // 활동 유형 설정 - 기본값 사용
+        builder.setActivityType("일상");
+
+        return builder.build();
     }
 
     /**
@@ -184,14 +304,45 @@ public class AlbumDetailActivity extends AppCompatActivity {
     }
 
     /**
-     * Show detail view for a photo
+     * Show detail view for a photo (기존 photoPath만 사용하는 버전)
      */
     private void showPhotoDetail(String photoPath, int position) {
-        // Open photo detail view activity
-        Intent intent = new Intent(this, PhotoDetailViewActivity.class);
-        intent.putExtra("PHOTO_PATH", photoPath);
-        intent.putExtra("POSITION", position);
-        startActivity(intent);
+        // TimelineItem 객체 생성
+        AtomicReference<TimelineItem> timelineItem = new AtomicReference<>(new TimelineItem.Builder()
+                .setPhotoPath(photoPath)
+                .setActivityType("일상") // 기본값
+                .build());
+
+        // 데이터베이스에서 해당 사진의 추가 정보 가져오기
+        Executors.newSingleThreadExecutor().execute(() -> {
+            AppDatabase db = AppDatabase.getInstance(getApplicationContext());
+            Photo photo = db.photoDao().getPhotoByFilePath(photoPath);
+
+            if (photo != null) {
+                // 변환된 TimelineItem으로 대체
+                timelineItem.set(convertPhotoToTimelineItem(photo));
+            }
+
+            runOnUiThread(() -> {
+                // PhotoDetailFragment 표시
+                PhotoDetailFragment detailFragment = PhotoDetailFragment.newInstance(timelineItem.get());
+                detailFragment.show(getSupportFragmentManager(), "photo_detail");
+            });
+        });
+    }
+
+    /**
+     * Show detail view for a photo (TimelineItem을 전달받는 오버로드 버전)
+     */
+    private void showPhotoDetail(String photoPath, int position, TimelineItem timelineItem) {
+        if (timelineItem != null) {
+            // TimelineItem이 이미 있으면 바로 사용
+            PhotoDetailFragment detailFragment = PhotoDetailFragment.newInstance(timelineItem);
+            detailFragment.show(getSupportFragmentManager(), "photo_detail");
+        } else {
+            // TimelineItem이 없으면 기본 메서드 호출
+            showPhotoDetail(photoPath, position);
+        }
     }
 
     /**
