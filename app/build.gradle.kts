@@ -53,6 +53,7 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
+    implementation ("org.apache.commons:commons-math3:3.6.1")
 
     // PhotoView 라이브러리
     implementation("com.github.chrisbanes:PhotoView:2.3.0")

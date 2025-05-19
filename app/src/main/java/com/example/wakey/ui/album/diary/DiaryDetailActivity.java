@@ -1,275 +1,331 @@
 package com.example.wakey.ui.album.diary;
 
 import android.Manifest;
-import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.net.Uri;
 import android.os.Bundle;
-import android.provider.MediaStore;
+import android.util.Log;
 import android.widget.EditText;
-import android.widget.ImageButton;
-import android.widget.ImageView;
-import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
-import androidx.annotation.Nullable;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
-import com.bumptech.glide.Glide;
 import com.example.wakey.R;
 import com.example.wakey.audio.AudioRecorder;
 import com.example.wakey.audio.MelSpectrogramGenerator;
 import com.example.wakey.audio.WhisperDecoder;
 import com.example.wakey.audio.WhisperEncoder;
 import com.example.wakey.audio.WhisperTokenizer;
-import com.example.wakey.util.ToastManager;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Locale;
-
+import java.util.Arrays;
+import java.util.Map;
 
 public class DiaryDetailActivity extends AppCompatActivity {
-    private boolean isRecording = false;
-    private AudioRecorder recorder;
-    private TextView recordingStatusTextView;
-    private static final int REQUEST_RECORD_AUDIO_PERMISSION = 1001;
-    private static final int PICK_IMAGE_REQUEST = 1;
+    private static final String TAG = "녹음디버그";
+    private static final int REQUEST_RECORD_AUDIO_PERMISSION = 200;
+    private static final int TOKEN_SOT = 50257;
+    private static final int TOKEN_EOT = 50256;
+    private static final int TOKEN_NO_TIMESTAMP = 50362;
+    private static final int TOKEN_TIMESTAMP_BEGIN = 50363;
+    private static final int TOKEN_NO_SPEECH = 50361;
+    private static final float NO_SPEECH_THR = 0.6f;
+    private static final int[] NON_SPEECH_TOKENS = {
+            1, 2, 7, 8, 9, 10, 14, 25, 26, 27, 28, 29, 31, 58, 59, 60, 61, 62, 63, 90, 91, 92, 93,
+            357, 366, 438, 532, 685, 705, 796, 930, 1058, 1220, 1267, 1279, 1303, 1343, 1377, 1391,
+            1635, 1782, 1875, 2162, 2361, 2488, 3467, 4008, 4211, 4600, 4808, 5299, 5855, 6329,
+            7203, 9609, 9959, 10563, 10786, 11420, 11709, 11907, 13163, 13697, 13700, 14808, 15306,
+            16410, 16791, 17992, 19203, 19510, 20724, 22305, 22935, 27007, 30109, 30420, 33409,
+            34949, 40283, 40493, 40549, 47282, 49146, 50257, 50357, 50358, 50359, 50360, 50361
+    };
 
-    private ImageView coverImageView;
-    private EditText titleEditText, contentEditText;
-    private TextView dateRangeTextView;
-    private LinearLayout heartRatingContainer;
-    private FloatingActionButton changeImageFab;
-    private int currentRating = 0;
-    private String currentImagePath;
+    private AudioRecorder audioRecorder;
+    private MelSpectrogramGenerator melSpectrogramGenerator;
+    private WhisperEncoder whisperEncoder;
+    private WhisperDecoder whisperDecoder;
+    private WhisperTokenizer whisperTokenizer;
+
+    private FloatingActionButton recordButton;
+    private EditText diaryContent;
+    private TextView recordingStatusText;
+    private boolean isRecording = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_diary_detail);
 
-        // Initialize views
-        coverImageView = findViewById(R.id.diaryCoverImage);
-        titleEditText = findViewById(R.id.diaryTitleEdit);
-        contentEditText = findViewById(R.id.diaryContentEdit);
-        dateRangeTextView = findViewById(R.id.diaryDateRangeText);
-        heartRatingContainer = findViewById(R.id.heartRatingContainer);
-        changeImageFab = findViewById(R.id.changeImageFab);
+        recordButton = findViewById(R.id.recordVoiceFab);
+        diaryContent = findViewById(R.id.diaryContentEdit);
+        recordingStatusText = findViewById(R.id.recordingStatusText);
 
-        // Set current date as default
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy.MM.dd", Locale.getDefault());
-        String currentDate = sdf.format(new Date());
-        dateRangeTextView.setText(currentDate);
-
-        // Setup heart rating
-        setupHeartRating();
-
-        // Back button
-        ImageButton backButton = findViewById(R.id.backButton);
-        backButton.setOnClickListener(v -> onBackPressed());
-
-        // Save button
-        findViewById(R.id.saveButton).setOnClickListener(v -> saveDiary());
-
-        // Change image FAB
-        changeImageFab.setOnClickListener(v -> openGallery());
-
-        // Get data from intent if available (for editing existing diary)
-        if (getIntent().hasExtra("DIARY_TITLE")) {
-            titleEditText.setText(getIntent().getStringExtra("DIARY_TITLE"));
-            dateRangeTextView.setText(getIntent().getStringExtra("DIARY_DATE_RANGE"));
-            contentEditText.setText(getIntent().getStringExtra("DIARY_CONTENT"));
-            currentRating = getIntent().getIntExtra("DIARY_RATING", 0);
-            updateHeartDisplay();
-
-            // Load cover image if available
-            currentImagePath = getIntent().getStringExtra("DIARY_THUMBNAIL");
-            if (currentImagePath != null && !currentImagePath.isEmpty()) {
-                Glide.with(this)
-                        .load(Uri.parse(currentImagePath))
-                        .centerCrop()
-                        .into(coverImageView);
-            }
-        }
-
-        recorder = new AudioRecorder();
-        recordingStatusTextView = findViewById(R.id.recordingStatusText);
-        FloatingActionButton recordVoiceFab = findViewById(R.id.recordVoiceFab);
-        recordVoiceFab.setOnClickListener(v -> {
-            if (!isRecording) {
-                startRecording();
-            } else {
-                stopRecordingAndRunInference();
-            }
-        });
-
-    }
-
-
-    private void startRecording() {
-        isRecording = true;
-        recorder.startRecording();
-        recordingStatusTextView.setText("🎙 녹음 중...");
-        ToastManager.getInstance().showToast("녹음을 시작했습니다");
-    }
-
-    private void stopRecordingAndRunInference() {
-        isRecording = false;
-        recordingStatusTextView.setText("");
-        ToastManager.getInstance().showToast("녹음 종료, 변환 중...");
-
-        float[] audioData = recorder.stopRecordingAndGetData();
-        float[][][] mel = MelSpectrogramGenerator.generate(audioData);
-        WhisperEncoder encoder = new WhisperEncoder(this);
-        float[][][] encoderOutput = encoder.runInference(mel);
-        WhisperDecoder decoder = new WhisperDecoder(this);
-        WhisperTokenizer tokenizer = new WhisperTokenizer(this);
-
-        List<Integer> tokenIds = new ArrayList<>();
-        tokenIds.add(50258); // BOS
-
-        for (int i = 0; i < 100; i++) {
-            int[] inputTokens = tokenIds.stream().mapToInt(Integer::intValue).toArray();
-            float[][] logits = decoder.run(encoderOutput, inputTokens);
-
-            int nextToken = 0;
-            float maxLogit = -Float.MAX_VALUE;
-            for (int j = 0; j < logits[0].length; j++) {
-                if (logits[0][j] > maxLogit) {
-                    maxLogit = logits[0][j];
-                    nextToken = j;
-                }
-            }
-
-            if (nextToken == 50257) break; // EOT
-            tokenIds.add(nextToken);
-        }
-
-        int[] finalTokenArray = tokenIds.stream().mapToInt(Integer::intValue).toArray();
-        String result = tokenizer.decode(finalTokenArray);
-        contentEditText.setText(result);
-    }
-    private void openGallery() {
-        Intent galleryIntent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
-        startActivityForResult(galleryIntent, PICK_IMAGE_REQUEST);
-    }
-
-    private void checkAudioPermissionAndStartRecording() {
+        // 권한 확인 및 초기화 연기
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
                 != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this,
                     new String[]{Manifest.permission.RECORD_AUDIO},
                     REQUEST_RECORD_AUDIO_PERMISSION);
-            return;
+        } else {
+            initializeAudioComponents();
         }
 
-        // 권한이 있을 경우 실제 녹음 시작
-        startRecording();
+        recordButton.setOnClickListener(v -> {
+            if (!isRecording) {
+                startRecording();
+            } else {
+                stopRecording();
+            }
+        });
     }
 
-
+    private void initializeAudioComponents() {
+        try {
+            audioRecorder = new AudioRecorder();
+            melSpectrogramGenerator = new MelSpectrogramGenerator(this);
+            whisperEncoder = new WhisperEncoder(this);
+            whisperDecoder = new WhisperDecoder(this);
+            whisperTokenizer = new WhisperTokenizer(this);
+            Log.d(TAG, "오디오 컴포넌트 초기화 완료");
+        } catch (Exception e) {
+            Log.e(TAG, "오디오 컴포넌트 초기화 실패: " + e.getMessage(), e);
+            Toast.makeText(this, "오디오 초기화 실패", Toast.LENGTH_SHORT).show();
+        }
+    }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == REQUEST_RECORD_AUDIO_PERMISSION) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                checkAudioPermissionAndStartRecording(); // 다시 시도
+                initializeAudioComponents();
             } else {
-                ToastManager.getInstance().showToast("음성 녹음 권한이 필요합니다");
+                Toast.makeText(this, "녹음 권한이 필요합니다.", Toast.LENGTH_LONG).show();
+                recordButton.setEnabled(false); // 권한 없으면 버튼 비활성화
             }
         }
     }
 
-
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-
-        if (requestCode == PICK_IMAGE_REQUEST && resultCode == RESULT_OK && data != null) {
-            Uri selectedImageUri = data.getData();
-            if (selectedImageUri != null) {
-                // Update the current image path
-                currentImagePath = selectedImageUri.toString();
-
-                // Load the selected image into the cover ImageView
-                Glide.with(this)
-                        .load(selectedImageUri)
-                        .centerCrop()
-                        .into(coverImageView);
-
-                ToastManager.getInstance().showToast("커버 이미지가 변경되었습니다");
-            }
-        }
-    }
-
-    private void setupHeartRating() {
-        // Clear previous hearts
-        heartRatingContainer.removeAllViews();
-
-        // Create 5 hearts
-        for (int i = 0; i < 5; i++) {
-            final int heartIndex = i;
-            ImageView heartView = new ImageView(this);
-            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT);
-            params.setMargins(8, 0, 8, 0);
-            heartView.setLayoutParams(params);
-            heartView.setImageResource(R.drawable.ic_heart_grey);
-
-            // Set click listener
-            heartView.setOnClickListener(v -> {
-                currentRating = heartIndex + 1;
-                updateHeartDisplay();
-            });
-
-            heartRatingContainer.addView(heartView);
-        }
-
-        // Update display based on current rating
-        updateHeartDisplay();
-    }
-
-    private void updateHeartDisplay() {
-        for (int i = 0; i < heartRatingContainer.getChildCount(); i++) {
-            ImageView heartView = (ImageView) heartRatingContainer.getChildAt(i);
-            if (i < currentRating) {
-                heartView.setImageResource(R.drawable.ic_heart_filled);
-            } else {
-                heartView.setImageResource(R.drawable.ic_heart_grey);
-            }
-        }
-    }
-
-    private void saveDiary() {
-        String title = titleEditText.getText().toString().trim();
-        String content = contentEditText.getText().toString().trim();
-        String dateRange = dateRangeTextView.getText().toString();
-
-        if (title.isEmpty()) {
-            ToastManager.getInstance().showToast("제목을 입력해주세요");
+    private void startRecording() {
+        if (audioRecorder == null) {
+            Toast.makeText(this, "녹음 기능을 사용할 수 없습니다. 권한을 확인하세요.", Toast.LENGTH_SHORT).show();
             return;
         }
+        try {
+            audioRecorder.startRecording();
+            isRecording = true;
+            recordButton.setImageResource(R.drawable.ic_baseline_stop_24);
+            recordingStatusText.setText("Recording...");
+            Log.d(TAG, "녹음 시작");
+        } catch (Exception e) {
+            Log.e(TAG, "녹음 시작 실패: " + e.getMessage(), e);
+            Toast.makeText(this, "녹음 시작 실패", Toast.LENGTH_SHORT).show();
+        }
+    }
 
-        // Return selected data back to the calling activity
-        Intent resultIntent = new Intent();
-        resultIntent.putExtra("DIARY_TITLE", title);
-        resultIntent.putExtra("DIARY_CONTENT", content);
-        resultIntent.putExtra("DIARY_DATE_RANGE", dateRange);
-        resultIntent.putExtra("DIARY_RATING", currentRating);
-        resultIntent.putExtra("DIARY_THUMBNAIL", currentImagePath);
+    private void stopRecording() {
+        if (audioRecorder == null) {
+            return;
+        }
+        try {
+            float[] audioData = audioRecorder.stopRecordingAndGetData();
+            isRecording = false;
+            recordButton.setImageResource(R.drawable.ic_baseline_mic_24);
+            recordingStatusText.setText("");
+            Log.d(TAG, "녹음 중지, Audio data length: " + audioData.length);
 
-        setResult(RESULT_OK, resultIntent);
+            String transcription = transcribeAudio(audioData);
+            diaryContent.setText(transcription);
+            Log.d(TAG, "Transcription: " + transcription);
+        } catch (Exception e) {
+            Log.e(TAG, "녹음 중지 또는 처리 실패: " + e.getMessage(), e);
+            Toast.makeText(this, "녹음 처리 실패", Toast.LENGTH_SHORT).show();
+        }
+    }
 
-        ToastManager.getInstance().showToast("일기가 저장되었습니다");
-        finish();
+    private String transcribeAudio(float[] audioData) {
+        try {
+            if (melSpectrogramGenerator == null) {
+                Log.e(TAG, "MelSpectrogramGenerator가 초기화되지 않음");
+                Toast.makeText(this, "Mel 필터 초기화 실패", Toast.LENGTH_SHORT).show();
+                return "Mel 필터 초기화 실패";
+            }
+            float[][][] melSpectrogram = melSpectrogramGenerator.generateMelSpectrogram(audioData);
+            if (melSpectrogram.length == 0) {
+                Log.e(TAG, "Mel 스펙트로그램 생성 실패");
+                Toast.makeText(this, "Mel 스펙트로그램 생성 실패", Toast.LENGTH_SHORT).show();
+                return "Mel 스펙트로그램 생성 실패";
+            }
+            Log.d(TAG, "Mel shape: [" + melSpectrogram.length + ", " + melSpectrogram[0].length + ", " + melSpectrogram[0][0].length + "]");
+
+            Map<String, Object> encoderOutput = whisperEncoder.runInference(melSpectrogram);
+            float[][][][][] kCacheCross = (float[][][][][]) encoderOutput.get("kCacheCross");
+            float[][][][][] vCacheCross = (float[][][][][]) encoderOutput.get("vCacheCross");
+            float[][][] embedding = (float[][][]) encoderOutput.get("embedding");
+
+            whisperDecoder.initializeCache(kCacheCross, vCacheCross);
+            whisperDecoder.resetCache();
+
+            int[] tokens = new int[]{TOKEN_SOT};
+            StringBuilder transcription = new StringBuilder();
+            float sumLogprobs = 0f;
+
+            for (int i = 0; i < 224; i++) {
+                Map<String, Object> decoderOutput = whisperDecoder.run(embedding, tokens[tokens.length - 1], i);
+                float[][][][] logits = (float[][][][]) decoderOutput.get("logits");
+                float[] lastLogits = logits[0][0][0];
+
+                float[] logprobs = applyTimestampRules(lastLogits, tokens, i);
+                if (i == 0) {
+                    float noSpeechProb = (float) Math.exp(logprobs[TOKEN_NO_SPEECH]);
+                    if (noSpeechProb > NO_SPEECH_THR) {
+                        Log.d(TAG, "무음 감지, no_speech_prob: " + noSpeechProb);
+                        return "";
+                    }
+                    lastLogits[TOKEN_EOT] = Float.NEGATIVE_INFINITY;
+                    lastLogits[220] = Float.NEGATIVE_INFINITY;
+                }
+                for (int token : NON_SPEECH_TOKENS) {
+                    lastLogits[token] = Float.NEGATIVE_INFINITY;
+                }
+
+                int nextToken = argmax(lastLogits);
+                sumLogprobs += logprobs[nextToken];
+
+                if (nextToken == TOKEN_EOT) {
+                    break;
+                }
+
+                tokens = Arrays.copyOf(tokens, tokens.length + 1);
+                tokens[tokens.length - 1] = nextToken;
+
+                String text = whisperTokenizer.decode(new int[]{nextToken});
+                transcription.append(text);
+            }
+
+            String result = transcription.toString().trim();
+            Log.d(TAG, "Transcription completed, sum_logprobs: " + sumLogprobs);
+            return result;
+        } catch (Exception e) {
+            Log.e(TAG, "음성 변환 실패: " + e.getMessage(), e);
+            Toast.makeText(this, "음성 변환 실패: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            return "음성 변환 실패";
+        }
+    }
+
+    private float[] applyTimestampRules(float[] logits, int[] tokens, int index) {
+        float[] logprobs = softmax(logits);
+        float[] logitsCopy = Arrays.copyOf(logits, logits.length);
+
+        // 타임스탬프 강제
+        logitsCopy[TOKEN_NO_TIMESTAMP] = Float.NEGATIVE_INFINITY;
+
+        // 타임스탬프 쌍 규칙
+        int[] seq = Arrays.copyOfRange(tokens, 1, tokens.length);
+        boolean lastWasTimestamp = seq.length >= 1 && seq[seq.length - 1] >= TOKEN_TIMESTAMP_BEGIN;
+        boolean penultimateWasTimestamp = seq.length >= 2 && seq[seq.length - 2] >= TOKEN_TIMESTAMP_BEGIN;
+        if (lastWasTimestamp) {
+            if (penultimateWasTimestamp) {
+                for (int j = TOKEN_TIMESTAMP_BEGIN; j < logitsCopy.length; j++) {
+                    logitsCopy[j] = Float.NEGATIVE_INFINITY;
+                }
+            } else {
+                for (int j = 0; j < TOKEN_EOT; j++) {
+                    logitsCopy[j] = Float.NEGATIVE_INFINITY;
+                }
+            }
+        }
+
+        // 타임스탬프 감소 방지
+        int[] timestamps = Arrays.stream(tokens)
+                .filter(t -> t >= TOKEN_TIMESTAMP_BEGIN)
+                .toArray();
+        if (timestamps.length > 0) {
+            int lastTimestamp = lastWasTimestamp && !penultimateWasTimestamp ?
+                    timestamps[timestamps.length - 1] :
+                    timestamps[timestamps.length - 1] + 1;
+            for (int j = TOKEN_TIMESTAMP_BEGIN; j < lastTimestamp; j++) {
+                logitsCopy[j] = Float.NEGATIVE_INFINITY;
+            }
+        }
+
+        if (index == 0) {
+            for (int j = 0; j < TOKEN_TIMESTAMP_BEGIN; j++) {
+                logitsCopy[j] = Float.NEGATIVE_INFINITY;
+            }
+            int lastAllowed = TOKEN_TIMESTAMP_BEGIN + 50; // max_initial_timestamp_index = 1.0 / 0.02
+            for (int j = lastAllowed + 1; j < logitsCopy.length; j++) {
+                logitsCopy[j] = Float.NEGATIVE_INFINITY;
+            }
+        }
+
+        // 타임스탬프 우선
+        float timestampLogprob = logSumExp(logprobs, TOKEN_TIMESTAMP_BEGIN, logprobs.length);
+        float maxTextTokenLogprob = max(logprobs, 0, TOKEN_TIMESTAMP_BEGIN);
+        if (timestampLogprob > maxTextTokenLogprob) {
+            for (int j = 0; j < TOKEN_TIMESTAMP_BEGIN; j++) {
+                logitsCopy[j] = Float.NEGATIVE_INFINITY;
+            }
+        }
+
+        return logprobs;
+    }
+
+    private float[] softmax(float[] logits) {
+        float maxLogit = Float.NEGATIVE_INFINITY;
+        for (float logit : logits) {
+            maxLogit = Math.max(maxLogit, logit);
+        }
+        float sumExp = 0f;
+        float[] expLogits = new float[logits.length];
+        for (int i = 0; i < logits.length; i++) {
+            expLogits[i] = (float) Math.exp(logits[i] - maxLogit);
+            sumExp += expLogits[i];
+        }
+        float[] logprobs = new float[logits.length];
+        for (int i = 0; i < logits.length; i++) {
+            logprobs[i] = (float) Math.log(expLogits[i] / sumExp);
+        }
+        return logprobs;
+    }
+
+    private float logSumExp(float[] array, int start, int end) {
+        float maxVal = Float.NEGATIVE_INFINITY;
+        for (int i = start; i < end; i++) {
+            maxVal = Math.max(maxVal, array[i]);
+        }
+        float sum = 0f;
+        for (int i = start; i < end; i++) {
+            sum += (float) Math.exp(array[i] - maxVal);
+        }
+        return maxVal + (float) Math.log(sum);
+    }
+
+    private float max(float[] array, int start, int end) {
+        float maxVal = Float.NEGATIVE_INFINITY;
+        for (int i = start; i < end; i++) {
+            maxVal = Math.max(maxVal, array[i]);
+        }
+        return maxVal;
+    }
+
+    private int argmax(float[] array) {
+        int maxIndex = 0;
+        for (int i = 1; i < array.length; i++) {
+            if (array[i] > array[maxIndex]) {
+                maxIndex = i;
+            }
+        }
+        return maxIndex;
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (whisperEncoder != null) whisperEncoder.close();
+        if (whisperDecoder != null) whisperDecoder.close();
+        if (audioRecorder != null) audioRecorder.release();
     }
 }
