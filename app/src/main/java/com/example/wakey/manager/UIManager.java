@@ -21,6 +21,9 @@ import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+// Pair 클래스 임포트 추가
+import android.util.Pair; // 또는
+// import androidx.core.util.Pair;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.FragmentManager;
@@ -440,39 +443,95 @@ public class UIManager {
         }
     }
 
-    /**
-     * 날짜 선택 대화상자 표시
-     */
+    // UIManager.java에서 showDatePickerDialog() 메서드를 다음과 같이 수정:
+    // UIManager.java에서 showDatePickerDialog() 메서드 수정:
     public void showDatePickerDialog() {
         if (fragmentManager == null) return;
 
-        // 캘린더 빌더 생성
-        MaterialDatePicker.Builder<Long> builder = MaterialDatePicker.Builder.datePicker();
+        // 날짜 범위 선택기 빌더 생성
+        MaterialDatePicker.Builder<androidx.core.util.Pair<Long, Long>> builder =
+                MaterialDatePicker.Builder.dateRangePicker();
 
         // 커스텀 테마 적용
         builder.setTheme(R.style.CustomMaterialCalendarTheme);
 
-        // 제목 설정 및 현재 날짜로 초기화
-        builder.setTitleText("Wakey Wakey");
-        builder.setSelection(currentSelectedDate.getTimeInMillis());
+        // 제목 설정
+        builder.setTitleText("날짜 범위 선택");
+
+        // 현재 날짜로 초기화 - androidx.core.util.Pair 사용
+        androidx.core.util.Pair<Long, Long> selection = new androidx.core.util.Pair<>(
+                currentSelectedDate.getTimeInMillis(),
+                currentSelectedDate.getTimeInMillis());
+        builder.setSelection(selection);
 
         // DatePicker 생성
-        MaterialDatePicker<Long> materialDatePicker = builder.build();
+        MaterialDatePicker<androidx.core.util.Pair<Long, Long>> dateRangePicker = builder.build();
 
-        // 날짜 선택 리스너 설정
-        materialDatePicker.addOnPositiveButtonClickListener(selection -> {
-            // 선택한 날짜로 설정
-            currentSelectedDate.setTimeInMillis(selection);
-            updateDateDisplay();
+        // 날짜 범위 선택 리스너 설정
+        dateRangePicker.addOnPositiveButtonClickListener(dateRange -> {
+            // 시작 날짜 업데이트
+            Calendar startDate = Calendar.getInstance();
+            startDate.setTimeInMillis(dateRange.first);
 
-            // 리스너 호출
+            // 종료 날짜 업데이트
+            Calendar endDate = Calendar.getInstance();
+            endDate.setTimeInMillis(dateRange.second);
+
+            // 기존 호환성을 위해 currentSelectedDate를 시작 날짜로 설정
+            currentSelectedDate.setTimeInMillis(dateRange.first);
+
+            // 날짜 표시 업데이트
+            updateDateDisplay(startDate, endDate);
+
+            // 리스너에 시작 날짜와 종료 날짜 모두 전달
             if (dateChangedListener != null) {
-                dateChangedListener.onDateChanged(getFormattedDate());
+                String dateRangeStr = getFormattedDateRange(startDate, endDate);
+                dateChangedListener.onDateChanged(dateRangeStr);
             }
         });
 
         // 대화상자 표시
-        materialDatePicker.show(fragmentManager, "DATE_PICKER");
+        dateRangePicker.show(fragmentManager, "DATE_RANGE_PICKER");
+    }
+
+    // 날짜 범위 표시를 지원하는 새 메서드 추가
+    private void updateDateDisplay(Calendar startDate, Calendar endDate) {
+        SimpleDateFormat yearMonthDayFormat = new SimpleDateFormat("yyyy.M.d", Locale.getDefault());
+
+        String startDateStr = yearMonthDayFormat.format(startDate.getTime());
+        String endDateStr = yearMonthDayFormat.format(endDate.getTime());
+
+        // UI에 날짜 범위 표시
+        if (startDate.getTimeInMillis() == endDate.getTimeInMillis()) {
+            // 단일 날짜인 경우
+            if (dateTextView != null) {
+                dateTextView.setText(startDateStr);
+            }
+            if (bottomSheetDateTextView != null) {
+                bottomSheetDateTextView.setText(startDateStr);
+            }
+        } else {
+            // 날짜 범위인 경우
+            String dateRangeText = startDateStr + " ~ " + endDateStr;
+            if (dateTextView != null) {
+                dateTextView.setText(dateRangeText);
+            }
+            if (bottomSheetDateTextView != null) {
+                bottomSheetDateTextView.setText(dateRangeText);
+            }
+        }
+    }
+
+    // 데이터 로딩을 위한 날짜 범위 포맷 메서드 추가
+    public String getFormattedDateRange(Calendar startDate, Calendar endDate) {
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+        return dateFormat.format(startDate.getTime()) + ":" + dateFormat.format(endDate.getTime());
+    }
+
+    // 기존 getFormattedDate 메서드는 호환성을 위해 유지
+    public String getFormattedDate() {
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+        return dateFormat.format(currentSelectedDate.getTime());
     }
 
     /**
@@ -505,14 +564,6 @@ public class UIManager {
         if (dateChangedListener != null) {
             dateChangedListener.onDateChanged(getFormattedDate());
         }
-    }
-
-    /**
-     * 포맷된 날짜 문자열 반환
-     */
-    public String getFormattedDate() {
-        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
-        return dateFormat.format(currentSelectedDate.getTime());
     }
 
     /**
