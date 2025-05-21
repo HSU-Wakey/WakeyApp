@@ -131,22 +131,9 @@ public class SearchResultAdapter extends RecyclerView.Adapter<SearchResultAdapte
                 location,
                 photo.filePath,
                 latLng,
-                "", // description (필요에 따라 수정)
-                pairs
+                "" // description (필요에 따라 수정)
         );
 
-//        // 해시태그 정보 설정 (Photo 객체에서 가져오기)
-//        if (photo.hashtags != null && !photo.hashtags.isEmpty()) {
-//            // hashtags를 detectedObjectPairs로 변환
-//            String[] tags = photo.hashtags.split("#");
-//            java.util.List<android.util.Pair<String, Float>> pairs = new java.util.ArrayList<>();
-//            for (String tag : tags) {
-//                if (!tag.trim().isEmpty()) {
-//                    pairs.add(new android.util.Pair<>(tag.trim(), 1.0f));
-//                }
-//            }
-//            item.setDetectedObjectPairs(pairs);
-//        }
 
         return item;
     }

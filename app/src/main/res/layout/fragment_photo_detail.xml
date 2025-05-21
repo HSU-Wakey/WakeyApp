@@ -38,7 +38,8 @@
                 <androidx.viewpager2.widget.ViewPager2
                     android:id="@+id/photoViewPager"
                     android:layout_width="match_parent"
-                    android:layout_height="match_parent"/>
+                    android:layout_height="match_parent"
+                    android:visibility="gone"/>
 
                 <!-- 이미지 프레임 레이아웃 -->
                 <RelativeLayout
@@ -51,7 +52,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
                         android:scaleType="centerCrop"
-                        android:visibility="gone"
+                        android:visibility="visible"
                         android:contentDescription="Photo" />
 
                     <!-- 업스케일 로딩 스피너 -->

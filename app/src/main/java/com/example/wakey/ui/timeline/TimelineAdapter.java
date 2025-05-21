@@ -110,6 +110,10 @@ public class TimelineAdapter extends RecyclerView.Adapter<TimelineAdapter.ViewHo
         notifyDataSetChanged();
     }
 
+    public void updateData(List<TimelineItem> newItems) {
+        updateItems(newItems); // 기존 메서드 활용
+    }
+
     static class ViewHolder extends RecyclerView.ViewHolder {
         TextView timeTextView;
         TextView locationTextView;

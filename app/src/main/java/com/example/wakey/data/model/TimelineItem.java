@@ -31,7 +31,7 @@ public class TimelineItem implements Parcelable, Serializable {
     private String detectedObjects;  // 탐지된 객체 목록 (문자열)
     private String activityType;     // 활동 유형
     private float placeProbability;  // 장소 확률
-    private List<String> nearbyPOIs; // 주변 관심장소 목록
+    private List<String> nearbyPOIs = new ArrayList<>(); // 주변 관심장소 목록
 
     // 두 버전의 코드 호환을 위해 두 타입 모두 유지
     private transient Map<String, Float> detectedObjectMap; // Map 형태의 객체-신뢰도 쌍
@@ -65,7 +65,7 @@ public class TimelineItem implements Parcelable, Serializable {
         this.photoPath = photoPath;
         this.latLng = latLng;
         this.description = description;
-        this.detectedObjectPairs = detectedObjectPairs;
+        this.detectedObjectPairs = detectedObjectPairs != null ? detectedObjectPairs : new ArrayList<>();
         this.nearbyPOIs = new ArrayList<>();
 
         // LatLng가 있으면 위도/경도 별도 저장
@@ -84,7 +84,7 @@ public class TimelineItem implements Parcelable, Serializable {
         this.latLng = latLng;
         this.description = description;
         this.activityType = activityType;
-        this.detectedObjectPairs = detectedObjectPairs;
+        this.detectedObjectPairs = detectedObjectPairs != null ? detectedObjectPairs : new ArrayList<>();
         this.nearbyPOIs = new ArrayList<>();
 
         // LatLng가 있으면 위도/경도 별도 저장
@@ -106,10 +106,10 @@ public class TimelineItem implements Parcelable, Serializable {
         this.story = builder.story;
         this.detectedObjects = builder.detectedObjects;
         this.detectedObjectMap = builder.detectedObjectMap;
-        this.detectedObjectPairs = builder.detectedObjectPairs;
+        this.detectedObjectPairs = builder.detectedObjectPairs != null ? builder.detectedObjectPairs : new ArrayList<>();
         this.activityType = builder.activityType;
         this.placeProbability = builder.placeProbability;
-        this.nearbyPOIs = builder.nearbyPOIs;
+        this.nearbyPOIs = builder.nearbyPOIs != null ? builder.nearbyPOIs : new ArrayList<>();
 
         // LatLng가 있으면 위도/경도 별도 저장
         if (builder.latLng != null) {
@@ -153,6 +153,8 @@ public class TimelineItem implements Parcelable, Serializable {
                 Float value = in.readFloat();
                 detectedObjectPairs.add(new Pair<>(key, value));
             }
+        } else {
+            detectedObjectPairs = new ArrayList<>();
         }
     }
 
@@ -184,7 +186,7 @@ public class TimelineItem implements Parcelable, Serializable {
                 dest.writeFloat(pair.second);
             }
         } else {
-            dest.writeInt(0);
+            dest.writeInt(0); // null인 경우 크기 0으로 처리
         }
     }
 
@@ -443,7 +445,13 @@ public class TimelineItem implements Parcelable, Serializable {
         }
 
         public TimelineItem build() {
-            return new TimelineItem(this);
+            TimelineItem item = new TimelineItem(this);
+            // issue/WA-74 브랜치에서의 중요 로직을 통합:
+            // detectedObjectPairs가 설정된 경우 별도 처리 - WA-74 브랜치 로직 통합
+            if (detectedObjectPairs != null) {
+                item.setDetectedObjectPairs(detectedObjectPairs);  // 🔥 이 줄이 반드시 필요!
+            }
+            return item;
         }
     }
 }
