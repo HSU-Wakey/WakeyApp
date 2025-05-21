@@ -489,6 +489,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         });
     }
 
+    // MainActivity.java의 loadDataForDate 메서드 수정
     private void loadDataForDate(String dateString) {
         // 날짜 범위인지 확인 (콜론 포함)
         if (dateString.contains(":")) {
