@@ -13,8 +13,10 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 @Entity
 public class Photo {
@@ -63,6 +65,11 @@ public class Photo {
     @ColumnInfo(name = "detectedObjects")
     public String detectedObjects;
 
+    // 새로 추가한 스토리 필드
+    @ColumnInfo(name = "story")
+    public String story;
+
+    // ⭐ 국가명 저장 필드 (추가됨)
     @ColumnInfo(name = "country")
     public String country; // 예: "일본", "미국"
 
@@ -108,18 +115,86 @@ public class Photo {
 
         // dateTaken이 있으면 timestamp 생성
         this.timestamp = parseTimestampFromDateTaken(dateTaken);
+        this.detectedObjects = detectedObjects;
+    }
+
+    // ✅ country 필드를 포함한 생성자 추가
+    @Ignore
+    public Photo(String filePath,
+                 String dateTaken,
+                 String locationDo,
+                 String locationSi,
+                 String locationGu,
+                 String locationStreet,
+                 String caption,
+                 Double latitude,
+                 Double longitude,
+                 String detectedObjects,
+                 String country) {
+        this.filePath = filePath;
+        this.dateTaken = dateTaken;
+        this.locationDo = locationDo;
+        this.locationSi = locationSi;
+        this.locationGu = locationGu;
+        this.locationStreet = locationStreet;
+        this.caption = caption;
+        this.latitude = latitude;
+        this.longitude = longitude;
+        this.detectedObjects = detectedObjects;
+        this.country = country;
+    }
+
+    // Room을 위한 기본 생성자
+    public Photo() {}
+
+    // ⭐ getDetectedObjectPairs 메서드 추가
+    public List<Pair<String, Float>> getDetectedObjectPairs() {
+        return detectedObjectPairs;
+    }
+
+    // ⭐ setDetectedObjectPairs 메서드 추가
+    public void setDetectedObjectPairs(List<Pair<String, Float>> detectedObjectPairs) {
+        this.detectedObjectPairs = detectedObjectPairs;
+    }
+
+    // ⭐ Map 형태로 변환하는 헬퍼 메서드
+    public Map<String, Float> getDetectedObjectPairsAsMap() {
+        if (detectedObjectPairs == null) {
+            return null;
+        }
+
+        Map<String, Float> map = new HashMap<>();
+        for (Pair<String, Float> pair : detectedObjectPairs) {
+            if (pair.first != null && pair.second != null) {
+                map.put(pair.first, pair.second);
+            }
+        }
+        return map;
+    }
+
+    // ⭐ Map 형태에서 List로 변환하는 헬퍼 메서드
+    public void setDetectedObjectPairsFromMap(Map<String, Float> mapPairs) {
+        if (mapPairs == null) {
+            this.detectedObjectPairs = null;
+            return;
+        }
+
+        this.detectedObjectPairs = new java.util.ArrayList<>();
+        for (Map.Entry<String, Float> entry : mapPairs.entrySet()) {
+            this.detectedObjectPairs.add(new Pair<>(entry.getKey(), entry.getValue()));
+        }
     }
 
     public String getFilePath() {
         return filePath;
     }
 
-    public List<Pair<String, Float>> getDetectedObjectPairs() {
-        return detectedObjectPairs;
+    public String getCountry() {
+        return country;
     }
 
-    public void setDetectedObjectPairs(List<Pair<String, Float>> detectedObjectPairs) {
-        this.detectedObjectPairs = detectedObjectPairs;
+    public void setCountry(String country) {
+        this.country = country;
     }
 
     public void setEmbeddingVector(float[] vector) {
@@ -209,7 +284,4 @@ public class Photo {
         // 여전히 0이면 현재 시간 반환
         return timestamp == 0 ? System.currentTimeMillis() : timestamp;
     }
-
-    // Room을 위한 기본 생성자
-    public Photo() {}
 }

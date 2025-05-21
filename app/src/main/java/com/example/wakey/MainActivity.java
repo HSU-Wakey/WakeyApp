@@ -33,6 +33,8 @@ import com.example.wakey.manager.MapManager;
 import com.example.wakey.manager.UIManager;
 import com.example.wakey.tflite.ImageClassifier;
 import com.example.wakey.ui.album.SmartAlbumActivity;
+import com.example.wakey.ui.timeline.StoryGenerator;
+import com.example.wakey.ui.timeline.TimelineManager;
 import com.example.wakey.util.ImageUtils;
 import com.example.wakey.util.ToastManager;
 import com.example.wakey.data.model.ImageMeta;
@@ -43,6 +45,7 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
+import com.jakewharton.threetenabp.AndroidThreeTen;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -60,7 +63,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private UIManager uiManager;
     private DataManager dataManager;
     private ApiManager apiManager;
-
     private TextView dateTextView;
     private ImageButton mapButton, albumButton, searchButton, prevDateBtn, nextDateBtn;
     private TextView bottomSheetDateTextView;
@@ -80,8 +82,12 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         // 단일 스레드 실행기 생성 (병렬 처리 방지)
         backgroundExecutor = Executors.newSingleThreadExecutor();
 
+        // ThreeTen 라이브러리 초기화
+        AndroidThreeTen.init(this);
+
         initUI();
         initManagers();
+        initStoryComponents();
 
         imageRepository = new ImageRepository(this);
 
@@ -93,6 +99,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+
         setupClickListeners();
 
         // 권한 요청
@@ -312,7 +319,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             }
         });
 
-        uiManager.init(this, getSupportFragmentManager(), dateTextView, bottomSheetDateTextView,
+        uiManager.initWithSearchPerformer(this, getSupportFragmentManager(), dateTextView, bottomSheetDateTextView,
                 formattedDate -> loadDataForDate(formattedDate),
                 query -> performSearch(query));
 
@@ -331,6 +338,9 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 }
             }
         });
+
+        // 추가: StoryGenerator 초기화 및 설정
+        StoryGenerator.getInstance(this);
     }
 
     private void setupClickListeners() {
@@ -429,6 +439,19 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         });
     }
 
+    private void loadPhotoData() {
+        new Thread(() -> {
+            List<Uri> imageUris = ImageUtils.getAllImageUris(this);
+            for (Uri uri : imageUris) {
+                Bitmap bitmap = ImageUtils.loadBitmapFromUri(this, uri);
+                if (bitmap != null) {
+                    ImageMeta meta = imageRepository.classifyImage(uri, bitmap);
+                    imageRepository.savePhotoToDB(uri, meta);
+                }
+            }
+        }).start();
+    }
+
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
@@ -477,7 +500,34 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             @Override
             public void onTimelineLoaded(List<TimelineItem> timelineItems) {
                 List<TimelineItem> enhancedTimeline = new ArrayList<>();
+                for (TimelineItem item : timelineItems) {
+                    if (item.getDetectedObjects() != null && !item.getDetectedObjects().isEmpty()) {
+                        String desc = "📌 " + String.join(", ", item.getDetectedObjects());
+                    }
+                    enhancedTimeline.add(item);
+                }
+
+                // UI 첫 업데이트
                 uiManager.updateTimelineData(enhancedTimeline);
+
+                // 스토리 생성 리스너 등록
+                TimelineManager timelineManager = TimelineManager.getInstance(MainActivity.this);
+                timelineManager.setOnStoryGeneratedListener(itemsWithStories -> {
+                    runOnUiThread(() -> {
+                        Log.d(TAG, "스토리 생성 완료: " + itemsWithStories.size() + "개 항목");
+                        // 타임라인 데이터 업데이트 (스토리가 포함된)
+                        uiManager.updateTimelineData(itemsWithStories);
+
+                        // 자동 전환 제거 - 사용자가 명시적으로 스토리 탭을 클릭할 때만 전환됨
+                        // uiManager.switchToStoryTab(); <- 이 줄 제거
+
+                        // 대신 스토리 준비 완료 알림 표시 (선택 사항)
+                        Toast.makeText(MainActivity.this, "스토리가 준비되었습니다!", Toast.LENGTH_SHORT).show();
+                    });
+                });
+
+                // Gemini 스토리 생성 시작
+                timelineManager.generateStoriesForTimelineOptimized(enhancedTimeline);
             }
 
             @Override
@@ -544,4 +594,48 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             }
         });
     }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // 더 이상 StoryFragment를 사용하지 않으므로 이 코드는 필요 없습니다.
+        // UIManager가 직접 스토리 관련 기능을 처리합니다.
+    }
+
+    // MainActivity.java에서 setupStoryFragment() 메서드 제거하고 대신:
+    private void initStoryComponents() {
+        // UIManager를 통해 스토리 컴포넌트 초기화
+        uiManager = UIManager.getInstance(this);
+
+        // StoryGenerator 초기화
+        StoryGenerator.getInstance(this);
+
+        // UIManager가 바텀 시트 설정 시 storyRecyclerView까지 함께 설정하도록 함
+        View bottomSheetView = findViewById(R.id.bottom_sheet);
+        if (bottomSheetView != null) {
+            uiManager.setupBottomSheet(bottomSheetView, new UIManager.OnTimelineItemClickListener() {
+                @Override
+                public void onTimelineItemClick(TimelineItem item, int position) {
+                    if (item.getLatLng() != null) {
+                        mapManager.moveCamera(item.getLatLng(), 15f);
+                    }
+                    if (item.getPhotoPath() != null) {
+                        uiManager.showPhotoDetail(item);
+                    }
+                }
+            });
+
+            Log.d(TAG, "⭐⭐⭐ 바텀 시트 초기화 완료");
+        } else {
+            Log.e(TAG, "⭐⭐⭐ 바텀 시트 뷰를 찾을 수 없음");
+        }
+    }
+
+//    @Override
+//    protected void onDestroy() {
+//        super.onDestroy();
+//
+//        // StoryGenerator 자원 해제
+//        StoryGenerator.getInstance(this).release();
+//    }
 }

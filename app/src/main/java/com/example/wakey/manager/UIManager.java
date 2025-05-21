@@ -8,6 +8,8 @@ import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
@@ -43,7 +45,10 @@ import com.example.wakey.ui.photo.PhotoDetailFragment;
 import com.example.wakey.ui.search.SearchActivity;
 import com.example.wakey.ui.search.SearchHistoryAdapter;
 import com.example.wakey.ui.search.SearchResultAdapter;
+import com.example.wakey.ui.timeline.StoryAdapter;
+import com.example.wakey.ui.timeline.StoryFragment;
 import com.example.wakey.ui.timeline.TimelineAdapter;
+import com.example.wakey.ui.timeline.TimelineManager;
 import com.example.wakey.ui.timeline.TimelineRenderer;
 import com.example.wakey.util.ToastManager;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
@@ -60,7 +65,6 @@ import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
-
 
 /**
  * UI 관련 기능을 관리하는 매니저 클래스
@@ -83,6 +87,13 @@ public class UIManager {
     private BottomSheetBehavior<View> bottomSheetBehavior;
     private RecyclerView timelineRecyclerView;
     private TimelineAdapter timelineAdapter;
+
+    // 스토리 관련 변수 (추가)
+    private RecyclerView storyRecyclerView;
+    private StoryAdapter storyAdapter;
+    private TabLayout tabLayout;
+    private boolean isTimelineTabSelected = true; // 현재 선택된 탭 (기본: 타임라인)
+
     private List<TimelineItem> timelineItems = new ArrayList<>();
 
     // 바텀 시트 상태 관리
@@ -94,12 +105,14 @@ public class UIManager {
     // 검색 대화상자
     private AlertDialog searchDialog;
     private OnSearchPerformedListener searchListener;
+    private OnSearchQueryListener searchQueryListener;
 
     // 인터페이스 정의
     public interface OnDateChangedListener {
         void onDateChanged(String formattedDate);
     }
 
+    // 검색 결과 인터페이스
     public interface OnSearchPerformedListener {
         void onSearchPerformed(String query);
     }
@@ -107,6 +120,13 @@ public class UIManager {
     public interface OnTimelineItemClickListener {
         void onTimelineItemClick(TimelineItem item, int position);
     }
+
+    // 검색 관련 인터페이스
+    public interface OnSearchQueryListener {
+        void onSearch(String query);
+    }
+
+//    private OnSearchPerformedListener searchListener;
 
     private UIManager(Context context) {
         this.context = context.getApplicationContext();
@@ -129,7 +149,24 @@ public class UIManager {
     public void init(Activity activity, FragmentManager fragmentManager,
                      TextView dateTextView, TextView bottomSheetDateTextView,
                      OnDateChangedListener dateChangedListener,
-                     OnSearchPerformedListener searchListener) {
+                     OnSearchQueryListener searchQueryListener) {
+        this.activity = activity;
+        this.fragmentManager = fragmentManager;
+        this.dateTextView = dateTextView;
+        this.bottomSheetDateTextView = bottomSheetDateTextView;
+        this.dateChangedListener = dateChangedListener;
+        this.searchQueryListener = searchQueryListener;
+
+        updateDateDisplay();
+    }
+
+    /**
+     * 초기화 메소드 (검색 기능 추가)
+     */
+    public void initWithSearchPerformer(Activity activity, FragmentManager fragmentManager,
+                                        TextView dateTextView, TextView bottomSheetDateTextView,
+                                        OnDateChangedListener dateChangedListener,
+                                        OnSearchPerformedListener searchListener) {
         this.activity = activity;
         this.fragmentManager = fragmentManager;
         this.dateTextView = dateTextView;
@@ -169,12 +206,69 @@ public class UIManager {
         // 타임라인 렌더러 추가
         timelineRecyclerView.addItemDecoration(new TimelineRenderer(context));
 
+        // 스토리 리사이클러뷰 설정 (추가)
+        storyRecyclerView = bottomSheetView.findViewById(R.id.storyRecyclerView);
+        if (storyRecyclerView != null) {
+            storyRecyclerView.setLayoutManager(new LinearLayoutManager(context));
+            storyAdapter = new StoryAdapter(timelineItems);
+            storyRecyclerView.setAdapter(storyAdapter);
+
+            TimelineManager.getInstance(context).setStoryAdapter(storyAdapter);
+
+            // 초기 상태는 숨김
+            storyRecyclerView.setVisibility(View.GONE);
+
+            // 스토리 아이템 클릭 리스너
+            storyAdapter.setOnItemClickListener((item, position) -> {
+                if (listener != null) {
+                    listener.onTimelineItemClick(item, position);
+                }
+            });
+        }
+
         // 탭 레이아웃 설정
-        TabLayout tabLayout = bottomSheetView.findViewById(R.id.tab_layout);
+        tabLayout = bottomSheetView.findViewById(R.id.tab_layout);
+
+// 기본 탭을 명시적으로 타임라인(0번 탭)으로 설정
+        TabLayout.Tab timelineTab = tabLayout.getTabAt(0);
+        if (timelineTab != null) {
+            timelineTab.select();
+        }
+        timelineRecyclerView.setVisibility(View.VISIBLE);
+        if (storyRecyclerView != null) {
+            storyRecyclerView.setVisibility(View.GONE);
+        }
+        isTimelineTabSelected = true;
+
         tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
             @Override
             public void onTabSelected(TabLayout.Tab tab) {
-                // 탭 선택 시 필터링 로직 추가 가능
+                int position = tab.getPosition();
+                Log.d("UIManager", "탭 선택됨: " + position);
+
+                if (position == 0) {
+                    // 타임라인 탭 선택
+                    Log.d("UIManager", "타임라인 탭 표시, 아이템 수: " + timelineItems.size());
+                    timelineRecyclerView.setVisibility(View.VISIBLE);
+                    if (storyRecyclerView != null) {
+                        storyRecyclerView.setVisibility(View.GONE);
+                    }
+                    isTimelineTabSelected = true;
+                } else if (position == 1) {
+                    // 스토리 탭 선택
+                    Log.d("UIManager", "스토리 탭 표시, 아이템 수: " + timelineItems.size());
+                    timelineRecyclerView.setVisibility(View.GONE);
+                    if (storyRecyclerView != null) {
+                        storyRecyclerView.setVisibility(View.VISIBLE);
+
+                        // 스토리 상태 로깅
+                        for (TimelineItem item : timelineItems) {
+                            Log.d("UIManager", "스토리 항목: " + item.getPhotoPath() +
+                                    ", 스토리: " + (item.getStory() != null ? item.getStory() : "null"));
+                        }
+                    }
+                    isTimelineTabSelected = false;
+                }
             }
 
             @Override
@@ -262,9 +356,9 @@ public class UIManager {
                 break;
         }
 
+        currentBottomSheetState = state;
         Log.d("BOTTOM_SHEET", "🔄 바텀시트 상태 변경: " + state);
     }
-
 
     /**
      * 타임라인 데이터 업데이트
@@ -278,17 +372,24 @@ public class UIManager {
 
         Log.d("TIMELINE_UI", "🔄 타임라인 갱신: " + items.size() + "개 항목");
 
+        // 타임라인 어댑터 업데이트
         if (timelineAdapter != null) {
             timelineAdapter.updateItems(this.timelineItems);
         }
 
+        // 스토리 어댑터 업데이트 (추가)
+        if (storyAdapter != null) {
+            storyAdapter.updateItems(this.timelineItems);
+        }
+
+        // 데이터가 있으면 바텀 시트 표시
         if (!this.timelineItems.isEmpty() && currentBottomSheetState == BOTTOM_SHEET_HIDDEN) {
             setBottomSheetState(BOTTOM_SHEET_HALF_EXPANDED);
         }
     }
 
     /**
-     * 타임라인 항목 강조
+     * 타임라인 항목 강조 표시
      */
     public void highlightTimelineItem(String photoPath) {
         if (timelineItems == null || timelineRecyclerView == null) return;
@@ -315,7 +416,7 @@ public class UIManager {
     }
 
     /**
-     * 장소 세부정보 바텀시트 표시
+     * 장소 세부정보 표시
      */
     public void showPlaceDetails(String placeId) {
         if (fragmentManager == null || placeId == null) return;
@@ -327,16 +428,15 @@ public class UIManager {
     /**
      * 날짜 표시 업데이트
      */
-    public void updateDateDisplay() {
-        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy.MM.dd", Locale.getDefault());
-        String formattedDate = dateFormat.format(currentSelectedDate.getTime());
+    private void updateDateDisplay() {
+        SimpleDateFormat yearMonthDayFormat = new SimpleDateFormat("yyyy.M.d", Locale.getDefault());
+        SimpleDateFormat shortDateFormat = new SimpleDateFormat("yyyy.M.d", Locale.getDefault());  // 간단한 형식도 수정
 
         if (dateTextView != null) {
-            dateTextView.setText(formattedDate);
+            dateTextView.setText(yearMonthDayFormat.format(currentSelectedDate.getTime()));
         }
-
         if (bottomSheetDateTextView != null) {
-            bottomSheetDateTextView.setText(formattedDate);
+            bottomSheetDateTextView.setText(shortDateFormat.format(currentSelectedDate.getTime()));
         }
     }
 
@@ -376,11 +476,12 @@ public class UIManager {
     }
 
     /**
-     * 이전 날짜로 변경
+     * 이전 날짜로 이동
      */
     public void goToPreviousDate() {
         currentSelectedDate.add(Calendar.DAY_OF_MONTH, -1);
         updateDateDisplay();
+        notifyDateChanged();
 
         // 리스너 호출
         if (dateChangedListener != null) {
@@ -389,20 +490,25 @@ public class UIManager {
     }
 
     /**
-     * 다음 날짜로 변경
+     * 다음 날짜로 이동
      */
     public void goToNextDate() {
         currentSelectedDate.add(Calendar.DAY_OF_MONTH, 1);
         updateDateDisplay();
+        notifyDateChanged();
+    }
 
-        // 리스너 호출
+    /**
+     * 날짜 변경 시 호출
+     */
+    private void notifyDateChanged() {
         if (dateChangedListener != null) {
             dateChangedListener.onDateChanged(getFormattedDate());
         }
     }
 
     /**
-     * 형식화된 날짜 문자열 가져오기 (yyyy-MM-dd)
+     * 포맷된 날짜 문자열 반환
      */
     public String getFormattedDate() {
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
@@ -410,18 +516,30 @@ public class UIManager {
     }
 
     /**
-     * 현재 선택된 날짜 가져오기
+     * 날짜 설정
      */
     public Calendar getCurrentSelectedDate() {
         return (Calendar) currentSelectedDate.clone();
     }
 
+    public void setDate(Date date) {
+        if (date != null) {
+            currentSelectedDate.setTime(date);
+            updateDateDisplay();
+            notifyDateChanged();
+        }
+    }
 
     /**
-     * 검색 대화상자 표시 (오류 해결)
+     * 검색 대화상자 표시
      */
     public void showSearchDialog() {
         if (activity == null) return;
+        Intent intent = new Intent(activity, SearchActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+
+        // 검색 서비스 초기화
+        SearchService searchService = SearchService.getInstance(context);
 
         // 1. 대화상자 레이아웃 로드
         View searchView = LayoutInflater.from(activity).inflate(R.layout.dialog_smart_search, null);
@@ -604,6 +722,27 @@ public class UIManager {
     }
 
     /**
+     * 현재 바텀 시트 상태 반환
+     */
+    public int getCurrentBottomSheetState() {
+        return currentBottomSheetState;
+    }
+
+    /**
+     * 토스트 메시지 표시
+     */
+    public void showToast(String message) {
+        ToastManager.getInstance().showToast(message);
+    }
+
+    /**
+     * 현재 날짜로 업데이트
+     */
+    public void updateToToday() {
+        setDate(new Date());
+    }
+
+    /**
      * 맵 옵션 대화상자 표시
      */
     public void showMapOptionsDialog(boolean clusteringEnabled, boolean showPOIs, int currentMapType,
@@ -732,37 +871,56 @@ public class UIManager {
 
         void onOptionsApplied();
     }
+    // UIManager.java에 추가
+    // In UIManager.java, enhance the switchToStoryTab method:
 
-    /**
-     * 현재 바텀 시트 상태 가져오기
-     */
-    public int getCurrentBottomSheetState() {
-        return currentBottomSheetState;
-    }
+    // UIManager.java의 switchToStoryTab 메서드 수정
 
-    /**
-     * 날짜 설정
-     */
-    public void setDate(Date date) {
-        if (date != null) {
-            currentSelectedDate.setTime(date);
-            updateDateDisplay();
+    public void switchToStoryTab() {
+        Log.d(TAG, "⭐⭐⭐ 스토리 탭으로 전환 시도");
+        if (tabLayout != null && tabLayout.getTabCount() > 1) {
+            TabLayout.Tab storyTab = tabLayout.getTabAt(1);
+            if (storyTab != null) {
+                Log.d(TAG, "⭐⭐⭐ 스토리 탭 선택");
+                // 스토리 생성 완료 확인
+                boolean hasStories = false;
+                for (TimelineItem item : timelineItems) {
+                    if (item.getStory() != null && !item.getStory().isEmpty()) {
+                        hasStories = true;
+                        break;
+                    }
+                }
 
-            if (dateChangedListener != null) {
-                dateChangedListener.onDateChanged(getFormattedDate());
+                Log.d(TAG, "⭐⭐⭐ 스토리 존재 여부: " + (hasStories ? "있음" : "없음"));
+
+                // UI 스레드에서 실행
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    // 탭 선택
+                    storyTab.select();
+
+                    // 즉시 RecyclerView 설정 변경
+                    if (storyRecyclerView != null && timelineRecyclerView != null) {
+                        storyRecyclerView.setVisibility(View.VISIBLE);
+                        timelineRecyclerView.setVisibility(View.GONE);
+                        Log.d(TAG, "⭐⭐⭐ RecyclerView 가시성 설정: 스토리=표시, 타임라인=숨김");
+
+                        // 어댑터 갱신 명시적 호출
+                        if (storyAdapter != null) {
+                            storyAdapter.notifyDataSetChanged();
+                            Log.d(TAG, "⭐⭐⭐ 스토리 어댑터 명시적 갱신");
+                        }
+                    }
+                });
+
+                // 바텀 시트 상태 확인 및 조정
+                if (currentBottomSheetState != BOTTOM_SHEET_EXPANDED) {
+                    setBottomSheetState(BOTTOM_SHEET_EXPANDED);
+                    Log.d(TAG, "⭐⭐⭐ 바텀 시트 확장됨");
+                }
             }
+        } else {
+            Log.e(TAG, "❌ 탭 레이아웃이 없거나 탭이 부족함: " +
+                    (tabLayout != null ? "탭 수=" + tabLayout.getTabCount() : "tabLayout=null"));
         }
     }
-
-    /**
-     * 토스트 메시지 표시
-     */
-    public void showToast(String message) {
-        ToastManager.getInstance().showToast(message);
-    }
-
-    public void updateToToday() {
-        setDate(new Date());
-    }
-
 }

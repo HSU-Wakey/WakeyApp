@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
+
     <!-- Required permissions -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_MEDIA_LOCATION" />
@@ -14,9 +16,9 @@
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
-        android:icon="@mipmap/ic_app"
+        android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
-        android:roundIcon="@mipmap/ic_app_round"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:largeHeap="true"
         android:theme="@style/Theme.Wakey"
@@ -44,6 +46,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
         <activity
             android:name=".ui.search.SearchActivity"
             android:exported="false"
@@ -52,18 +55,31 @@
             android:name=".ui.search.HashtagPhotosActivity"
             android:exported="false"
             android:parentActivityName=".MainActivity" />
+
+        <!-- 스마트 앨범 액티비티 -->
         <activity
             android:name=".ui.album.SmartAlbumActivity"
             android:exported="false" />
+
+        <!-- 앨범 상세 보기 액티비티 -->
         <activity
             android:name=".ui.album.common.AlbumDetailActivity"
             android:exported="false" />
+
         <activity
             android:name=".ui.album.domestic.DomesticRegionActivity"
             android:exported="false" />
+
+        <!-- 해외 지역 액티비티 -->
         <activity
             android:name=".ui.album.overseas.OverseasRegionActivity"
             android:exported="false" />
+
+        <!-- 해외 국가 액티비티 (이미지에서 확인됨) -->
+        <activity
+            android:name=".ui.album.overseas.OverseasCountryActivity"
+            android:exported="false" />
+
     </application>
 
 </manifest>

@@ -30,11 +30,9 @@ public class ImageClassifier {
 
     private final Interpreter tflite;
     private final List<String> labels;
-//    private final int[] imageShape;
     private final boolean isQuantized;
 
     public ImageClassifier(Context context) throws IOException {
-//        MappedByteBuffer tfliteModel = FileUtil.loadMappedFile(context, MODEL_PATH);
         try {
             Log.d(TAG, "ImageClassifier 초기화 시작");
 
@@ -44,7 +42,6 @@ public class ImageClassifier {
             Log.d(TAG, "CPU 사용: 4 스레드");
 
             // 모델 파일 로드
-//            MappedByteBuffer tfliteModel = null;
             MappedByteBuffer tfliteModel;
             try {
                 tfliteModel = FileUtil.loadMappedFile(context, MODEL_PATH);
@@ -67,10 +64,8 @@ public class ImageClassifier {
             }
 
             // 입력 텐서 정보 확인
-//            imageShape = tflite.getInputTensor(0).shape();
             isQuantized = tflite.getInputTensor(0).dataType() == org.tensorflow.lite.DataType.UINT8;
 
-//            Log.d(TAG, "모델 입력 크기: " + imageShape[1] + "x" + imageShape[2] + "x" + imageShape[3]);
             Log.d(TAG, "양자화 모델 여부: " + isQuantized);
             Log.d(TAG, "ImageClassifier 초기화 완료");
 
@@ -99,16 +94,8 @@ public class ImageClassifier {
         Log.d("ImageClassifier", "✅ Image processed and converted to ByteBuffer");
 
         TensorBuffer outputBuffer = TensorBuffer.createFixedSize(new int[]{1, NUM_CLASSES}, DataType.UINT8);
-//        tflite.run(inputImage.getBuffer(), outputBuffer);
         tflite.run(inputBuffer, outputBuffer.getBuffer());
         Log.d("ImageClassifier", "🚀 Model inference completed");
-
-//        // 이미지 전처리 및 TensorImage 생성
-//        TensorImage inputImage = new TensorImage(isQuantized ?
-//                org.tensorflow.lite.DataType.UINT8 :
-//                org.tensorflow.lite.DataType.FLOAT32);
-//
-//        inputImage.load(bitmap);
 
         float outputScale = tflite.getOutputTensor(0).quantizationParams().getScale();
         int outputZeroPoint = tflite.getOutputTensor(0).quantizationParams().getZeroPoint();
@@ -120,17 +107,6 @@ public class ImageClassifier {
             logits[i] = (quantizedOutput[i] - outputZeroPoint) * outputScale;
         }
 
-//        // 이미지 리사이징
-//        ImageProcessor imageProcessor = new ImageProcessor.Builder()
-//                .add(new ResizeOp(IMAGE_SIZE, IMAGE_SIZE, ResizeOp.ResizeMethod.BILINEAR))
-//                .build();
-//
-//        inputImage = imageProcessor.process(inputImage);
-//        Log.d(TAG, "이미지 전처리 완료");
-//
-//        // 출력 버퍼 생성
-//        float[][] outputBuffer = new float[1][NUM_CLASSES];
-
         // 처음 5개 로직
         for (int i = 0; i < 5; i++) {
             Log.d(TAG, "🔢 Raw Output[" + i + "]: " + quantizedOutput[i] + " -> Logit: " + logits[i]);
@@ -140,6 +116,7 @@ public class ImageClassifier {
         for (float logit : logits) {
             if (logit > maxLogit) maxLogit = logit;
         }
+        Log.d("ImageClassifier", "📈 Max Logit Before Softmax: " + maxLogit);
 
         float sumExp = 0;
         float[] probabilities = new float[NUM_CLASSES];
