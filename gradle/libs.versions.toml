@@ -1,5 +1,5 @@
 [versions]
-agp                        = "8.10.0"  # result 코드에서 최신 버전 적용
+agp                        = "8.9.0"  # result 코드에서 최신 버전 적용
 junit                      = "4.13.2"
 junit-android              = "1.1.5"
 espresso-core              = "3.5.1"
