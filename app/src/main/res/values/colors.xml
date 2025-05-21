@@ -22,4 +22,9 @@
     <color name="year_tab_selected_text">#FFFFFF</color>
     <color name="year_tab_unselected_text">#4B5563</color>
 
+    <!--calendar color-->
+    <color name="selected_date_color">#2196F3</color>
+    <color name="date_range_text_color">#1565C0</color>
+    <color name="photo_indicator">#FF5722</color>
+
 </resources>

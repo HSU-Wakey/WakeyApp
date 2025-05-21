@@ -45,6 +45,7 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
+import com.jakewharton.threetenabp.AndroidThreeTen;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -80,6 +81,9 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         // 단일 스레드 실행기 생성 (병렬 처리 방지)
         backgroundExecutor = Executors.newSingleThreadExecutor();
+
+        // ThreeTen 라이브러리 초기화
+        AndroidThreeTen.init(this);
 
         initUI();
         initManagers();
