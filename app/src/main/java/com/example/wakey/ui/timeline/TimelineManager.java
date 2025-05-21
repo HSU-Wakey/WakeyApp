@@ -16,6 +16,7 @@ import com.example.wakey.data.local.Photo;
 import com.example.wakey.data.local.PhotoDao;
 import com.example.wakey.data.model.PhotoInfo;
 import com.example.wakey.data.model.TimelineItem;
+import com.example.wakey.data.repository.PhotoRepository;
 import com.example.wakey.manager.UIManager;
 import com.example.wakey.service.ClusterService;
 import com.google.android.gms.maps.model.LatLng;
@@ -33,9 +34,13 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Random;
+import java.util.TreeMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -48,6 +53,7 @@ public class TimelineManager {
     private static TimelineManager instance;
     private final Context context;
     private final ClusterService clusterService;
+    private final PhotoRepository photoRepository; // 추가된 필드
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
@@ -70,6 +76,7 @@ public class TimelineManager {
     private TimelineManager(Context context) {
         this.context = context.getApplicationContext();
         this.clusterService = ClusterService.getInstance(context);
+        this.photoRepository = PhotoRepository.getInstance(context); // 초기화 추가
 
         // API 키 상태 확인
         String apiKey = getGeminiApiKey();
@@ -135,6 +142,115 @@ public class TimelineManager {
         generateStoriesForTimelineOptimized(currentTimelineItems);
 
         return currentTimelineItems;
+    }
+
+    /**
+     * 날짜 범위에 해당하는 타임라인 아이템 가져오기
+     */
+    public List<TimelineItem> getTimelineItemsForDateRange(Date startDate, Date endDate) {
+        List<TimelineItem> timelineItems = new ArrayList<>();
+
+        // 1. PhotoInfo 목록 가져오기
+        List<PhotoInfo> photoInfoList = photoRepository.getAllPhotos();
+
+        // 2. 날짜별로 사진 그룹화
+        Map<String, List<PhotoInfo>> photosByDate = new HashMap<>();
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
+
+        // 3. 날짜 범위에 해당하는 사진 필터링 및 그룹화
+        for (PhotoInfo photo : photoInfoList) {
+            Date photoDate = photo.getDateTaken();
+
+            if (photoDate != null && !photoDate.before(startDate) && !photoDate.after(endDate)) {
+                String dateString = dateFormat.format(photoDate);
+                if (!photosByDate.containsKey(dateString)) {
+                    photosByDate.put(dateString, new ArrayList<>());
+                }
+                photosByDate.get(dateString).add(photo);
+            }
+        }
+
+        // 4. 날짜 순으로 정렬
+        Map<String, List<PhotoInfo>> sortedPhotosByDate = new TreeMap<>(photosByDate);
+
+        // 5. 각 날짜별로 TimelineItem 생성
+        for (Map.Entry<String, List<PhotoInfo>> entry : sortedPhotosByDate.entrySet()) {
+            try {
+                Date date = dateFormat.parse(entry.getKey());
+                List<PhotoInfo> photos = entry.getValue();
+
+                if (!photos.isEmpty()) {
+                    // 해당 날짜의 첫 번째 사진으로 TimelineItem 생성
+                    PhotoInfo firstPhoto = photos.get(0);
+
+                    // TimelineItem 빌더 생성
+                    TimelineItem.Builder builder = new TimelineItem.Builder()
+                            .setTime(date)
+                            .setPhotoPath(firstPhoto.getFilePath());
+
+                    // 위치 정보 설정
+                    if (firstPhoto.getLatLng() != null) {
+                        builder.setLatLng(firstPhoto.getLatLng());
+                    }
+
+                    // 위치 이름 설정
+                    if (firstPhoto.getAddress() != null && !firstPhoto.getAddress().isEmpty()) {
+                        builder.setLocation(firstPhoto.getAddress());
+                    }
+
+                    // 설명 설정
+                    if (firstPhoto.getDescription() != null) {
+                        builder.setDescription(firstPhoto.getDescription());
+                        builder.setCaption(firstPhoto.getDescription());
+                    }
+
+                    // 감지된 객체 설정
+                    if (firstPhoto.getObjects() != null && !firstPhoto.getObjects().isEmpty()) {
+                        builder.setDetectedObjects(String.join(",", firstPhoto.getObjects()));
+                    }
+
+                    TimelineItem item = builder.build();
+
+                    // 스토리 추가할 필요가 있다면 DB에서 불러오거나 생성
+                    enhanceTimelineItemWithDBInfo(item);
+
+                    timelineItems.add(item);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "TimelineItem 생성 실패: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+
+        return timelineItems;
+    }
+
+    /**
+     * 단일 타임라인 아이템에 DB 정보 추가
+     */
+    private void enhanceTimelineItemWithDBInfo(TimelineItem item) {
+        try {
+            PhotoDao photoDao = AppDatabase.getInstance(context).photoDao();
+            Photo photo = photoDao.getPhotoByFilePath(item.getPhotoPath());
+
+            if (photo != null) {
+                // 스토리 정보 로드
+                if (photo.story != null && !photo.story.isEmpty()) {
+                    item.setStory(photo.story);
+                }
+
+                // 기타 정보 로드
+                if (photo.fullAddress != null && !photo.fullAddress.isEmpty()) {
+                    item.setLocation(photo.fullAddress);
+                }
+
+                if (photo.locationGu != null && !photo.locationGu.isEmpty()) {
+                    item.setPlaceName(photo.locationGu);
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "DB 정보 로드 실패: " + e.getMessage());
+        }
     }
 
     /**
@@ -1105,11 +1221,7 @@ public class TimelineManager {
         });
     }
 
-    // TimelineManager.java에 추가
-    // In com.example.wakey.data.repository.TimelineManager.java, modify the updateTimelineItem method:
-
-    // TimelineManager.java의 updateTimelineItem 메서드 수정
-
+    // TimelineItem 업데이트 메서드
     public void updateTimelineItem(TimelineItem updatedItem) {
         Log.d(TAG, "🔄 updateTimelineItem 호출됨: " + updatedItem.getPhotoPath());
         Log.d(TAG, "🔄 storyAdapter 상태: " + (storyAdapter != null ? "설정됨" : "설정되지 않음"));
