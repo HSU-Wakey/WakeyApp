@@ -440,6 +440,19 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         });
     }
 
+    private void loadPhotoData() {
+        new Thread(() -> {
+            List<Uri> imageUris = ImageUtils.getAllImageUris(this);
+            for (Uri uri : imageUris) {
+                Bitmap bitmap = ImageUtils.loadBitmapFromUri(this, uri);
+                if (bitmap != null) {
+                    ImageMeta meta = imageRepository.classifyImage(uri, bitmap);
+                    imageRepository.savePhotoToDB(uri, meta);
+                }
+            }
+        }).start();
+    }
+
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
@@ -477,54 +490,103 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     private void loadDataForDate(String dateString) {
-        dataManager.loadPhotosForDate(dateString, new DataManager.OnDataLoadedListener() {
-            @Override
-            public void onPhotosLoaded(List<PhotoInfo> photos, Map<LatLng, List<PhotoInfo>> clusters) {
-                mapManager.clearMap();
-                mapManager.addMarkersForClusters(clusters);
-                processPhotoInfo(photos);
-            }
-
-            @Override
-            public void onTimelineLoaded(List<TimelineItem> timelineItems) {
-                List<TimelineItem> enhancedTimeline = new ArrayList<>();
-                for (TimelineItem item : timelineItems) {
-                    if (item.getDetectedObjects() != null && !item.getDetectedObjects().isEmpty()) {
-                        String desc = "📌 " + String.join(", ", item.getDetectedObjects());
-                    }
-                    enhancedTimeline.add(item);
+        // 날짜 범위인지 확인 (콜론 포함)
+        if (dateString.contains(":")) {
+            dataManager.loadPhotosForDateRange(dateString, new DataManager.OnDataLoadedListener() {
+                @Override
+                public void onPhotosLoaded(List<PhotoInfo> photos, Map<LatLng, List<PhotoInfo>> clusters) {
+                    mapManager.clearMap();
+                    mapManager.addMarkersForClusters(clusters);
+                    processPhotoInfo(photos);
                 }
 
-                // UI 첫 업데이트
-                uiManager.updateTimelineData(enhancedTimeline);
+                @Override
+                public void onTimelineLoaded(List<TimelineItem> timelineItems) {
+                    List<TimelineItem> enhancedTimeline = new ArrayList<>();
+                    for (TimelineItem item : timelineItems) {
+                        if (item.getDetectedObjects() != null && !item.getDetectedObjects().isEmpty()) {
+                            String desc = "📌 " + String.join(", ", item.getDetectedObjects());
+                        }
+                        enhancedTimeline.add(item);
+                    }
 
-                // 스토리 생성 리스너 등록
-                TimelineManager timelineManager = TimelineManager.getInstance(MainActivity.this);
-                timelineManager.setOnStoryGeneratedListener(itemsWithStories -> {
-                    runOnUiThread(() -> {
-                        Log.d(TAG, "스토리 생성 완료: " + itemsWithStories.size() + "개 항목");
-                        // 타임라인 데이터 업데이트 (스토리가 포함된)
-                        uiManager.updateTimelineData(itemsWithStories);
+                    // UI 업데이트
+                    uiManager.updateTimelineData(enhancedTimeline);
 
-                        // 대신 스토리 준비 완료 알림 표시 (선택 사항)
-                        Toast.makeText(MainActivity.this, "스토리가 준비되었습니다!", Toast.LENGTH_SHORT).show();
+                    // 스토리 생성 코드
+                    TimelineManager timelineManager = TimelineManager.getInstance(MainActivity.this);
+                    timelineManager.setOnStoryGeneratedListener(itemsWithStories -> {
+                        runOnUiThread(() -> {
+                            Log.d(TAG, "스토리 생성 완료: " + itemsWithStories.size() + "개 항목");
+                            uiManager.updateTimelineData(itemsWithStories);
+                            Toast.makeText(MainActivity.this, "스토리가 준비되었습니다!", Toast.LENGTH_SHORT).show();
+                        });
                     });
-                });
 
-                // Gemini 스토리 생성 시작
-                timelineManager.generateStoriesForTimelineOptimized(enhancedTimeline);
-            }
+                    timelineManager.generateStoriesForTimelineOptimized(enhancedTimeline);
+                }
 
-            @Override
-            public void onRouteGenerated(List<LatLng> route) {
-                if (route != null && route.size() > 1) {
-                    mapManager.drawRoute(route);
-                    if (!route.isEmpty()) {
-                        mapManager.moveCamera(route.get(0), 12f);
+                @Override
+                public void onRouteGenerated(List<LatLng> route) {
+                    if (route != null && route.size() > 1) {
+                        mapManager.drawRoute(route);
+                        if (!route.isEmpty()) {
+                            mapManager.moveCamera(route.get(0), 12f);
+                        }
                     }
                 }
-            }
-        });
+            });
+        } else {
+            // 기존 단일 날짜 처리 - 실제 구현 코드 사용
+            dataManager.loadPhotosForDate(dateString, new DataManager.OnDataLoadedListener() {
+                @Override
+                public void onPhotosLoaded(List<PhotoInfo> photos, Map<LatLng, List<PhotoInfo>> clusters) {
+                    mapManager.clearMap();
+                    mapManager.addMarkersForClusters(clusters);
+                    processPhotoInfo(photos);
+                }
+
+                @Override
+                public void onTimelineLoaded(List<TimelineItem> timelineItems) {
+                    List<TimelineItem> enhancedTimeline = new ArrayList<>();
+                    for (TimelineItem item : timelineItems) {
+                        if (item.getDetectedObjects() != null && !item.getDetectedObjects().isEmpty()) {
+                            String desc = "📌 " + String.join(", ", item.getDetectedObjects());
+                        }
+                        enhancedTimeline.add(item);
+                    }
+
+                    // UI 첫 업데이트
+                    uiManager.updateTimelineData(enhancedTimeline);
+
+                    // 스토리 생성 리스너 등록
+                    TimelineManager timelineManager = TimelineManager.getInstance(MainActivity.this);
+                    timelineManager.setOnStoryGeneratedListener(itemsWithStories -> {
+                        runOnUiThread(() -> {
+                            Log.d(TAG, "스토리 생성 완료: " + itemsWithStories.size() + "개 항목");
+                            // 타임라인 데이터 업데이트 (스토리가 포함된)
+                            uiManager.updateTimelineData(itemsWithStories);
+
+                            // 스토리 준비 완료 알림 표시
+                            Toast.makeText(MainActivity.this, "스토리가 준비되었습니다!", Toast.LENGTH_SHORT).show();
+                        });
+                    });
+
+                    // Gemini 스토리 생성 시작
+                    timelineManager.generateStoriesForTimelineOptimized(enhancedTimeline);
+                }
+
+                @Override
+                public void onRouteGenerated(List<LatLng> route) {
+                    if (route != null && route.size() > 1) {
+                        mapManager.drawRoute(route);
+                        if (!route.isEmpty()) {
+                            mapManager.moveCamera(route.get(0), 12f);
+                        }
+                    }
+                }
+            });
+        }
     }
 
     private void processPhotoInfo(List<PhotoInfo> photos) {
