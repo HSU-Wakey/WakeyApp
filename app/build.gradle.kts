@@ -40,10 +40,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
 
-    aaptOptions {
-        noCompress += "tflite"
-    }
-
     buildFeatures {
         mlModelBinding = true
         buildConfig = true
