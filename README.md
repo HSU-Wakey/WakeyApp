@@ -17,7 +17,7 @@ Galaxy S25 (Snapdragon 8 Gen 3)와 Qualcomm AI Hub를 기반으로
 
 ## 📌 주요 기능
 
-![pamphlet](images/pamphle.png)
+![pamphlet](images/pamphlet.png)
 
 ### 📍 SmartTag  
 **Yolov8 + MobileNet v3 기반 이미지 해시태깅 기능**
@@ -87,7 +87,8 @@ On-Device AI 기반으로 빠르고 정확한 검색 제공
 
 ---
 
-## 앱 시연 & 설명 영상
-
-👉 **QR코드** :  ![qr](images/qr.png)
+## 📀 앱 시연 & 설명 영상
 👉 앱 시연 영상 링크 : https://youtu.be/GG55KUtXJIg
+👉 **QR코드** :  
+![qr](images/qr.png)
+
