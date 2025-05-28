@@ -1,4 +1,4 @@
-# 📱 Wakey : On-device AI 기반 인생발자취 및 스마트앨범 서비스
+# 📱 Wakey : On-device AI 기반 인생발자취 및 스마트앨범 서비스 with Qualcomm
 
 👉 **앱 시연 영상** : https://youtu.be/GG55KUtXJIg  
 
