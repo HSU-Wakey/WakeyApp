@@ -17,7 +17,7 @@ public class ESRGANUpscaler {
     private static final String TAG = "ESRGAN_UPSCALER";
 
     public ESRGANUpscaler(Context context) throws IOException {
-        ByteBuffer modelBuffer = FileUtil.loadMappedFile(context, "real_esrgan_general_x4v3-qualcomm_snapdragon_8_elite.tflite");
+        ByteBuffer modelBuffer = FileUtil.loadMappedFile(context, "real_esrgan_general_x4v3-real-esrgan-general-x4v3-float.tflite");
         interpreter = new Interpreter(modelBuffer);
         Log.d(TAG, "✅ ESRGAN 모델 로드 완료");
     }

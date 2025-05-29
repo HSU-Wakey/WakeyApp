@@ -15,9 +15,8 @@ public class PhotoClusterItem implements ClusterItem {
     private final LatLng position;
     private final String title;
     private final String snippet;
-    private final Object tag;
-    private final Bitmap thumbnail;
-    private final List<String> detectedObjects = Collections.emptyList(); // ✅ 기본값
+    private Object tag;
+    private Bitmap thumbnail;
 
     public PhotoClusterItem(LatLng position, String title, String snippet, Object tag, Bitmap thumbnail) {
         this.position = position;
@@ -25,7 +24,6 @@ public class PhotoClusterItem implements ClusterItem {
         this.snippet = snippet;
         this.tag = tag;
         this.thumbnail = thumbnail;
-        // ❌ this.detectedObjects = detectedObjects; → 제거
     }
 
     @Override
@@ -51,7 +49,8 @@ public class PhotoClusterItem implements ClusterItem {
         return thumbnail;
     }
 
-    public List<String> getDetectedObjects() {
-        return detectedObjects;
+    // 썸네일 업데이트를 위한 setter 추가
+    public void setThumbnail(Bitmap thumbnail) {
+        this.thumbnail = thumbnail;
     }
 }

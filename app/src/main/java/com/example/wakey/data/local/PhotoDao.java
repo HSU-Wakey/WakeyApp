@@ -37,9 +37,17 @@ public interface PhotoDao {
     @Query("SELECT * FROM Photo WHERE filePath = :filePath LIMIT 1")
     Photo getPhotoByFilePath(String filePath);
 
-    // 날짜 기반 조회
+    // 날짜 기반 조회 - 기존 메서드 (LIKE 패턴 사용)
     @Query("SELECT * FROM Photo WHERE dateTaken LIKE :dateString || '%' ORDER BY dateTaken")
     List<Photo> getPhotosForDate(String dateString);
+
+    // 새로운 메서드 추가 - StoryGenerator에서 사용
+    @Query("SELECT * FROM Photo WHERE dateTaken LIKE :date || '%' ORDER BY dateTaken ASC")
+    List<Photo> getPhotosForDatePattern(String date);
+
+    // 날짜 범위 조회 - 수정된 버전
+    @Query("SELECT * FROM Photo WHERE date(dateTaken) BETWEEN date(:startDate) AND date(:endDate) ORDER BY dateTaken ASC")
+    List<Photo> getPhotosForDateRange(String startDate, String endDate);
 
     // 사용 가능한 날짜 목록 조회
     @Query("SELECT DISTINCT substr(dateTaken, 1, 10) FROM Photo ORDER BY dateTaken DESC")
@@ -145,4 +153,12 @@ public interface PhotoDao {
 
     @Query("SELECT DISTINCT country FROM Photo WHERE country IS NOT NULL")
     List<String> getAllCountries();
+
+    // 전체 사진 개수 조회
+    @Query("SELECT COUNT(*) FROM Photo")
+    int getPhotoCount();
+
+    // 모든 사진 경로만 가져오기 (성능 최적화)
+    @Query("SELECT filePath FROM Photo")
+    List<String> getAllPhotoPaths();
 }

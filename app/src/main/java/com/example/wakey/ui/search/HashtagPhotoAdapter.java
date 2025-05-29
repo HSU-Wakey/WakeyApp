@@ -25,6 +25,7 @@ public class HashtagPhotoAdapter extends RecyclerView.Adapter<HashtagPhotoAdapte
 
     private List<Photo> photos;
     private FragmentManager fragmentManager;
+    private String currentHashtag;
 
     public HashtagPhotoAdapter(List<Photo> photos) {
         this.photos = photos;
@@ -33,6 +34,11 @@ public class HashtagPhotoAdapter extends RecyclerView.Adapter<HashtagPhotoAdapte
     public HashtagPhotoAdapter(List<Photo> photos, FragmentManager fragmentManager) {
         this.photos = photos;
         this.fragmentManager = fragmentManager;
+    }
+
+    // 해시태그 설정 메소드 추가
+    public void setCurrentHashtag(String hashtag) {
+        this.currentHashtag = hashtag;
     }
 
     @NonNull
@@ -72,12 +78,26 @@ public class HashtagPhotoAdapter extends RecyclerView.Adapter<HashtagPhotoAdapte
             List<String> tags = photo.getTags();
 
             // 다이얼로그 프래그먼트 생성 및 표시
-            PhotoDetailDialogFragment dialogFragment = PhotoDetailDialogFragment.newInstance(
-                    photo.getFilePath(),
-                    fileName,
-                    photo.getTimestamp(), // getTimestamp() 메소드 사용
-                    tags
-            );
+            PhotoDetailDialogFragment dialogFragment;
+
+            if (currentHashtag != null) {
+                // 해시태그가 있으면 해시태그와 함께 전달
+                dialogFragment = PhotoDetailDialogFragment.newInstance(
+                        photo.getFilePath(),
+                        fileName,
+                        photo.getTimestamp(),
+                        tags,
+                        currentHashtag
+                );
+            } else {
+                // 해시태그가 없으면 기본 생성자 사용
+                dialogFragment = PhotoDetailDialogFragment.newInstance(
+                        photo.getFilePath(),
+                        fileName,
+                        photo.getTimestamp(),
+                        tags
+                );
+            }
 
             dialogFragment.show(fragmentManager, "PhotoDetail");
         } catch (Exception e) {

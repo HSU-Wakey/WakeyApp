@@ -123,9 +123,10 @@ public class StoryGenerator {
                         continue;
                     }
 
-                    // 이미 스토리가 있으면 건너뛰기 (API에서 이미 생성된 경우)
-                    if (item.getStory() != null && !item.getStory().isEmpty()) {
-                        Log.d(TAG, "🔄 기존 스토리 발견, 스토리 생성 건너뛰기: [" + item.getStory() + "]");
+                    // 이미 스토리가 있으면 건너뛰기
+                    if (item.getStory() != null && !item.getStory().isEmpty() &&
+                            !item.getStory().equals("스토리 생성 중...")) {
+                        Log.d(TAG, "🔄 기존 스토리 발견: " + item.getStory());
                         processedItems.add(item);
                         continue;
                     }
@@ -133,37 +134,19 @@ public class StoryGenerator {
                     // DB에서 추가 정보 로드
                     loadAdditionalInfoFromDB(item);
 
-                    // DB에서 이미 저장된 스토리가 있는지 확인
+                    // DB에서 저장된 스토리 확인
                     Photo existingPhoto = photoDao.getPhotoByFilePath(item.getPhotoPath());
-                    if (existingPhoto != null && existingPhoto.story != null && !existingPhoto.story.isEmpty()) {
-                        // DB에 스토리가 있다면 그것을 사용
-                        Log.d(TAG, "💾 DB에서 기존 스토리 불러옴: [" + existingPhoto.story + "]");
+                    if (existingPhoto != null && existingPhoto.story != null &&
+                            !existingPhoto.story.isEmpty()) {
+                        Log.d(TAG, "💾 DB에서 스토리 로드: " + existingPhoto.story);
                         item.setStory(existingPhoto.story);
-                    } else {
-                        // 스토리가 없는 경우 - 임시 메시지 설정
-                        item.setStory("스토리 생성 중...");
-                        Log.d(TAG, "⏳ 스토리 생성 대기 중: " + item.getPhotoPath());
+                        processedItems.add(item);
+                        continue;
                     }
 
-                    // UI 업데이트
-                    if (context instanceof MainActivity) {
-                        final TimelineItem finalItem = item;
-                        ((MainActivity) context).runOnUiThread(() -> {
-                            try {
-                                // TimelineManager를 통한 업데이트
-                                com.example.wakey.data.repository.TimelineManager.getInstance(context)
-                                        .updateTimelineItem(finalItem);
-
-                                // 스토리 어댑터 직접 업데이트
-                                if (storyAdapter != null) {
-                                    storyAdapter.updateItem(finalItem);
-                                }
-                            } catch (Exception e) {
-                                Log.e(TAG, "UI 업데이트 중 오류: " + e.getMessage(), e);
-                            }
-                        });
-                    }
-
+                    // 스토리가 없는 경우 - Gemini API로 생성
+                    Log.d(TAG, "🆕 새로운 스토리 생성 시작: " + item.getPhotoPath());
+                    generateStoryWithGemini(item);
                     processedItems.add(item);
                 }
 
@@ -173,8 +156,9 @@ public class StoryGenerator {
                         listener.onStoryGenerated(finalProcessedItems);
                     }
                 });
+
             } catch (Exception e) {
-                Log.e(TAG, "스토리 생성 중 오류 발생: " + e.getMessage(), e);
+                Log.e(TAG, "스토리 생성 중 오류: " + e.getMessage(), e);
                 mainHandler.post(() -> {
                     if (listener != null) {
                         listener.onStoryGenerationFailed(e);
@@ -183,6 +167,173 @@ public class StoryGenerator {
             }
         });
     }
+
+    // Gemini API를 사용한 스토리 생성 메서드
+    private void generateStoryWithGemini(TimelineItem item) {
+        try {
+            String apiKey = getGeminiApiKey();
+            if (apiKey == null || apiKey.isEmpty()) {
+                Log.e(TAG, "Gemini API 키가 설정되지 않았습니다");
+                item.setStory("API 키가 설정되지 않았습니다");
+                return;
+            }
+
+            // 이미지 인코딩
+            String base64Image = encodeImageToBase64(item.getPhotoPath());
+            if (base64Image == null) {
+                Log.e(TAG, "이미지 인코딩 실패");
+                item.setStory("이미지를 처리할 수 없습니다");
+                return;
+            }
+
+            // 프롬프트 생성
+            String prompt = createStoryPrompt(item);
+
+            // API 호출
+            String apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey;
+
+            OkHttpClient client = new OkHttpClient.Builder()
+                    .connectTimeout(30, TimeUnit.SECONDS)
+                    .readTimeout(30, TimeUnit.SECONDS)
+                    .build();
+
+            // JSON 요청 생성
+            JsonObject requestJson = new JsonObject();
+            JsonArray contents = new JsonArray();
+            JsonObject content = new JsonObject();
+            JsonArray parts = new JsonArray();
+
+            // 텍스트 파트
+            JsonObject textPart = new JsonObject();
+            textPart.addProperty("text", prompt);
+            parts.add(textPart);
+
+            // 이미지 파트
+            JsonObject imagePart = new JsonObject();
+            JsonObject inlineData = new JsonObject();
+            inlineData.addProperty("mimeType", "image/jpeg");
+            inlineData.addProperty("data", base64Image);
+            imagePart.add("inlineData", inlineData);
+            parts.add(imagePart);
+
+            content.add("parts", parts);
+            contents.add(content);
+            requestJson.add("contents", contents);
+
+            // 생성 설정
+            JsonObject generationConfig = new JsonObject();
+            generationConfig.addProperty("temperature", 0.7);
+            generationConfig.addProperty("maxOutputTokens", 100);
+            requestJson.add("generationConfig", generationConfig);
+
+            RequestBody body = RequestBody.create(
+                    MediaType.parse("application/json"),
+                    requestJson.toString()
+            );
+
+            Request request = new Request.Builder()
+                    .url(apiUrl)
+                    .post(body)
+                    .build();
+
+            try (Response response = client.newCall(request).execute()) {
+                if (response.isSuccessful()) {
+                    String responseBody = response.body().string();
+                    String story = parseGeminiResponse(responseBody);
+
+                    if (story != null && !story.isEmpty()) {
+                        item.setStory(story);
+
+                        // DB에 저장
+                        saveStoryToDB(item.getPhotoPath(), story);
+
+                        // UI 업데이트
+                        updateUI(item);
+                    } else {
+                        item.setStory("스토리 생성 실패");
+                    }
+                } else {
+                    Log.e(TAG, "API 응답 오류: " + response.code());
+                    item.setStory("스토리 생성 오류");
+                }
+            }
+
+        } catch (Exception e) {
+            Log.e(TAG, "Gemini API 호출 실패: " + e.getMessage(), e);
+            item.setStory("스토리 생성 중 오류 발생");
+        }
+    }
+
+    // 스토리 프롬프트 생성
+    private String createStoryPrompt(TimelineItem item) {
+        StringBuilder prompt = new StringBuilder();
+        prompt.append("이 사진에 대한 짧고 감성적인 한 줄 스토리를 작성해주세요.\n\n");
+
+        if (item.getTime() != null) {
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy년 MM월 dd일 HH시 mm분", Locale.KOREAN);
+            prompt.append("시간: ").append(dateFormat.format(item.getTime())).append("\n");
+        }
+
+        if (item.getLocation() != null && !item.getLocation().isEmpty()) {
+            prompt.append("장소: ").append(item.getLocation()).append("\n");
+        }
+
+        if (item.getDetectedObjects() != null && !item.getDetectedObjects().isEmpty()) {
+            prompt.append("사진 속 요소: ").append(item.getDetectedObjects()).append("\n");
+        }
+
+        prompt.append("\n규칙:\n");
+        prompt.append("- 한 문장으로 작성\n");
+        prompt.append("- 감성적이고 시적인 표현 사용\n");
+        prompt.append("- 이모지 1-2개 포함\n");
+        prompt.append("- 30자 이내로 간결하게\n");
+
+        return prompt.toString();
+    }
+
+    // Gemini 응답 파싱
+    private String parseGeminiResponse(String jsonResponse) {
+        try {
+            JsonObject response = gson.fromJson(jsonResponse, JsonObject.class);
+            JsonArray candidates = response.getAsJsonArray("candidates");
+
+            if (candidates != null && candidates.size() > 0) {
+                JsonObject candidate = candidates.get(0).getAsJsonObject();
+                JsonObject content = candidate.getAsJsonObject("content");
+                JsonArray parts = content.getAsJsonArray("parts");
+
+                if (parts != null && parts.size() > 0) {
+                    JsonObject part = parts.get(0).getAsJsonObject();
+                    return part.get("text").getAsString().trim();
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "응답 파싱 오류: " + e.getMessage());
+        }
+        return null;
+    }
+
+    // DB에 스토리 저장
+    private void saveStoryToDB(String photoPath, String story) {
+        executorService.execute(() -> {
+            try {
+                int updated = photoDao.updateStory(photoPath, story);
+                Log.d(TAG, "스토리 DB 저장 완료: " + (updated > 0 ? "성공" : "실패"));
+            } catch (Exception e) {
+                Log.e(TAG, "스토리 DB 저장 실패: " + e.getMessage());
+            }
+        });
+    }
+
+    // UI 업데이트
+    private void updateUI(TimelineItem item) {
+        mainHandler.post(() -> {
+            if (storyAdapter != null) {
+                storyAdapter.updateItem(item);
+            }
+        });
+    }
+
     /**
      * DB에서 추가 정보 로드
      */
@@ -316,41 +467,89 @@ public class StoryGenerator {
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
         String dateString = sdf.format(date);
 
-        // PhotoDao에서 해당 날짜 사진들 가져오기
-        List<Photo> photos = photoDao.getPhotosForDate(dateString);
+        Log.d(TAG, "스토리 로드 시작 - 날짜: " + dateString);
+
+        // PhotoDao에서 해당 날짜 사진들 가져오기 (수정된 쿼리 사용)
+        List<Photo> photos = photoDao.getPhotosForDatePattern(dateString);
         List<TimelineItem> timelineItems = new ArrayList<>();
 
+        Log.d(TAG, "검색된 사진 수: " + photos.size());
+
         for (Photo photo : photos) {
-            // photo.dateTaken은 String 이므로 Date로 변환 필요 (yyyy-MM-dd HH:mm:ss 가정)
-            Date photoDate = null;
             try {
-                photoDate = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).parse(photo.dateTaken);
-            } catch (ParseException e) {
-                // 변환 실패 시, 기본 null 또는 예외 처리
+                // photo.dateTaken은 "yyyy-MM-dd HH:mm:ss" 형식
+                Date photoDate = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).parse(photo.dateTaken);
+
+                // LatLng 생성
+                LatLng latLng = null;
+                if (photo.latitude != null && photo.longitude != null &&
+                        photo.latitude != 0 && photo.longitude != 0) {
+                    latLng = new LatLng(photo.latitude, photo.longitude);
+                }
+
+                // TimelineItem 빌더로 생성
+                TimelineItem.Builder builder = new TimelineItem.Builder()
+                        .setPhotoPath(photo.filePath)
+                        .setTime(photoDate)
+                        .setLatLng(latLng);
+
+                // 캡션 설정
+                if (photo.caption != null && !photo.caption.isEmpty()) {
+                    builder.setCaption(photo.caption);
+                }
+
+                // 위치 정보 설정
+                String location = buildLocationString(photo);
+                if (!location.isEmpty()) {
+                    builder.setLocation(location);
+                }
+
+                // 감지된 객체 설정
+                if (photo.detectedObjects != null && !photo.detectedObjects.isEmpty()) {
+                    builder.setDetectedObjects(photo.detectedObjects);
+                }
+
+                // **중요: DB에 저장된 스토리가 있으면 설정**
+                if (photo.story != null && !photo.story.isEmpty()) {
+                    builder.setStory(photo.story);
+                    Log.d(TAG, "기존 스토리 로드: " + photo.story);
+                }
+
+                TimelineItem item = builder.build();
+                timelineItems.add(item);
+
+            } catch (Exception e) {
+                Log.e(TAG, "TimelineItem 생성 실패: " + e.getMessage());
                 e.printStackTrace();
             }
-
-            // LatLng 생성 (위도/경도 정보가 있을 때)
-            LatLng latLng = null;
-            if (photo.latitude != null && photo.longitude != null) {
-                latLng = new LatLng(photo.latitude, photo.longitude);
-            }
-
-            // TimelineItem 빌더로 세팅
-            TimelineItem item = new TimelineItem.Builder()
-                    .setPhotoPath(photo.filePath)
-                    .setTime(photoDate)
-                    .setStory(photo.story)
-                    .setCaption(photo.caption)
-                    .setLocation(photo.fullAddress)
-                    .setLatLng(latLng)
-                    .setDetectedObjects(photo.detectedObjects)
-                    .build();
-
-            timelineItems.add(item);
         }
 
+        Log.d(TAG, "생성된 타임라인 아이템 수: " + timelineItems.size());
         return timelineItems;
+    }
+
+    // 위치 정보 문자열 생성 헬퍼 메서드
+    private String buildLocationString(Photo photo) {
+        StringBuilder location = new StringBuilder();
+
+        if (photo.fullAddress != null && !photo.fullAddress.isEmpty()) {
+            return photo.fullAddress;
+        }
+
+        if (photo.locationDo != null && !photo.locationDo.isEmpty()) {
+            location.append(photo.locationDo).append(" ");
+        }
+        if (photo.locationSi != null && !photo.locationSi.isEmpty()) {
+            location.append(photo.locationSi).append(" ");
+        }
+        if (photo.locationGu != null && !photo.locationGu.isEmpty()) {
+            location.append(photo.locationGu).append(" ");
+        }
+        if (photo.locationStreet != null && !photo.locationStreet.isEmpty()) {
+            location.append(photo.locationStreet);
+        }
+
+        return location.toString().trim();
     }
 
     /**

@@ -11,6 +11,8 @@ import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import android.content.Context;
+import android.widget.Toast;
+
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -126,31 +128,78 @@ public class StoryFragment extends Fragment {
         // 백그라운드에서 스토리 로드
         executor.execute(() -> {
             try {
+                // 1. DB에서 기존 스토리 로드
                 List<TimelineItem> stories = storyGenerator.getStoriesForDate(parseDate(dateString));
 
-                // UI 스레드에서 어댑터 업데이트
+                // 2. UI 업데이트
                 new Handler(Looper.getMainLooper()).post(() -> {
-                    if (isAdded()) {
+                    if (isAdded() && storyAdapter != null) {
                         if (stories != null && !stories.isEmpty()) {
                             Log.d(TAG, "스토리 로드 완료 - 항목 수: " + stories.size());
+
+                            // 스토리가 없는 항목 확인
+                            List<TimelineItem> itemsNeedingStories = new ArrayList<>();
                             for (TimelineItem item : stories) {
-                                Log.d(TAG, "스토리 항목: " + item.getPhotoPath() + ", 스토리: " +
-                                        (item.getStory() != null ? item.getStory() : "없음"));
+                                if (item.getStory() == null || item.getStory().isEmpty()) {
+                                    itemsNeedingStories.add(item);
+                                    Log.d(TAG, "스토리 필요: " + item.getPhotoPath());
+                                }
                             }
+
+                            // 먼저 UI 업데이트 (기존 스토리 표시)
                             storyAdapter.setItems(stories);
-                            storyAdapter.notifyDataSetChanged();
+
+                            // 스토리가 필요한 항목들에 대해 생성 요청
+                            if (!itemsNeedingStories.isEmpty()) {
+                                Log.d(TAG, "스토리 생성 필요 항목: " + itemsNeedingStories.size() + "개");
+                                requestStoryGeneration(itemsNeedingStories);
+                            }
+
                         } else {
                             Log.d(TAG, "로드된 스토리 없음");
                             storyAdapter.setItems(new ArrayList<>());
-                            storyAdapter.notifyDataSetChanged();
                         }
                     }
                 });
             } catch (Exception e) {
                 Log.e(TAG, "스토리 로드 중 오류: " + e.getMessage(), e);
+
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    if (isAdded()) {
+                        Toast.makeText(getContext(), "스토리 로드 실패", Toast.LENGTH_SHORT).show();
+                    }
+                });
             }
         });
     }
+
+    // 스토리 생성 요청 메서드 추가
+    private void requestStoryGeneration(List<TimelineItem> itemsNeedingStories) {
+        if (storyGenerator != null) {
+            storyGenerator.generateStories(itemsNeedingStories, new StoryGenerator.OnStoryGeneratedListener() {
+                @Override
+                public void onStoryGenerated(List<TimelineItem> itemsWithStories) {
+                    Log.d(TAG, "스토리 생성 완료 - 콜백 받음");
+
+                    // 생성된 스토리로 어댑터 업데이트
+                    if (isAdded() && storyAdapter != null) {
+                        new Handler(Looper.getMainLooper()).post(() -> {
+                            // 개별 아이템 업데이트
+                            for (TimelineItem item : itemsWithStories) {
+                                storyAdapter.updateItem(item);
+                            }
+                        });
+                    }
+                }
+
+                @Override
+                public void onStoryGenerationFailed(Exception e) {
+                    Log.e(TAG, "스토리 생성 실패: " + e.getMessage());
+                }
+            });
+        }
+    }
+
 
     // 날짜 문자열을 Date 객체로 변환
     private Date parseDate(String dateString) {

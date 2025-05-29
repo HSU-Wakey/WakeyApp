@@ -24,7 +24,7 @@ public class Upscaler {
         // 1) 모델 파일 로드 (assets/real_esrgan_general_x4v3-qualcomm_snapdragon_8_elite.tflite)
         MappedByteBuffer modelBuffer = loadModelFile(
                 context,
-                "real_esrgan_general_x4v3-qualcomm_snapdragon_8_elite.tflite"
+                "real_esrgan_general_x4v3-real-esrgan-general-x4v3-float.tflite"
         );
 
         // 2) Flex Delegate 추가하여 InterpreterOptions 구성

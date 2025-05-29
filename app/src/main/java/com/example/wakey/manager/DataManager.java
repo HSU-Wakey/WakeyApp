@@ -87,7 +87,7 @@ public class DataManager {
                     listener.onPhotosLoaded(new ArrayList<>(), new HashMap<>());
                     listener.onTimelineLoaded(new ArrayList<>());
                     listener.onRouteGenerated(new ArrayList<>());
-                    ToastManager.getInstance().showToast("이 날짜에 사진이 없습니다");
+                    // ToastManager.getInstance().showToast("이 날짜에 사진이 없습니다");
                 });
             }
         }).start();

@@ -12,6 +12,7 @@ import com.example.wakey.data.util.DateUtil;
 import com.example.wakey.ui.map.PhotoClusterItem;
 import com.example.wakey.ui.map.PhotoClusterRenderer;
 import com.example.wakey.util.ImageUtils;
+import com.example.wakey.util.ThumbnailCache;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.model.LatLng;
@@ -118,6 +119,9 @@ public class MapManager {
     public void clearMap() {
         if (googleMap != null) googleMap.clear();
         if (clusterManager != null) clusterManager.clearItems();
+
+        // 메모리 절약을 위해 캐시 정리 (선택사항)
+        // ThumbnailCache.getInstance(context).clearCache();
     }
 
     public void moveCamera(LatLng latLng, float zoom) {
@@ -147,14 +151,42 @@ public class MapManager {
     private void addRepresentativeMarkers() {
         if (photoClusters == null || photoClusters.isEmpty()) return;
 
+        ThumbnailCache thumbnailCache = ThumbnailCache.getInstance(context);
+
         for (Map.Entry<LatLng, List<PhotoInfo>> entry : photoClusters.entrySet()) {
             List<PhotoInfo> clusterPhotos = entry.getValue();
             if (!clusterPhotos.isEmpty()) {
                 PhotoInfo photo = clusterPhotos.get(0);
-                Bitmap thumbnail = ImageUtils.loadThumbnailFromPath(context, photo.getFilePath());
-                PhotoClusterItem item = new PhotoClusterItem(
-                        photo.getLatLng(), "", "", photo, thumbnail);
-                clusterManager.addItem(item);
+
+                // 먼저 캐시된 썸네일 확인
+                Bitmap cachedThumbnail = thumbnailCache.getThumbnailSync(photo.getFilePath());
+
+                if (cachedThumbnail != null) {
+                    // 캐시에 있으면 바로 마커 추가
+                    PhotoClusterItem item = new PhotoClusterItem(
+                            photo.getLatLng(), "", "", photo, cachedThumbnail);
+                    clusterManager.addItem(item);
+                } else {
+                    // 캐시에 없으면 일단 placeholder로 마커 추가
+                    PhotoClusterItem item = new PhotoClusterItem(
+                            photo.getLatLng(), "", "", photo, null);
+                    clusterManager.addItem(item);
+
+                    // 비동기로 썸네일 로드
+                    thumbnailCache.loadThumbnail(photo.getFilePath(), new ThumbnailCache.ThumbnailLoadCallback() {
+                        @Override
+                        public void onThumbnailLoaded(Bitmap bitmap) {
+                            // 썸네일 로드 완료 시 마커 업데이트
+                            item.setThumbnail(bitmap);
+                            clusterManager.cluster(); // 클러스터 다시 그리기
+                        }
+
+                        @Override
+                        public void onLoadFailed() {
+                            Log.e(TAG, "썸네일 로드 실패: " + photo.getFilePath());
+                        }
+                    });
+                }
             }
         }
     }
@@ -162,6 +194,7 @@ public class MapManager {
     private void addAllPhotoMarkers() {
         if (photoClusters == null || photoClusters.isEmpty()) return;
 
+        ThumbnailCache thumbnailCache = ThumbnailCache.getInstance(context);
         double offsetStep = 0.00002;
         int counter = 0;
 
@@ -169,7 +202,6 @@ public class MapManager {
             List<PhotoInfo> photos = entry.getValue();
 
             for (PhotoInfo photo : photos) {
-                Bitmap thumbnail = ImageUtils.loadThumbnailFromPath(context, photo.getFilePath());
                 LatLng original = photo.getLatLng();
                 LatLng adjusted = new LatLng(
                         original.latitude + (offsetStep * counter),
@@ -177,13 +209,33 @@ public class MapManager {
                 );
                 counter++;
 
-                PhotoClusterItem item = new PhotoClusterItem(
-                        adjusted, "", "", photo, thumbnail);
+                // 캐시된 썸네일 확인
+                Bitmap cachedThumbnail = thumbnailCache.getThumbnailSync(photo.getFilePath());
 
+                PhotoClusterItem item = new PhotoClusterItem(
+                        adjusted, "", "", photo, cachedThumbnail);
                 clusterManager.addItem(item);
+
+                // 캐시에 없으면 비동기 로드
+                if (cachedThumbnail == null) {
+                    thumbnailCache.loadThumbnail(photo.getFilePath(), new ThumbnailCache.ThumbnailLoadCallback() {
+                        @Override
+                        public void onThumbnailLoaded(Bitmap bitmap) {
+                            item.setThumbnail(bitmap);
+                            // 개별 마커는 업데이트하지 않음 (성능상)
+                        }
+
+                        @Override
+                        public void onLoadFailed() {
+                            Log.e(TAG, "썸네일 로드 실패: " + photo.getFilePath());
+                        }
+                    });
+                }
             }
         }
     }
+
+
 
     public void drawRoute(List<LatLng> points) {
         if (googleMap == null || points == null || points.size() < 2) return;

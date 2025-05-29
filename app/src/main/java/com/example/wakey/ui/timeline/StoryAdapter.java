@@ -1,5 +1,6 @@
 package com.example.wakey.ui.timeline;
 
+import android.app.Activity;
 import android.content.Context;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -65,23 +66,18 @@ public class StoryAdapter extends RecyclerView.Adapter<StoryAdapter.StoryViewHol
     public void onBindViewHolder(@NonNull StoryViewHolder holder, int position) {
         TimelineItem item = timelineItems.get(position);
 
-        // 모든 데이터 로깅
-        Log.d(TAG, "📌 onBindViewHolder 호출 - 위치: " + position);
+        // 디버그 로그
+        Log.d(TAG, "📌 onBindViewHolder - 위치: " + position);
         Log.d(TAG, "📌 사진 경로: " + item.getPhotoPath());
         Log.d(TAG, "📌 스토리 내용: " + item.getStory());
-        Log.d(TAG, "📌 캡션 내용: " + item.getCaption());
-        Log.d(TAG, "📌 객체 인식: " + item.getDetectedObjects());
 
-        // 1. 사진 로드 - 이미지 크기 조정 및 둥근 모서리 적용
+        // 1. 사진 로드
         if (item.getPhotoPath() != null) {
-            Log.d(TAG, "📌 사진 로드 시도: " + item.getPhotoPath());
             Glide.with(context)
                     .load(item.getPhotoPath())
                     .centerCrop()
                     .transform(new RoundedCorners(20))
                     .into(holder.imageView);
-        } else {
-            Log.d(TAG, "📌 사진 경로 없음");
         }
 
         // 2. 시간 표시
@@ -89,12 +85,6 @@ public class StoryAdapter extends RecyclerView.Adapter<StoryAdapter.StoryViewHol
             String timeText = DateUtil.formatDate(item.getTime(), "HH:mm");
             holder.timeTextView.setText(timeText);
             holder.timeTextView.setVisibility(View.VISIBLE);
-            Log.d(TAG, "📌 시간 설정: " + timeText);
-        } else {
-            if (holder.timeTextView != null) {
-                holder.timeTextView.setVisibility(View.GONE);
-            }
-            Log.d(TAG, "📌 시간 정보 없음");
         }
 
         // 3. 위치 표시
@@ -103,22 +93,18 @@ public class StoryAdapter extends RecyclerView.Adapter<StoryAdapter.StoryViewHol
                     !item.getLocation().equals("위치 정보 없음")) {
                 holder.locationTextView.setText(item.getLocation());
                 holder.locationTextView.setVisibility(View.VISIBLE);
-                Log.d(TAG, "📌 위치 표시: " + item.getLocation());
             } else {
                 holder.locationTextView.setVisibility(View.GONE);
-                Log.d(TAG, "📌 위치 정보 숨김");
             }
         }
 
-        // 4. 스토리 표시 (스토리 우선, 없으면 캡션 사용)
+        // 4. 스토리 표시 로직 개선
         if (holder.captionTextView != null) {
             String storyText = item.getStory();
-            boolean hasStory = storyText != null && !storyText.trim().isEmpty();
 
-            Log.d(TAG, "📌 스토리 확인: " + (hasStory ? "있음" : "없음"));
-
-            // 스토리 텍스트뷰 설정
-            if (hasStory) {
+            if (storyText != null && !storyText.trim().isEmpty() &&
+                    !storyText.equals("스토리 생성 중...")) {
+                // 실제 스토리가 있는 경우
                 Log.d(TAG, "📌 스토리 표시: " + storyText);
                 holder.captionTextView.setText(storyText);
                 holder.captionTextView.setVisibility(View.VISIBLE);
@@ -126,36 +112,69 @@ public class StoryAdapter extends RecyclerView.Adapter<StoryAdapter.StoryViewHol
                 if (holder.captionProgressBar != null) {
                     holder.captionProgressBar.setVisibility(View.GONE);
                 }
-            } else if (item.getCaption() != null && !item.getCaption().isEmpty()) {
-                // 캡션만 있는 경우
-                holder.captionTextView.setText(item.getCaption());
-                holder.captionTextView.setVisibility(View.VISIBLE);
-
-                if (holder.captionProgressBar != null) {
-                    holder.captionProgressBar.setVisibility(View.GONE);
-                }
-
-                Log.d(TAG, "📌 캡션 표시: " + item.getCaption());
             } else {
-                // 스토리와 캡션 모두 없는 경우 "생성 중..." 표시
-                holder.captionTextView.setText("스토리 생성 중...");
-                holder.captionTextView.setVisibility(View.VISIBLE);
+                // 스토리가 없거나 생성 중인 경우
+                Log.d(TAG, "📌 스토리 없음 - 생성 필요");
 
+                // 프로그레스바 표시
                 if (holder.captionProgressBar != null) {
                     holder.captionProgressBar.setVisibility(View.VISIBLE);
                 }
 
-                Log.d(TAG, "📌 스토리 생성 중... 표시");
+                // 임시 텍스트 표시
+                holder.captionTextView.setText("스토리 생성 중...");
+                holder.captionTextView.setVisibility(View.VISIBLE);
 
-                // 스토리 생성 요청
-                generateStory(item, holder);
+                // ViewHolder 태그에 위치 저장 (나중에 업데이트용)
+                holder.itemView.setTag(position);
+
+                // 스토리 생성이 아직 안된 경우만 요청
+                if (storyText == null || storyText.isEmpty()) {
+                    Log.d(TAG, "📌 스토리 생성 요청 시작");
+                    requestStoryForItem(item, position);
+                }
             }
         }
 
-        // 클릭 리스너 설정
+        // 클릭 리스너
         holder.itemView.setOnClickListener(v -> {
             if (clickListener != null) {
                 clickListener.onItemClick(item, position);
+            }
+        });
+    }
+
+    // 개별 아이템 스토리 요청 메서드 추가
+    private void requestStoryForItem(TimelineItem item, int position) {
+        if (storyGenerator == null) {
+            Log.e(TAG, "StoryGenerator가 null입니다");
+            return;
+        }
+
+        // 단일 아이템 리스트로 생성
+        List<TimelineItem> singleItemList = new ArrayList<>();
+        singleItemList.add(item);
+
+        storyGenerator.generateStories(singleItemList, new StoryGenerator.OnStoryGeneratedListener() {
+            @Override
+            public void onStoryGenerated(List<TimelineItem> itemsWithStories) {
+                if (itemsWithStories != null && !itemsWithStories.isEmpty()) {
+                    TimelineItem updatedItem = itemsWithStories.get(0);
+
+                    // UI 스레드에서 업데이트
+                    if (context instanceof Activity) {
+                        ((Activity) context).runOnUiThread(() -> {
+                            // 특정 위치의 아이템만 업데이트
+                            notifyItemChanged(position);
+                            Log.d(TAG, "📌 스토리 생성 완료 - 위치 " + position + " 업데이트");
+                        });
+                    }
+                }
+            }
+
+            @Override
+            public void onStoryGenerationFailed(Exception e) {
+                Log.e(TAG, "스토리 생성 실패: " + e.getMessage());
             }
         });
     }

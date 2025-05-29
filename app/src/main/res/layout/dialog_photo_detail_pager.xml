@@ -5,28 +5,29 @@
     android:layout_height="match_parent"
     android:background="#CC000000">
 
-    <!-- 닫기 버튼 -->
-    <ImageButton
-        android:id="@+id/closeDetailButton"
-        android:layout_width="30dp"
-        android:layout_height="30dp"
-        android:layout_margin="16dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:contentDescription="닫기"
-        android:src="@drawable/ic_close"
-        android:scaleType="fitCenter"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <!-- 확대 가능한 이미지 뷰 -->
-    <com.github.chrisbanes.photoview.PhotoView
-        android:id="@+id/detailPhotoView"
+    <!-- ViewPager2 for swiping between photos -->
+    <androidx.viewpager2.widget.ViewPager2
+        android:id="@+id/photoViewPager"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:scaleType="fitCenter"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- 닫기 버튼 -->
+    <ImageButton
+        android:id="@+id/closeDetailButton"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_margin="10dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="닫기"
+        android:src="@drawable/ic_close"
+        android:scaleType="centerInside"
+        android:padding="12dp"
+        android:elevation="4dp"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

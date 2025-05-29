@@ -6,7 +6,9 @@ import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.GestureDetector;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
@@ -16,19 +18,20 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.DialogFragment;
+import androidx.viewpager2.widget.ViewPager2;
 
-import com.bumptech.glide.Glide;
 import com.example.wakey.R;
-import com.github.chrisbanes.photoview.PhotoView;
+import com.example.wakey.data.local.AppDatabase;
+import com.example.wakey.data.local.Photo;
 import com.google.android.material.chip.Chip;
 import com.google.android.material.chip.ChipGroup;
 
-import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.Executors;
 
 public class PhotoDetailDialogFragment extends DialogFragment {
 
@@ -36,12 +39,14 @@ public class PhotoDetailDialogFragment extends DialogFragment {
     private static final String ARG_PHOTO_NAME = "photo_name";
     private static final String ARG_PHOTO_DATE = "photo_date";
     private static final String ARG_PHOTO_TAGS = "photo_tags";
+    private static final String ARG_HASHTAG = "hashtag";
 
-    private PhotoView detailPhotoView;
-    private TextView fileNameTextView;
-    private TextView dateTakenTextView;
-    private ChipGroup tagChipGroup;
-    private ImageButton closeDetailButton;
+    private ViewPager2 viewPager;
+    private PhotoDetailPagerAdapter pagerAdapter;
+    private List<Photo> allPhotos = new ArrayList<>();
+    private int currentPosition = 0;
+    private String currentHashtag;
+    private GestureDetector gestureDetector;
 
     public static PhotoDetailDialogFragment newInstance(String photoUri, String photoName,
                                                         long photoDate, List<String> tags) {
@@ -55,69 +60,116 @@ public class PhotoDetailDialogFragment extends DialogFragment {
         return fragment;
     }
 
+    // 해시태그 사진 목록용 생성자 추가
+    public static PhotoDetailDialogFragment newInstance(String photoUri, String photoName,
+                                                        long photoDate, List<String> tags,
+                                                        String hashtag) {
+        PhotoDetailDialogFragment fragment = new PhotoDetailDialogFragment();
+        Bundle args = new Bundle();
+        args.putString(ARG_PHOTO_URI, photoUri);
+        args.putString(ARG_PHOTO_NAME, photoName);
+        args.putLong(ARG_PHOTO_DATE, photoDate);
+        args.putStringArrayList(ARG_PHOTO_TAGS, new ArrayList<>(tags));
+        args.putString(ARG_HASHTAG, hashtag);
+        fragment.setArguments(args);
+        return fragment;
+    }
+
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setStyle(DialogFragment.STYLE_NORMAL, android.R.style.Theme_Black_NoTitleBar_Fullscreen);
+
+        if (getArguments() != null) {
+            currentHashtag = getArguments().getString(ARG_HASHTAG);
+        }
     }
 
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
-        View view = inflater.inflate(R.layout.dialog_photo_detail, container, false);
+        View view = inflater.inflate(R.layout.dialog_photo_detail_pager, container, false);
 
-        // 뷰 초기화
-        detailPhotoView = view.findViewById(R.id.detailPhotoView);
-//        fileNameTextView = view.findViewById(R.id.fileNameTextView);
-//        dateTakenTextView = view.findViewById(R.id.dateTakenTextView);
-//        tagChipGroup = view.findViewById(R.id.tagChipGroup);
-        closeDetailButton = view.findViewById(R.id.closeDetailButton);
+        // ViewPager2 초기화
+        viewPager = view.findViewById(R.id.photoViewPager);
+        ImageButton closeDetailButton = view.findViewById(R.id.closeDetailButton);
 
-        closeDetailButton.setOnClickListener(v -> dismiss());
+        // 닫기 버튼 리스너 설정
+        closeDetailButton.setOnClickListener(v -> {
+            Log.d("PhotoDetailDialog", "Close button clicked");
+            dismiss();
+        });
+
+        // 제스처 감지기 초기화 (ViewPager와 별개로 다이얼로그 닫기용)
+        gestureDetector = new GestureDetector(requireContext(), new GestureDetector.SimpleOnGestureListener() {
+            @Override
+            public boolean onSingleTapConfirmed(MotionEvent e) {
+                // 화면 탭 시 닫기 (옵션)
+                // dismiss();
+                return true;
+            }
+        });
+
+        loadPhotos();
 
         return view;
+    }
+
+    private void loadPhotos() {
+        Executors.newSingleThreadExecutor().execute(() -> {
+            try {
+                AppDatabase db = AppDatabase.getInstance(requireContext());
+
+                if (currentHashtag != null) {
+                    // 해시태그로 필터링된 사진들 로드
+                    allPhotos = db.photoDao().getPhotosByHashtag(currentHashtag);
+                } else {
+                    // 모든 사진 로드 (또는 다른 로직)
+                    allPhotos = db.photoDao().getAllPhotos();
+                }
+
+                // 현재 사진의 위치 찾기
+                Bundle args = getArguments();
+                if (args != null) {
+                    String currentPhotoUri = args.getString(ARG_PHOTO_URI);
+                    for (int i = 0; i < allPhotos.size(); i++) {
+                        if (allPhotos.get(i).getFilePath().equals(currentPhotoUri)) {
+                            currentPosition = i;
+                            break;
+                        }
+                    }
+                }
+
+                requireActivity().runOnUiThread(() -> {
+                    setupViewPager();
+                });
+
+            } catch (Exception e) {
+                Log.e("PhotoDetailDialog", "Error loading photos: " + e.getMessage(), e);
+            }
+        });
+    }
+
+    private void setupViewPager() {
+        pagerAdapter = new PhotoDetailPagerAdapter(requireContext(), allPhotos);
+        viewPager.setAdapter(pagerAdapter);
+        viewPager.setCurrentItem(currentPosition, false);
+
+        // 페이지 변경 콜백
+        viewPager.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
+            @Override
+            public void onPageSelected(int position) {
+                super.onPageSelected(position);
+                currentPosition = position;
+            }
+        });
     }
 
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-
-        Bundle args = getArguments();
-        if (args != null) {
-            try {
-                String photoUri = args.getString(ARG_PHOTO_URI);
-                String photoName = args.getString(ARG_PHOTO_NAME);
-                long photoDate = args.getLong(ARG_PHOTO_DATE);
-                List<String> tags = args.getStringArrayList(ARG_PHOTO_TAGS);
-
-                // 이미지 로드
-                if (photoUri != null) {
-                    Glide.with(requireContext())
-                            .load(Uri.parse(photoUri))
-                            .into(detailPhotoView);
-                }
-
-                // 파일명 설정
-                fileNameTextView.setText(photoName);
-
-                // 날짜 포맷팅 및 설정
-                SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
-                String formattedDate = dateFormat.format(new Date(photoDate));
-                dateTakenTextView.setText(formattedDate);
-
-                // 태그 추가
-                if (tags != null && !tags.isEmpty()) {
-                    for (String tag : tags) {
-                        if (tag != null && !tag.trim().isEmpty()) {
-                            addTagChip(tag.trim());
-                        }
-                    }
-                }
-            } catch (Exception e) {
-                Log.e("PhotoDetailDialogFragment", "Error setting up dialog: " + e.getMessage(), e);
-            }
-        }
+        // 초기 데이터는 loadPhotos에서 처리
     }
 
     @NonNull
@@ -127,28 +179,18 @@ public class PhotoDetailDialogFragment extends DialogFragment {
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
         if (dialog.getWindow() != null) {
             dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            // 전체 화면 설정
+            dialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT);
         }
         return dialog;
     }
 
-    private void addTagChip(String tag) {
-        try {
-            Chip chip = new Chip(requireContext());
-            chip.setText(tag.startsWith("#") ? tag : "#" + tag);
-            chip.setClickable(false);
-            chip.setCheckable(false);
-
-            // 태그 칩 스타일 설정 - 리소스 ID가 없으면 직접 색상 설정
-            try {
-                chip.setChipBackgroundColorResource(R.color.chip_background);
-            } catch (Exception e) {
-                chip.setChipBackgroundColor(android.content.res.ColorStateList.valueOf(Color.parseColor("#3D5AFE")));
-            }
-            chip.setTextColor(Color.WHITE);
-
-            tagChipGroup.addView(chip);
-        } catch (Exception e) {
-            Log.e("PhotoDetailDialogFragment", "Error adding tag chip: " + e.getMessage(), e);
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        if (viewPager != null) {
+            viewPager.setAdapter(null);
         }
     }
 }

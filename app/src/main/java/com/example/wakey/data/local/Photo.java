@@ -5,6 +5,7 @@ import android.util.Pair;
 import androidx.room.ColumnInfo;
 import androidx.room.Entity;
 import androidx.room.Ignore;
+import androidx.room.Index;
 import androidx.room.PrimaryKey;
 import androidx.room.TypeConverters;
 
@@ -18,12 +19,16 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-@Entity
+@Entity(tableName = "Photo",
+        indices = {
+                @Index(value = "dateTaken"),
+                @Index(value = "filePath", unique = true),
+                @Index(value = "timestamp"),
+                @Index(value = {"latitude", "longitude"}),
+                @Index(value = "story"),
+                @Index(value = "hashtags")
+        })
 public class Photo {
-
-//    @TypeConverters(Converters.class)
-//    @ColumnInfo(name = "detectedObjectPairs")
-//    public List<Pair<String, Float>> detectedObjectPairs;
 
     @PrimaryKey(autoGenerate = true)
     public int id;
@@ -142,6 +147,9 @@ public class Photo {
         this.longitude = longitude;
         this.detectedObjects = detectedObjects;
         this.country = country;
+
+        // dateTaken이 있으면 timestamp 생성
+        this.timestamp = parseTimestampFromDateTaken(dateTaken);
     }
 
     // Room을 위한 기본 생성자
