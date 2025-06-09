@@ -1,7 +1,10 @@
 package com.example.wakey.ui.search;
+
+import android.content.Context;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.Toast;
@@ -55,11 +58,27 @@ public class SearchActivity extends AppCompatActivity {
         // 검색어 입력 후 엔터 누르면 실행
         searchEditText.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_SEARCH) {
+                // 키보드 숨기기
+                hideKeyboard();
+                // 검색 실행
                 analyzeSimilarity();
                 return true;
             }
             return false;
         });
+    }
+
+    /**
+     * 키보드를 숨기는 메서드
+     */
+    private void hideKeyboard() {
+        InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+        if (imm != null && getCurrentFocus() != null) {
+            imm.hideSoftInputFromWindow(getCurrentFocus().getWindowToken(), 0);
+        }
+
+        // EditText의 포커스도 제거 (선택사항)
+        searchEditText.clearFocus();
     }
 
     private void analyzeSimilarity() {
@@ -69,6 +88,9 @@ public class SearchActivity extends AppCompatActivity {
                 Toast.makeText(this, "검색어를 입력해주세요", Toast.LENGTH_SHORT).show();
                 return;
             }
+
+            // 로딩 표시 (선택사항)
+            Toast.makeText(this, "검색 중...", Toast.LENGTH_SHORT).show();
 
             // 텍스트 벡터 생성
             ClipTokenizer tokenizer = new ClipTokenizer(this);
@@ -93,10 +115,15 @@ public class SearchActivity extends AppCompatActivity {
             }
 
             if (bestMatch != null) {
+                // resultImageView가 주석처리되어 있어서 Toast로만 결과 표시
+                Toast.makeText(this, "가장 유사한 사진 발견! 유사도: " + String.format("%.3f", maxSim), Toast.LENGTH_LONG).show();
+
+                // resultImageView가 활성화되어 있다면 아래 코드 사용
+                /*
                 Glide.with(this)
                         .load(Uri.parse(bestMatch.getFilePath()))
                         .into(resultImageView);
-                Toast.makeText(this, "가장 유사한 사진 유사도: " + maxSim, Toast.LENGTH_LONG).show();
+                */
             } else {
                 Toast.makeText(this, "일치하는 이미지가 없습니다", Toast.LENGTH_SHORT).show();
             }
@@ -106,5 +133,4 @@ public class SearchActivity extends AppCompatActivity {
             Toast.makeText(this, "모델 로딩 실패", Toast.LENGTH_SHORT).show();
         }
     }
-
 }

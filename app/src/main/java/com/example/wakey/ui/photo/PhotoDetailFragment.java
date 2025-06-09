@@ -13,7 +13,9 @@ import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.util.Pair;
+import android.view.GestureDetector;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageButton;
@@ -22,6 +24,8 @@ import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.view.animation.Animation;
+import android.view.animation.AnimationUtils;
 
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
@@ -74,6 +78,14 @@ public class PhotoDetailFragment extends DialogFragment {
     private boolean isUpscaled = false;
     private Bitmap originalBitmap;
     private Bitmap upscaledBitmap;
+
+    // 풀스크린 관련 변수
+    private boolean isFullScreen = false;
+    private View photoInfo;
+    private ImageView photoImageView;
+
+    // 제스처 감지
+    private GestureDetector gestureDetector;
 
     public static PhotoDetailFragment newInstance(TimelineItem item) {
         PhotoDetailFragment fragment = new PhotoDetailFragment();
@@ -134,7 +146,6 @@ public class PhotoDetailFragment extends DialogFragment {
                 }
 
                 requireActivity().runOnUiThread(() -> {
-                    // 타임라인 로딩 후 UI 초기화 필요 시 여기에
                     View view = getView();
                     if (view != null) {
                         updateUI(
@@ -158,16 +169,13 @@ public class PhotoDetailFragment extends DialogFragment {
 
     private void loadTimelineItems() {
         if (currentDate == null && timelineItem != null && timelineItem.getTime() != null) {
-            // 날짜 정보가 없으면 현재 아이템의 날짜로 설정
             currentDate = DateUtil.getFormattedDateString(timelineItem.getTime());
         }
 
         if (currentDate != null) {
-            // 현재 날짜의 모든 타임라인 가져오기
             timelineItems = TimelineManager.getInstance(requireContext())
                     .loadTimelineForDate(currentDate);
 
-            // 현재 위치 찾기
             if (currentPosition == 0 && timelineItem != null) {
                 for (int i = 0; i < timelineItems.size(); i++) {
                     TimelineItem item = timelineItems.get(i);
@@ -186,8 +194,11 @@ public class PhotoDetailFragment extends DialogFragment {
                              Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_photo_detail, container, false);
 
+        // 뷰 참조 저장
+        photoImageView = view.findViewById(R.id.photoDetailImageView);
+        photoInfo = view.findViewById(R.id.photoInfo); // 기존 정보 섹션 사용
+
         // 기본 뷰 참조 찾기
-        ImageView photoImageView = view.findViewById(R.id.photoDetailImageView);
         TextView locationTextView = view.findViewById(R.id.photoDetailLocationTextView);
         TextView timeTextView = view.findViewById(R.id.photoDetailTimeTextView);
         TextView addressTextView = view.findViewById(R.id.photoDetailAddressTextView);
@@ -198,6 +209,15 @@ public class PhotoDetailFragment extends DialogFragment {
         ImageButton btnPrevious = view.findViewById(R.id.btnPrevious);
         ImageButton btnNext = view.findViewById(R.id.btnNext);
         ProgressBar progressBar = view.findViewById(R.id.progressBarUpscale);
+
+        // 제스처 감지기 초기화
+        initGestureDetector();
+
+        // 이미지뷰에 터치 리스너 설정
+        photoImageView.setOnTouchListener((v, event) -> {
+            gestureDetector.onTouchEvent(event);
+            return true;
+        });
 
         // 업스케일 버튼 참조 및 리스너 추가
         ImageButton upscaleButton = view.findViewById(R.id.upscaleButton);
@@ -268,6 +288,70 @@ public class PhotoDetailFragment extends DialogFragment {
         return view;
     }
 
+    private void initGestureDetector() {
+        gestureDetector = new GestureDetector(getContext(), new GestureDetector.SimpleOnGestureListener() {
+            private static final int SWIPE_THRESHOLD = 100;
+            private static final int SWIPE_VELOCITY_THRESHOLD = 100;
+
+            @Override
+            public boolean onSingleTapUp(MotionEvent e) {
+                // 사진 클릭 시 풀스크린 토글
+                toggleFullScreen();
+                return true;
+            }
+
+            @Override
+            public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+                if (e1 == null || e2 == null) return false;
+
+                float diffX = e2.getX() - e1.getX();
+                float diffY = e2.getY() - e1.getY();
+
+                // 가로 스와이프인지 확인 (세로 스와이프보다 가로 스와이프가 더 클 때)
+                if (Math.abs(diffX) > Math.abs(diffY)) {
+                    if (Math.abs(diffX) > SWIPE_THRESHOLD && Math.abs(velocityX) > SWIPE_VELOCITY_THRESHOLD) {
+                        if (diffX > 0) {
+                            // 오른쪽 스와이프 - 이전 사진
+                            navigateToPrevious();
+                        } else {
+                            // 왼쪽 스와이프 - 다음 사진
+                            navigateToNext();
+                        }
+                        return true;
+                    }
+                }
+                return false;
+            }
+        });
+    }
+
+    private void toggleFullScreen() {
+        if (photoInfo == null) return;
+
+        isFullScreen = !isFullScreen;
+
+        if (isFullScreen) {
+            // 풀스크린 모드: 상세 정보 숨기기
+            Animation fadeOut = AnimationUtils.loadAnimation(getContext(), android.R.anim.fade_out);
+            fadeOut.setDuration(200);
+            photoInfo.startAnimation(fadeOut);
+            photoInfo.setVisibility(View.GONE);
+
+            // 사진을 중앙에 확대 표시
+            photoImageView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+
+        } else {
+            // 일반 모드: 상세 정보 보이기
+            photoInfo.setVisibility(View.VISIBLE);
+            Animation fadeIn = AnimationUtils.loadAnimation(getContext(), android.R.anim.fade_in);
+            fadeIn.setDuration(200);
+            photoInfo.startAnimation(fadeIn);
+
+            // 사진 크기 원래대로
+            photoImageView.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        }
+    }
+
     private void updateNavigationButtons(ImageButton btnPrevious, ImageButton btnNext) {
         if (timelineItems == null || timelineItems.isEmpty()) {
             btnPrevious.setVisibility(View.INVISIBLE);
@@ -291,11 +375,34 @@ public class PhotoDetailFragment extends DialogFragment {
         timelineItem = timelineItems.get(currentPosition);
 
         // 업스케일 상태 리셋
+        resetUpscaleState();
+
+        // UI 업데이트
+        updateCurrentPhoto();
+    }
+
+    private void navigateToNext() {
+        if (timelineItems == null || currentPosition >= timelineItems.size() - 1) {
+            return;
+        }
+
+        currentPosition++;
+        timelineItem = timelineItems.get(currentPosition);
+
+        // 업스케일 상태 리셋
+        resetUpscaleState();
+
+        // UI 업데이트
+        updateCurrentPhoto();
+    }
+
+    private void resetUpscaleState() {
         isUpscaled = false;
         originalBitmap = null;
         upscaledBitmap = null;
+    }
 
-        // UI 업데이트
+    private void updateCurrentPhoto() {
         View view = getView();
         if (view != null) {
             // 위치 정보 직접 설정 확인
@@ -320,23 +427,6 @@ public class PhotoDetailFragment extends DialogFragment {
                     view.findViewById(R.id.btnNext)
             );
         }
-    }
-
-    private void navigateToNext() {
-        if (timelineItems == null || currentPosition >= timelineItems.size() - 1) {
-            return;
-        }
-
-        currentPosition++;
-        timelineItem = timelineItems.get(currentPosition);
-
-        // 업스케일 상태 리셋
-        isUpscaled = false;
-        originalBitmap = null;
-        upscaledBitmap = null;
-
-        // UI 업데이트
-        updateNavigationUI();
     }
 
     private void updateNavigationUI() {

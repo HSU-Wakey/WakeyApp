@@ -23,7 +23,16 @@ public class ESRGANUpscaler {
     }
 
     public Bitmap upscale(Bitmap input) {
-        Bitmap resized = Bitmap.createScaledBitmap(input, 128, 128, true); // 입력 사이즈 맞춤
+        // 원본 크기와 비율 저장
+        int originalWidth = input.getWidth();
+        int originalHeight = input.getHeight();
+        float aspectRatio = (float) originalWidth / originalHeight;
+
+        Log.d(TAG, "📐 원본 크기: " + originalWidth + "x" + originalHeight +
+                ", 비율: " + String.format("%.2f", aspectRatio));
+
+        // 모델은 128x128 고정 입력 요구
+        Bitmap resized = Bitmap.createScaledBitmap(input, 128, 128, true);
         Log.d(TAG, "📏 입력 이미지 리사이즈 완료: " + resized.getWidth() + "x" + resized.getHeight());
 
         ByteBuffer inputBuffer = convertBitmapToByteBuffer(resized);
@@ -36,7 +45,28 @@ public class ESRGANUpscaler {
         interpreter.run(inputBuffer, outputBuffer);
         Log.d(TAG, "✅ 업스케일 완료");
 
-        return convertByteBufferToBitmap(outputBuffer, 512, 512);
+        // 모델 출력 (512x512 정사각형)
+        Bitmap modelOutput = convertByteBufferToBitmap(outputBuffer, 512, 512);
+
+        // 원본 비율로 최종 크기 계산 (4배 업스케일)
+        int finalWidth = originalWidth * 4;
+        int finalHeight = originalHeight * 4;
+
+        // 원본 비율에 맞게 최종 리사이즈
+        Bitmap finalResult = Bitmap.createScaledBitmap(modelOutput, finalWidth, finalHeight, true);
+
+        Log.d(TAG, "🎯 최종 결과: " + finalWidth + "x" + finalHeight +
+                ", 복원된 비율: " + String.format("%.2f", (float)finalWidth/finalHeight));
+
+        // 중간 결과 메모리 해제
+        if (modelOutput != finalResult) {
+            modelOutput.recycle();
+        }
+        if (resized != input) {
+            resized.recycle();
+        }
+
+        return finalResult;
     }
 
     private ByteBuffer convertBitmapToByteBuffer(Bitmap bitmap) {
@@ -76,5 +106,11 @@ public class ESRGANUpscaler {
 
         Log.d(TAG, "🖼️ 출력 이미지 생성 완료: " + width + "x" + height);
         return output;
+    }
+
+    public void close() {
+        if (interpreter != null) {
+            interpreter.close();
+        }
     }
 }
